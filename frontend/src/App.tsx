@@ -610,8 +610,11 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function submit() {
+    if (busy) return;
+    setBusy(true);
     try {
       const data = await api<{ token: string; user: User }>("/api/auth/login", {
         method: "POST",
@@ -625,6 +628,8 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
       setError("");
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -633,14 +638,20 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
       <Shield className="mb-4 text-zinc-500" />
       <h1 className="text-lg font-semibold">管理员入口</h1>
       <p className="mt-1 text-sm text-zinc-500">后台不在前台导航显示，请通过独立路径访问。</p>
-      <div className="mt-5 space-y-3">
-        <Input placeholder="管理员用户名" value={username} onChange={(e) => setUsername(e.target.value)} />
-        <Input placeholder="管理员密码" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <form
+        className="mt-5 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <Input placeholder="管理员用户名" value={username} disabled={busy} onChange={(e) => setUsername(e.target.value)} />
+        <Input placeholder="管理员密码" type="password" value={password} disabled={busy} onChange={(e) => setPassword(e.target.value)} />
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button className="w-full" onClick={submit}>
-          登录后台
+        <Button className="w-full" type="submit" disabled={busy || !username.trim() || !password}>
+          {busy ? "登录中" : "登录后台"}
         </Button>
-      </div>
+      </form>
     </section>
   );
 }
@@ -651,9 +662,12 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [resultSecret, setResultSecret] = useState("");
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const isAdmin = user.role === "admin";
 
   async function updateSecret() {
+    if (busy) return;
+    setBusy(true);
     setMessage("");
     setResultSecret("");
     setCopiedSecret(false);
@@ -671,6 +685,8 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
       setMessage(isAdmin ? "管理员密码已更新" : "助记码已更新");
     } catch (e) {
       setMessage((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -701,21 +717,30 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
           </div>
           <div className="mt-3 text-xs text-zinc-500">创建时间：{formatDate(user.createdAt)}</div>
         </aside>
-        <div className="space-y-3">
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void updateSecret();
+          }}
+        >
           <h2 className="font-semibold">{isAdmin ? "修改管理员密码" : "修改助记码"}</h2>
           <Input
             placeholder={isAdmin ? "当前管理员密码" : "当前助记码"}
             type={isAdmin ? "password" : "text"}
             value={currentSecret}
+            disabled={busy}
             onChange={(e) => setCurrentSecret(e.target.value)}
           />
           <Input
-            placeholder={isAdmin ? "新管理员密码" : "新助记码，留空则自动生成"}
+            placeholder={isAdmin ? "新管理员密码，留空则自动生成" : "新助记码，留空则自动生成"}
             type={isAdmin ? "password" : "text"}
             value={newSecret}
+            disabled={busy}
             onChange={(e) => setNewSecret(e.target.value)}
           />
-          <Button onClick={updateSecret}>保存修改</Button>
+          <p className="text-xs leading-5 text-zinc-500">手动填写的新凭据不限制长度；留空时系统会自动生成一组新的登录凭据。</p>
+          <Button type="submit" disabled={busy || !currentSecret.trim()}>{busy ? "保存中" : "保存修改"}</Button>
           {message && <p className="text-sm text-zinc-600">{message}</p>}
           {resultSecret && (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
@@ -729,7 +754,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
               <div className="mt-2 break-all font-mono text-sm text-amber-950">{resultSecret}</div>
             </div>
           )}
-        </div>
+        </form>
       </div>
     </section>
   );
@@ -1170,8 +1195,11 @@ function PasteViewer({
   const [copied, setCopied] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
+  const [unlocking, setUnlocking] = useState(false);
 
   async function unlock() {
+    if (unlocking) return;
+    setUnlocking(true);
     try {
       const unlocked = await api<Paste>(`/api/pastes/${paste.id}/unlock`, {
         method: "POST",
@@ -1181,6 +1209,8 @@ function PasteViewer({
       setError("");
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setUnlocking(false);
     }
   }
 
@@ -1198,14 +1228,20 @@ function PasteViewer({
 
   if (paste.hasPassword && !paste.content) {
     return (
-      <div className="mx-auto max-w-sm space-y-3 p-6">
+      <form
+        className="mx-auto max-w-sm space-y-3 p-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void unlock();
+        }}
+      >
         <Lock className="text-zinc-500" />
         <h2 className="font-semibold">此 Paste 需要密码</h2>
         <p className="text-sm text-zinc-500">输入访问密码后才能查看内容。</p>
-        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <Button onClick={unlock}>解锁</Button>
+        <Input type="password" value={password} disabled={unlocking} autoFocus onChange={(e) => setPassword(e.target.value)} />
+        <Button type="submit" disabled={unlocking || !password}>{unlocking ? "解锁中" : "解锁"}</Button>
         {error && <p className="text-sm text-red-600">{error}</p>}
-      </div>
+      </form>
     );
   }
 
