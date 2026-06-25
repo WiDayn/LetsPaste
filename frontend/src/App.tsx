@@ -28,7 +28,7 @@ import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState 
 import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { trapDialogTab, useDialogFocus } from "./dialogFocus";
-import { cn } from "./lib";
+import { cn, copyText, pastePermalink } from "./lib";
 
 type View = "explore" | "create" | "mine" | "account" | "admin";
 type ComposeMode = "write" | "split" | "preview";
@@ -115,10 +115,6 @@ function viewRoute(view: View): AppRoute {
 function pasteRoute(id: string, targetView: View): AppRoute {
   const view = targetView === "mine" ? "mine" : "explore";
   return { app: "letspaste", view, pasteId: id, targetView: view };
-}
-
-function pastePermalink(id: string) {
-  return new URL(routePath(pasteRoute(id, "explore")), window.location.origin).toString();
 }
 
 const languages = [
@@ -2555,31 +2551,4 @@ function formatViews(value: number) {
 function isExpired(value?: string | null) {
   if (!value) return false;
   return new Date(value).getTime() <= Date.now();
-}
-
-async function copyText(value: string) {
-  if (!value) return false;
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(value);
-      return true;
-    } catch {
-      // Fall back for embedded browsers or restrictive clipboard permissions.
-    }
-  }
-  const textarea = document.createElement("textarea");
-  textarea.value = value;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  try {
-    return document.execCommand("copy");
-  } catch {
-    return false;
-  } finally {
-    document.body.removeChild(textarea);
-  }
 }

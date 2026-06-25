@@ -1,5 +1,7 @@
 import {
+  Check,
   Clock,
+  Copy,
   Database,
   Eye,
   FileText,
@@ -18,7 +20,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { trapDialogTab, useDialogFocus } from "./dialogFocus";
-import { cn } from "./lib";
+import { cn, copyText, pastePermalink } from "./lib";
 
 type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
@@ -803,16 +805,72 @@ function AdminPasteTable({
   const emptyTitle = loading ? "正在加载 Paste..." : filtersActive ? "没有符合筛选的 Paste" : "还没有 Paste";
   const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部 Paste 列表。" : "新建 Paste 后会出现在这里。";
   const [visibleCount, setVisibleCount] = useState(adminTableBatchSize);
+  const [copyingPasteId, setCopyingPasteId] = useState<string | null>(null);
+  const [copiedPasteId, setCopiedPasteId] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+  const copyInFlightRef = useRef(false);
+  const copyRequestId = useRef(0);
+  const copyResetTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     setVisibleCount(adminTableBatchSize);
   }, [pastes]);
 
+  useEffect(() => {
+    return () => {
+      copyRequestId.current += 1;
+      copyInFlightRef.current = false;
+      if (copyResetTimeoutRef.current) window.clearTimeout(copyResetTimeoutRef.current);
+    };
+  }, []);
+
   const visiblePastes = pastes.slice(0, visibleCount);
   const hiddenCount = pastes.length - visiblePastes.length;
+  const copyBusy = Boolean(copyingPasteId);
+
+  function scheduleCopyReset(pasteId: string) {
+    if (copyResetTimeoutRef.current) window.clearTimeout(copyResetTimeoutRef.current);
+    copyResetTimeoutRef.current = window.setTimeout(() => {
+      setCopiedPasteId((current) => (current === pasteId ? null : current));
+      setCopyFeedback((current) => (current?.tone === "success" ? null : current));
+      copyResetTimeoutRef.current = null;
+    }, 1600);
+  }
+
+  async function copyPasteLink(paste: Paste) {
+    if (copyInFlightRef.current) return;
+    copyInFlightRef.current = true;
+    const requestId = ++copyRequestId.current;
+    setCopyingPasteId(paste.id);
+    setCopyFeedback(null);
+    try {
+      if (await copyText(pastePermalink(paste.id))) {
+        if (requestId !== copyRequestId.current) return;
+        setCopiedPasteId(paste.id);
+        setCopyFeedback({ message: `已复制「${paste.title}」链接。`, tone: "success" });
+        scheduleCopyReset(paste.id);
+        return;
+      }
+      if (requestId !== copyRequestId.current) return;
+      setCopyFeedback({ message: `复制「${paste.title}」链接失败，请打开后复制。`, tone: "error" });
+    } finally {
+      if (requestId === copyRequestId.current) {
+        copyInFlightRef.current = false;
+        setCopyingPasteId(null);
+      }
+    }
+  }
 
   return (
     <div className="overflow-x-auto">
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {copyFeedback?.message ?? ""}
+      </span>
+      {copyFeedback?.tone === "error" && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="alert">
+          {copyFeedback.message}
+        </div>
+      )}
       <table className="w-full min-w-[880px] text-left text-sm">
         <caption className="sr-only">后台 Paste 列表</caption>
         <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
@@ -867,10 +925,23 @@ function AdminPasteTable({
                 <td className="px-4 py-3">{paste.views}</td>
                 <td className="px-4 py-3 text-zinc-500">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</td>
                 <td className="px-4 py-3">
-                  <Button variant="danger" size="sm" aria-label={`删除 Paste ${paste.title}`} onClick={() => onDelete(paste)}>
-                    <Trash2 size={14} />
-                    删除
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={`复制 Paste ${paste.title} 链接`}
+                      aria-busy={copyingPasteId === paste.id || undefined}
+                      disabled={copyBusy}
+                      onClick={() => void copyPasteLink(paste)}
+                    >
+                      {copiedPasteId === paste.id ? <Check size={14} /> : <Copy size={14} />}
+                      {copyingPasteId === paste.id ? "复制中" : copiedPasteId === paste.id ? "已复制" : "复制链接"}
+                    </Button>
+                    <Button variant="danger" size="sm" aria-label={`删除 Paste ${paste.title}`} onClick={() => onDelete(paste)}>
+                      <Trash2 size={14} />
+                      删除
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))
