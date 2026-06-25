@@ -813,6 +813,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const copiedMnemonic = useTransientFlag();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const authSubmitInFlightRef = useRef(false);
   const mnemonicCopyStatus = useTransientStatus();
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
   const authDescriptionId = "auth-dialog-description";
@@ -827,7 +828,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   useBeforeUnloadWarning(generatedMnemonicUnsaved);
 
   async function submit() {
-    if (busy) return;
+    if (busy || authSubmitInFlightRef.current) return;
     if (generatedMnemonic) {
       closeDialog();
       return;
@@ -837,6 +838,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       window.setTimeout(() => document.getElementById(mnemonicInputId)?.focus(), 0);
       return;
     }
+    authSubmitInFlightRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -859,6 +861,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      authSubmitInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -1020,7 +1023,11 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 <Button type="button" variant="ghost" onClick={closeDialog} disabled={busy}>
                   {generatedMnemonic ? "关闭" : "取消"}
                 </Button>
-                <Button type="submit" disabled={busy || (Boolean(generatedMnemonic) && !mnemonicSaved)}>
+                <Button
+                  type="submit"
+                  disabled={busy || (Boolean(generatedMnemonic) && !mnemonicSaved)}
+                  aria-busy={busy || undefined}
+                >
                   {busy ? "处理中" : generatedMnemonic ? "我已保存" : mode === "login" ? "登录" : "生成并登录"}
                 </Button>
               </div>
@@ -1113,6 +1120,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const adminLoginInFlightRef = useRef(false);
   const usernameInputId = "admin-login-username";
   const passwordInputId = "admin-login-password";
   const errorId = "admin-login-error";
@@ -1122,7 +1130,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
   const passwordError = error === emptyPasswordError;
 
   async function submit() {
-    if (busy) return;
+    if (busy || adminLoginInFlightRef.current) return;
     const trimmedUsername = username.trim();
     if (!trimmedUsername) {
       setError(emptyUsernameError);
@@ -1134,6 +1142,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
       window.setTimeout(() => document.getElementById(passwordInputId)?.focus(), 0);
       return;
     }
+    adminLoginInFlightRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -1150,6 +1159,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      adminLoginInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -1200,7 +1210,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
           onChange={(e) => updatePassword(e.target.value)}
         />
         {error && <p id={errorId} className="text-sm text-red-600" role="alert">{error}</p>}
-        <Button className="w-full" type="submit" disabled={busy}>
+        <Button className="w-full" type="submit" disabled={busy} aria-busy={busy || undefined}>
           {busy ? "登录中" : "登录后台"}
         </Button>
       </form>
@@ -1225,6 +1235,7 @@ function AccountPanel({
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("info");
   const [busy, setBusy] = useState(false);
+  const secretUpdateInFlightRef = useRef(false);
   const secretCopyStatus = useTransientStatus();
   const isAdmin = user.role === "admin";
   const currentSecretInputId = "account-current-secret";
@@ -1256,7 +1267,7 @@ function AccountPanel({
   }
 
   async function updateSecret() {
-    if (busy) return;
+    if (busy || secretUpdateInFlightRef.current) return;
     if (!currentSecret.trim()) {
       showErrorMessage(emptyCurrentSecretError);
       window.setTimeout(() => document.getElementById(currentSecretInputId)?.focus(), 0);
@@ -1266,6 +1277,7 @@ function AccountPanel({
       showErrorMessage("请先保存新的登录凭据，再继续修改。");
       return;
     }
+    secretUpdateInFlightRef.current = true;
     setBusy(true);
     clearAccountMessage();
     setResultSecret("");
@@ -1289,6 +1301,7 @@ function AccountPanel({
     } catch (e) {
       showErrorMessage((e as Error).message);
     } finally {
+      secretUpdateInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -1378,7 +1391,13 @@ function AccountPanel({
             onChange={(e) => updateNewSecret(e.target.value)}
           />
           <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据会直接保存；留空时系统会自动生成一组新的登录凭据。</p>
-          <Button type="submit" disabled={busy || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
+          <Button
+            type="submit"
+            disabled={busy || (Boolean(resultSecret) && !resultSecretSaved)}
+            aria-busy={busy || undefined}
+          >
+            {busy ? "保存中" : "保存修改"}
+          </Button>
           {message && (
             <div
               id={accountMessageId}
