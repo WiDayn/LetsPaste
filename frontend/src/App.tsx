@@ -942,7 +942,7 @@ function useBeforeUnloadWarning(enabled: boolean) {
   }, [enabled]);
 }
 
-function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void; showTrigger?: boolean }) {
+function AuthDialog({ onAuth, showTrigger = true, triggerLabel = "助记码登录" }: { onAuth: (u: User) => void; showTrigger?: boolean; triggerLabel?: string }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [mnemonic, setMnemonic] = useState("");
@@ -1084,7 +1084,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       {showTrigger && (
         <Button variant="outline" onClick={() => setOpen(true)}>
           <KeyRound size={16} />
-          助记码登录
+          {triggerLabel}
         </Button>
       )}
       {open && (
@@ -1996,9 +1996,9 @@ function CreateStudio({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
             <span className="inline-flex min-w-0 items-start gap-2">
               <AlertTriangle className="mt-0.5 shrink-0" size={16} />
-              <span className="min-w-0">管理员已关闭匿名发布。你可以先编辑草稿，登录后继续发布。</span>
+              <span className="min-w-0">管理员已关闭匿名发布。你可以先编辑草稿，登录或生成助记码后继续发布。</span>
             </span>
-            <AuthDialog onAuth={onAuth} />
+            <AuthDialog onAuth={onAuth} triggerLabel="登录或生成助记码" />
           </div>
         )}
         <div className="flex min-h-0 flex-1 flex-col p-4">
