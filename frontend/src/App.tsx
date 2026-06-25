@@ -38,13 +38,32 @@ type AppRoute = {
 };
 
 const routeViews: View[] = ["explore", "create", "mine", "account", "admin"];
+const appBasePath = normalizeBasePath(import.meta.env.BASE_URL);
+
+function normalizeBasePath(base: string) {
+  const pathname = new URL(base || "/", window.location.origin).pathname;
+  const normalized = pathname.replace(/\/+$/, "");
+  return normalized === "" ? "" : normalized;
+}
+
+function stripBasePath(pathname: string) {
+  if (!appBasePath) return pathname;
+  if (pathname === appBasePath) return "/";
+  return pathname.startsWith(`${appBasePath}/`) ? pathname.slice(appBasePath.length) || "/" : pathname;
+}
+
+function withBasePath(pathname: string) {
+  if (!appBasePath) return pathname;
+  if (pathname === "/") return `${appBasePath}/`;
+  return `${appBasePath}${pathname}`;
+}
 
 function isView(value: unknown): value is View {
   return typeof value === "string" && routeViews.includes(value as View);
 }
 
 function routeFromLocation(): AppRoute {
-  const id = window.location.pathname.split("/").filter(Boolean)[0];
+  const id = stripBasePath(window.location.pathname).split("/").filter(Boolean)[0];
   if (id === "admin") return { app: "letspaste", view: "admin" };
   if (id) return { app: "letspaste", view: "explore", pasteId: id, targetView: "explore" };
   return { app: "letspaste", view: "explore" };
@@ -73,9 +92,9 @@ function currentRoute(): AppRoute {
 }
 
 function routePath(route: AppRoute) {
-  if (route.pasteId) return `/${encodeURIComponent(route.pasteId)}`;
-  if (route.view === "admin") return "/admin";
-  return "/";
+  if (route.pasteId) return withBasePath(`/${encodeURIComponent(route.pasteId)}`);
+  if (route.view === "admin") return withBasePath("/admin");
+  return withBasePath("/");
 }
 
 function writeRoute(route: AppRoute, mode: "push" | "replace" = "push") {
@@ -94,6 +113,10 @@ function viewRoute(view: View): AppRoute {
 function pasteRoute(id: string, targetView: View): AppRoute {
   const view = targetView === "mine" ? "mine" : "explore";
   return { app: "letspaste", view, pasteId: id, targetView: view };
+}
+
+function pastePermalink(id: string) {
+  return new URL(routePath(pasteRoute(id, "explore")), window.location.origin).toString();
 }
 
 const languages = [
@@ -1547,7 +1570,7 @@ function PasteIndex({
               <Badge>{paste.language}</Badge>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-              <span>{paste.views} views</span>
+              <span>{formatViews(paste.views)}</span>
               {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
             </div>
             <div className="mt-2 flex flex-wrap gap-1">
@@ -1619,7 +1642,7 @@ function InsightRow({ title, paste, opening, onOpen }: { title: string; paste: P
       <div className="font-medium">{paste.title}</div>
       <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
         <Badge>{paste.language}</Badge>
-        <span>{paste.views} views</span>
+        <span>{formatViews(paste.views)}</span>
         <span>{formatDate(paste.createdAt)}</span>
       </div>
       {opening && <div className="mt-3 text-xs font-medium text-sky-700">正在打开...</div>}
@@ -1684,7 +1707,7 @@ function PasteViewer({
   }
 
   async function copyLink() {
-    if (await copyText(`${window.location.origin}/${paste.id}`)) {
+    if (await copyText(pastePermalink(paste.id))) {
       setCopied(true);
       setCopyError("");
       window.setTimeout(() => setCopied(false), 1400);
@@ -1779,7 +1802,7 @@ function PasteViewer({
             <h2 className="break-all text-lg font-semibold">{paste.title}</h2>
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
               <span>{paste.id}</span>
-              <span>{paste.views} views</span>
+              <span>{formatViews(paste.views)}</span>
               <span>{formatDate(paste.createdAt)}</span>
               {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
             </div>
@@ -1870,6 +1893,10 @@ function formatDate(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString();
+}
+
+function formatViews(value: number) {
+  return `${value} 次访问`;
 }
 
 function isExpired(value?: string | null) {
