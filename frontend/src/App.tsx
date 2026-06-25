@@ -678,6 +678,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const authErrorId = "auth-dialog-error";
   const mnemonicInputId = "auth-dialog-mnemonic";
   const mnemonicSavedId = "auth-dialog-mnemonic-saved";
+  const emptyMnemonicError = "请输入助记码。";
   const title = generatedMnemonic ? "保存助记码" : mode === "login" ? "助记码登录" : "生成助记码";
   const loginError = Boolean(error) && mode === "login" && !generatedMnemonic;
 
@@ -685,6 +686,11 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
     if (busy) return;
     if (generatedMnemonic) {
       closeDialog();
+      return;
+    }
+    if (mode === "login" && !mnemonic.trim()) {
+      setError(emptyMnemonicError);
+      window.setTimeout(() => document.getElementById(mnemonicInputId)?.focus(), 0);
       return;
     }
     setBusy(true);
@@ -858,7 +864,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 <Button type="button" variant="ghost" onClick={closeDialog} disabled={busy}>
                   {generatedMnemonic ? "关闭" : "取消"}
                 </Button>
-                <Button type="submit" disabled={busy || (mode === "login" && !mnemonic.trim()) || (Boolean(generatedMnemonic) && !mnemonicSaved)}>
+                <Button type="submit" disabled={busy || (Boolean(generatedMnemonic) && !mnemonicSaved)}>
                   {busy ? "处理中" : generatedMnemonic ? "我已保存" : mode === "login" ? "登录" : "生成并登录"}
                 </Button>
               </div>
@@ -951,15 +957,33 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const usernameInputId = "admin-login-username";
+  const passwordInputId = "admin-login-password";
+  const errorId = "admin-login-error";
+  const emptyUsernameError = "请输入管理员用户名。";
+  const emptyPasswordError = "请输入管理员密码。";
+  const usernameError = error === emptyUsernameError;
+  const passwordError = error === emptyPasswordError;
 
   async function submit() {
     if (busy) return;
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setError(emptyUsernameError);
+      window.setTimeout(() => document.getElementById(usernameInputId)?.focus(), 0);
+      return;
+    }
+    if (!password) {
+      setError(emptyPasswordError);
+      window.setTimeout(() => document.getElementById(passwordInputId)?.focus(), 0);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const data = await api<{ token: string; user: User }>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: trimmedUsername, password }),
       });
       if (data.user.role !== "admin") {
         throw new Error("需要管理员权限");
@@ -996,10 +1020,31 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
           void submit();
         }}
       >
-        <Input aria-label="管理员用户名" placeholder="管理员用户名" value={username} disabled={busy} onChange={(e) => updateUsername(e.target.value)} />
-        <Input aria-label="管理员密码" placeholder="管理员密码" type="password" value={password} disabled={busy} onChange={(e) => updatePassword(e.target.value)} />
-        {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
-        <Button className="w-full" type="submit" disabled={busy || !username.trim() || !password}>
+        <Input
+          id={usernameInputId}
+          aria-label="管理员用户名"
+          aria-invalid={usernameError || undefined}
+          aria-describedby={usernameError ? errorId : undefined}
+          className={cn(usernameError && "border-red-300 bg-red-50")}
+          placeholder="管理员用户名"
+          value={username}
+          disabled={busy}
+          onChange={(e) => updateUsername(e.target.value)}
+        />
+        <Input
+          id={passwordInputId}
+          aria-label="管理员密码"
+          aria-invalid={passwordError || undefined}
+          aria-describedby={passwordError ? errorId : undefined}
+          className={cn(passwordError && "border-red-300 bg-red-50")}
+          placeholder="管理员密码"
+          type="password"
+          value={password}
+          disabled={busy}
+          onChange={(e) => updatePassword(e.target.value)}
+        />
+        {error && <p id={errorId} className="text-sm text-red-600" role="alert">{error}</p>}
+        <Button className="w-full" type="submit" disabled={busy}>
           {busy ? "登录中" : "登录后台"}
         </Button>
       </form>
@@ -1017,6 +1062,11 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [messageTone, setMessageTone] = useState<"info" | "error">("info");
   const [busy, setBusy] = useState(false);
   const isAdmin = user.role === "admin";
+  const currentSecretInputId = "account-current-secret";
+  const newSecretInputId = "account-new-secret";
+  const accountMessageId = "account-secret-message";
+  const emptyCurrentSecretError = isAdmin ? "请输入当前管理员密码。" : "请输入当前助记码。";
+  const currentSecretError = messageTone === "error" && (message === emptyCurrentSecretError || message === "当前密钥不正确");
 
   function showInfo(text: string) {
     setMessageTone("info");
@@ -1034,6 +1084,11 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
 
   async function updateSecret() {
     if (busy) return;
+    if (!currentSecret.trim()) {
+      showErrorMessage(emptyCurrentSecretError);
+      window.setTimeout(() => document.getElementById(currentSecretInputId)?.focus(), 0);
+      return;
+    }
     if (resultSecret && !resultSecretSaved) {
       showErrorMessage("请先保存新的登录凭据，再继续修改。");
       return;
@@ -1126,7 +1181,11 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
         >
           <h2 className="font-semibold">{isAdmin ? "修改管理员密码" : "修改助记码"}</h2>
           <Input
+            id={currentSecretInputId}
             aria-label={isAdmin ? "当前管理员密码" : "当前助记码"}
+            aria-invalid={currentSecretError || undefined}
+            aria-describedby={currentSecretError ? accountMessageId : undefined}
+            className={cn(currentSecretError && "border-red-300 bg-red-50")}
             placeholder={isAdmin ? "当前管理员密码" : "当前助记码"}
             type={isAdmin ? "password" : "text"}
             value={currentSecret}
@@ -1134,6 +1193,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             onChange={(e) => updateCurrentSecret(e.target.value)}
           />
           <Input
+            id={newSecretInputId}
             aria-label={isAdmin ? "新管理员密码" : "新助记码"}
             placeholder={isAdmin ? "新管理员密码，留空则自动生成" : "新助记码，留空则自动生成"}
             type={isAdmin ? "password" : "text"}
@@ -1142,9 +1202,10 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             onChange={(e) => updateNewSecret(e.target.value)}
           />
           <p className="text-xs leading-5 text-zinc-500">手动输入时不设最短长度；留空时系统会自动生成一组新的登录凭据。</p>
-          <Button type="submit" disabled={busy || !currentSecret.trim() || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
+          <Button type="submit" disabled={busy || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
           {message && (
             <div
+              id={accountMessageId}
               className={cn(
                 "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
                 messageTone === "info" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-900",
@@ -1948,6 +2009,7 @@ function PasteViewer({
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
   const passwordErrorId = `paste-password-error-${paste.id}`;
+  const emptyPasswordError = "请输入访问密码。";
 
   useEffect(() => {
     unlockRequestId.current += 1;
@@ -1962,6 +2024,11 @@ function PasteViewer({
 
   async function unlock() {
     if (unlocking) return;
+    if (!password) {
+      setError(emptyPasswordError);
+      window.setTimeout(() => document.getElementById(passwordInputId)?.focus(), 0);
+      return;
+    }
     const requestId = ++unlockRequestId.current;
     setUnlocking(true);
     try {
@@ -2061,7 +2128,7 @@ function PasteViewer({
               密码不会保存到浏览器，解锁后仅显示当前 Paste 内容。
             </p>
           </div>
-          <Button type="submit" disabled={unlocking || !password}>{unlocking ? "解锁中" : "解锁"}</Button>
+          <Button type="submit" disabled={unlocking}>{unlocking ? "解锁中" : "解锁"}</Button>
           {error && <p id={passwordErrorId} className="text-sm text-red-600" role="alert">{error}</p>}
         </div>
       </form>
