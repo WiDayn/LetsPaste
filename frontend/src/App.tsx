@@ -1,6 +1,8 @@
 import {
   AlertTriangle,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Code2,
   Columns2,
@@ -2304,6 +2306,9 @@ function PasteWorkspace({
       ? "lg:grid-cols-[minmax(0,1fr)]"
       : "lg:grid-cols-[280px_minmax(0,1fr)]"
     : "lg:grid-cols-[320px_minmax(0,1fr)]";
+  const selectedIndex = selected ? filtered.findIndex((paste) => paste.id === selected.id) : -1;
+  const previousPaste = selectedIndex > 0 ? filtered[selectedIndex - 1] : null;
+  const nextPaste = selectedIndex >= 0 && selectedIndex < filtered.length - 1 ? filtered[selectedIndex + 1] : null;
 
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -2416,6 +2421,10 @@ function PasteWorkspace({
             <PasteViewer
               paste={selected}
               justCreated={Boolean(justCreated)}
+              previousPaste={previousPaste}
+              nextPaste={nextPaste}
+              openingPasteId={openingPasteId}
+              onOpenAdjacent={onOpen}
               onUnlocked={onUnlocked}
               onClose={onClose}
             />
@@ -2667,14 +2676,62 @@ function InsightRow({ title, paste, opening, onOpen }: { title: string; paste: P
   );
 }
 
+function PasteAdjacentNav({
+  previousPaste,
+  nextPaste,
+  openingPasteId,
+  onOpen,
+}: {
+  previousPaste?: Paste | null;
+  nextPaste?: Paste | null;
+  openingPasteId?: string | null;
+  onOpen: (paste: Paste) => void;
+}) {
+  if (!previousPaste && !nextPaste) return null;
+  const opening = Boolean(openingPasteId);
+
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label="相邻 Paste 导航">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!previousPaste || opening}
+        aria-label={previousPaste ? `打开上一条 Paste：${previousPaste.title}` : "没有上一条 Paste"}
+        onClick={() => previousPaste && onOpen(previousPaste)}
+      >
+        <ChevronLeft size={14} />
+        上一条
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!nextPaste || opening}
+        aria-label={nextPaste ? `打开下一条 Paste：${nextPaste.title}` : "没有下一条 Paste"}
+        onClick={() => nextPaste && onOpen(nextPaste)}
+      >
+        下一条
+        <ChevronRight size={14} />
+      </Button>
+    </div>
+  );
+}
+
 function PasteViewer({
   paste,
   justCreated = false,
+  previousPaste,
+  nextPaste,
+  openingPasteId,
+  onOpenAdjacent,
   onUnlocked,
   onClose,
 }: {
   paste: Paste;
   justCreated?: boolean;
+  previousPaste?: Paste | null;
+  nextPaste?: Paste | null;
+  openingPasteId?: string | null;
+  onOpenAdjacent: (paste: Paste) => void;
   onUnlocked: (p: Paste) => void;
   onClose: () => void;
 }) {
@@ -2909,7 +2966,8 @@ function PasteViewer({
           void unlock();
         }}
       >
-        <div className="mb-4 flex flex-wrap justify-end gap-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <PasteAdjacentNav previousPaste={previousPaste} nextPaste={nextPaste} openingPasteId={openingPasteId} onOpen={onOpenAdjacent} />
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             <PanelLeftClose size={14} />
             返回列表
@@ -2989,6 +3047,7 @@ function PasteViewer({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+            <PasteAdjacentNav previousPaste={previousPaste} nextPaste={nextPaste} openingPasteId={openingPasteId} onOpen={onOpenAdjacent} />
             {paste.format === "markdown" && (
               <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="Markdown 显示模式">
                 <ComposeModeButton active={markdownMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => setMarkdownMode("preview")} />
