@@ -103,6 +103,7 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(a.requireAuth)
 		r.Get("/api/me", a.me)
+		r.Put("/api/me/secret", a.updateMySecret)
 		r.Get("/api/my/pastes", a.myPastes)
 	})
 
@@ -188,39 +189,52 @@ func (a *app) ensureAdmin() error {
 
 func (a *app) register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Mnemonic string `json:"mnemonic"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	req.Username = strings.TrimSpace(req.Username)
-	if len(req.Username) < 3 || len(req.Password) < 8 {
-		errorJSON(w, http.StatusBadRequest, "用户名至少 3 位，密码至少 8 位")
+	mnemonic := normalizeSecret(req.Mnemonic)
+	if mnemonic == "" {
+		mnemonic = generateMnemonic()
+	}
+	if len(mnemonic) < 16 {
+		errorJSON(w, http.StatusBadRequest, "助记码至少 16 个字符")
 		return
 	}
-	hash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	res, err := a.db.Exec(`INSERT INTO users(username, password_hash, role) VALUES(?, ?, 'user')`, req.Username, string(hash))
+	hash, _ := bcrypt.GenerateFromPassword([]byte(mnemonic), bcrypt.DefaultCost)
+	username := "user-" + randomID(3)
+	res, err := a.db.Exec(`INSERT INTO users(username, password_hash, role) VALUES(?, ?, 'user')`, username, string(hash))
 	if err != nil {
-		errorJSON(w, http.StatusConflict, "用户名已存在")
+		errorJSON(w, http.StatusInternalServerError, "注册失败")
 		return
 	}
 	id, _ := res.LastInsertId()
-	token, _ := a.token(id, req.Username, "user")
-	writeJSON(w, http.StatusCreated, map[string]any{"token": token, "user": user{ID: id, Username: req.Username, Role: "user"}})
+	token, _ := a.token(id, username, "user")
+	writeJSON(w, http.StatusCreated, map[string]any{"token": token, "mnemonic": mnemonic, "user": user{ID: id, Username: username, Role: "user"}})
 }
 
 func (a *app) login(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Mnemonic string `json:"mnemonic"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	u, err := a.findUser(req.Username)
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password)) != nil {
-		errorJSON(w, http.StatusUnauthorized, "用户名或密码错误")
+	var u *user
+	var err error
+	if req.Mnemonic != "" {
+		u, err = a.findUserBySecret(normalizeSecret(req.Mnemonic), false)
+	} else {
+		u, err = a.findUser(req.Username)
+		if err == nil && bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password)) != nil {
+			err = errors.New("invalid secret")
+		}
+	}
+	if err != nil {
+		errorJSON(w, http.StatusUnauthorized, "登录凭据无效")
 		return
 	}
 	token, _ := a.token(u.ID, u.Username, u.Role)
@@ -229,7 +243,49 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) me(w http.ResponseWriter, r *http.Request) {
 	u, _ := currentUser(r)
+	if fresh, err := a.findUserByID(u.ID); err == nil {
+		u = fresh
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"user": u})
+}
+
+func (a *app) updateMySecret(w http.ResponseWriter, r *http.Request) {
+	current, _ := currentUser(r)
+	u, err := a.findUserByID(current.ID)
+	if err != nil {
+		errorJSON(w, http.StatusNotFound, "用户不存在")
+		return
+	}
+	var req struct {
+		CurrentSecret string `json:"currentSecret"`
+		NewSecret     string `json:"newSecret"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	currentSecret := normalizeSecret(req.CurrentSecret)
+	newSecret := normalizeSecret(req.NewSecret)
+	if newSecret == "" {
+		newSecret = generateMnemonic()
+	}
+	if len(newSecret) < 16 {
+		errorJSON(w, http.StatusBadRequest, "新密钥至少 16 个字符")
+		return
+	}
+	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(currentSecret)) != nil {
+		errorJSON(w, http.StatusUnauthorized, "当前密钥不正确")
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newSecret), bcrypt.DefaultCost)
+	if err != nil {
+		errorJSON(w, http.StatusInternalServerError, "更新失败")
+		return
+	}
+	if _, err := a.db.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, string(hash), u.ID); err != nil {
+		errorJSON(w, http.StatusInternalServerError, "更新失败")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"mnemonic": newSecret})
 }
 
 func (a *app) publicSettings(w http.ResponseWriter, r *http.Request) {
@@ -640,6 +696,37 @@ func (a *app) findUser(username string) (*user, error) {
 	return u, err
 }
 
+func (a *app) findUserByID(id int64) (*user, error) {
+	u := &user{}
+	err := a.db.QueryRow(`SELECT id, username, password_hash, role, created_at FROM users WHERE id = ?`, id).
+		Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt)
+	return u, err
+}
+
+func (a *app) findUserBySecret(secret string, includeAdmins bool) (*user, error) {
+	if secret == "" {
+		return nil, errors.New("missing secret")
+	}
+	rows, err := a.db.Query(`SELECT id, username, password_hash, role, created_at FROM users ORDER BY id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var u user
+		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		if !includeAdmins && u.Role == "admin" {
+			continue
+		}
+		if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(secret)) == nil {
+			return &u, nil
+		}
+	}
+	return nil, errors.New("invalid secret")
+}
+
 func (a *app) token(id int64, username, role string) (string, error) {
 	c := claims{UserID: id, Username: username, Role: role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour))}}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, c).SignedString(a.jwtSecret)
@@ -782,6 +869,30 @@ func randomID(n int) string {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b)
+}
+
+var mnemonicWords = []string{
+	"river", "stone", "maple", "silver", "harbor", "cloud", "ember", "north",
+	"paper", "orbit", "field", "signal", "copper", "meadow", "summit", "lantern",
+	"forest", "anchor", "bright", "violet", "pencil", "canyon", "winter", "rocket",
+	"garden", "velvet", "island", "window", "planet", "breeze", "coral", "metric",
+}
+
+func generateMnemonic() string {
+	words := make([]string, 6)
+	for i := range words {
+		b := []byte{0}
+		if _, err := rand.Read(b); err != nil {
+			words[i] = mnemonicWords[(time.Now().Nanosecond()+i)%len(mnemonicWords)]
+			continue
+		}
+		words[i] = mnemonicWords[int(b[0])%len(mnemonicWords)]
+	}
+	return strings.Join(words, "-")
+}
+
+func normalizeSecret(secret string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(secret)), "-")
 }
 
 func dirExists(path string) bool {

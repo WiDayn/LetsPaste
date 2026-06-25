@@ -70,3 +70,31 @@ pre code.hljs {
   background: #ecece7;
   padding: 0.1rem 0.3rem;
 }
+
+.markdown-body table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin: 1rem 0;
+  font-size: 0.92rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #d4d4d8;
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-body th {
+  background: #f4f4f5;
+  font-weight: 650;
+}
+
+.markdown-body tbody tr:nth-child(even) {
+  background: #fafafa;
+}

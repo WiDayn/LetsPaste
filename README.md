@@ -1,6 +1,6 @@
 # LetsPaste
 
-LetsPaste 是一个基于 Go + React 的 Pastebin 程序，支持注册登录、后台开关匿名 Paste、代码高亮、Markdown、访问密码、阅后即焚、自动过期销毁，以及管理员管理用户和所有 Paste。
+LetsPaste 是一个基于 Go + React 的 Pastebin 程序，支持助记码登录、后台开关匿名 Paste、代码高亮、Markdown、访问密码、阅后即焚、自动过期销毁，以及管理员管理用户和所有 Paste。
 
 ## Docker 一键部署
 
@@ -21,7 +21,15 @@ http://localhost:8088
 admin / changeme123
 ```
 
+后台入口：
+
+```text
+http://localhost:8088/admin
+```
+
 生产环境请务必修改 `JWT_SECRET` 和 `ADMIN_PASSWORD`。
+
+普通用户无需用户名和密码。前台点击“助记码登录”后可以生成助记码，助记码就是后续登录凭据，请妥善保存。登录后可在“用户信息”里修改助记码；管理员可在同一页面修改管理员密码。
 
 也可以直接拉取单镜像运行：
 
@@ -96,6 +104,8 @@ Vite 开发服务器会把 `/api` 代理到 `http://localhost:8080`。
 ## 功能
 
 - 用户注册、登录、JWT 鉴权
+- 普通用户助记码登录
+- 独立 `/admin` 后台入口
 - 管理员初始化、用户管理、Paste 管理
 - 后台开关匿名 Paste
 - 公开 Paste、私密 Paste、我的 Paste

@@ -30,7 +30,7 @@ import { api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { cn } from "./lib";
 
-type View = "explore" | "create" | "mine" | "admin";
+type View = "explore" | "create" | "mine" | "account" | "admin";
 type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
 
@@ -150,22 +150,21 @@ export function App() {
   useEffect(() => {
     api<SiteSettings>("/api/settings").then(setSettings).catch(() => {});
     api<{ user: User }>("/api/me").then((r) => setUser(r.user)).catch(() => {});
+    const id = window.location.pathname.split("/").filter(Boolean)[0];
+    if (id === "admin") {
+      setView("admin");
+    } else if (id) {
+      openPaste(id, false);
+    }
   }, []);
 
   useEffect(() => {
     refreshList();
   }, [view]);
 
-  useEffect(() => {
-    const id = window.location.pathname.split("/").filter(Boolean)[0];
-    if (id && id !== "admin") {
-      openPaste(id, false);
-    }
-  }, []);
-
   async function refreshList() {
     try {
-      if (view === "admin" || view === "create") return;
+      if (view === "admin" || view === "account" || view === "create") return;
       const data =
         view === "mine"
           ? ((await api<Paste[]>("/api/my/pastes")) ?? [])
@@ -204,6 +203,10 @@ export function App() {
   function changeView(next: View) {
     setView(next);
     setMessage("");
+    if (next === "admin") {
+      window.history.replaceState(null, "", "/admin");
+      return;
+    }
     if (next !== "explore") window.history.replaceState(null, "", "/");
   }
 
@@ -231,10 +234,9 @@ export function App() {
             <NavButton active={view === "explore"} onClick={() => changeView("explore")} icon={<Globe2 size={16} />} label="公开库" />
             <NavButton active={view === "create"} onClick={() => changeView("create")} icon={<Plus size={16} />} label="创建" />
             {user && <NavButton active={view === "mine"} onClick={() => changeView("mine")} icon={<UserRound size={16} />} label="我的" />}
-            {isAdmin && <NavButton active={view === "admin"} onClick={() => changeView("admin")} icon={<Shield size={16} />} label="后台" />}
             {user ? (
-              <Button variant="outline" onClick={logout}>
-                <LogOut size={16} />
+              <Button variant={view === "account" ? "default" : "outline"} onClick={() => changeView("account")}>
+                <UserRound size={16} />
                 {user.username}
               </Button>
             ) : (
@@ -271,8 +273,9 @@ export function App() {
           <PasteWorkspace title="我的 Paste" pastes={pastes} selected={selected} onOpen={openPaste} onUnlocked={setSelected} onCreate={() => changeView("create")} privateMode />
         )}
 
+        {view === "account" && user && <AccountPanel user={user} onLogout={logout} />}
         {view === "admin" && isAdmin && <AdminConsole settings={settings} setSettings={setSettings} onOpen={openPaste} />}
-        {view === "admin" && !isAdmin && <AccessPanel />}
+        {view === "admin" && !isAdmin && <AdminGate onAuth={setUser} />}
       </main>
     </div>
   );
@@ -290,19 +293,24 @@ function NavButton({ active, icon, label, onClick }: { active: boolean; icon: Re
 function AuthDialog({ onAuth }: { onAuth: (u: User) => void }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [mnemonic, setMnemonic] = useState("");
+  const [generatedMnemonic, setGeneratedMnemonic] = useState("");
   const [error, setError] = useState("");
 
   async function submit() {
     try {
-      const data = await api<{ token: string; user: User }>(`/api/auth/${mode}`, {
+      const data = await api<{ token: string; user: User; mnemonic?: string }>(`/api/auth/${mode}`, {
         method: "POST",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(mode === "login" ? { mnemonic } : {}),
       });
       localStorage.setItem("letspaste_token", data.token);
       onAuth(data.user);
-      setOpen(false);
+      if (data.mnemonic) {
+        setGeneratedMnemonic(data.mnemonic);
+        setMnemonic(data.mnemonic);
+      } else {
+        setOpen(false);
+      }
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -313,7 +321,7 @@ function AuthDialog({ onAuth }: { onAuth: (u: User) => void }) {
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
         <KeyRound size={16} />
-        登录
+        助记码登录
       </Button>
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
@@ -323,24 +331,152 @@ function AuthDialog({ onAuth }: { onAuth: (u: User) => void }) {
                 登录
               </button>
               <button className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "register" && "bg-white shadow")} onClick={() => setMode("register")}>
-                注册
+                生成助记码
               </button>
             </div>
             <div className="space-y-3">
-              <Input placeholder="用户名" value={username} onChange={(e) => setUsername(e.target.value)} />
-              <Input placeholder="密码" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              {mode === "login" ? (
+                <>
+                  <Input placeholder="输入你的助记码" value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />
+                  <p className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
+                </>
+              ) : (
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
+                  点击生成后会创建新用户，并只显示一次助记码。
+                </div>
+              )}
+              {generatedMnemonic && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <div className="text-xs font-medium text-amber-800">请立即保存助记码</div>
+                  <div className="mt-2 break-all font-mono text-sm text-amber-950">{generatedMnemonic}</div>
+                </div>
+              )}
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setOpen(false)}>
                   取消
                 </Button>
-                <Button onClick={submit}>{mode === "login" ? "登录" : "注册"}</Button>
+                <Button onClick={submit}>{mode === "login" ? "登录" : "生成并登录"}</Button>
               </div>
             </div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  async function submit() {
+    try {
+      const data = await api<{ token: string; user: User }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+      if (data.user.role !== "admin") {
+        throw new Error("需要管理员权限");
+      }
+      localStorage.setItem("letspaste_token", data.token);
+      onAuth(data.user);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-md rounded-md border border-zinc-200 bg-white p-6">
+      <Shield className="mb-4 text-zinc-500" />
+      <h1 className="text-lg font-semibold">管理员入口</h1>
+      <p className="mt-1 text-sm text-zinc-500">后台不在前台导航显示，请通过独立路径访问。</p>
+      <div className="mt-5 space-y-3">
+        <Input placeholder="管理员用户名" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <Input placeholder="管理员密码" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <Button className="w-full" onClick={submit}>
+          登录后台
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const [currentSecret, setCurrentSecret] = useState("");
+  const [newSecret, setNewSecret] = useState("");
+  const [resultSecret, setResultSecret] = useState("");
+  const [message, setMessage] = useState("");
+  const isAdmin = user.role === "admin";
+
+  async function updateSecret() {
+    setMessage("");
+    setResultSecret("");
+    try {
+      const res = await api<{ mnemonic?: string }>("/api/me/secret", {
+        method: "PUT",
+        body: JSON.stringify({ currentSecret, newSecret }),
+      });
+      if (res.mnemonic) {
+        setResultSecret(res.mnemonic);
+      }
+      setCurrentSecret("");
+      setNewSecret("");
+      setMessage(isAdmin ? "管理员密码已更新" : "助记码已更新");
+    } catch (e) {
+      setMessage((e as Error).message);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-3xl rounded-md border border-zinc-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
+        <div>
+          <h1 className="text-lg font-semibold">用户信息</h1>
+          <p className="text-sm text-zinc-500">管理当前登录凭据和会话。</p>
+        </div>
+        <Button variant="outline" onClick={onLogout}>
+          <LogOut size={16} />
+          退出登录
+        </Button>
+      </div>
+      <div className="grid gap-4 p-4 md:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm">
+          <div className="text-xs uppercase text-zinc-500">当前用户</div>
+          <div className="mt-2 font-medium">{user.username}</div>
+          <div className="mt-2">
+            <Badge tone={isAdmin ? "amber" : "neutral"}>{isAdmin ? "管理员" : "普通用户"}</Badge>
+          </div>
+          <div className="mt-3 text-xs text-zinc-500">创建时间：{formatDate(user.createdAt)}</div>
+        </aside>
+        <div className="space-y-3">
+          <h2 className="font-semibold">{isAdmin ? "修改管理员密码" : "修改助记码"}</h2>
+          <Input
+            placeholder={isAdmin ? "当前管理员密码" : "当前助记码"}
+            type={isAdmin ? "password" : "text"}
+            value={currentSecret}
+            onChange={(e) => setCurrentSecret(e.target.value)}
+          />
+          <Input
+            placeholder={isAdmin ? "新管理员密码，至少 16 个字符" : "新助记码，留空则自动生成"}
+            type={isAdmin ? "password" : "text"}
+            value={newSecret}
+            onChange={(e) => setNewSecret(e.target.value)}
+          />
+          <Button onClick={updateSecret}>保存修改</Button>
+          {message && <p className="text-sm text-zinc-600">{message}</p>}
+          {resultSecret && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+              <div className="text-xs font-medium text-amber-800">请保存新的登录凭据</div>
+              <div className="mt-2 break-all font-mono text-sm text-amber-950">{resultSecret}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -638,6 +774,7 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
 
   async function unlock() {
     try {
@@ -693,10 +830,32 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
           <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
           <Badge>{paste.language}</Badge>
           <PasteBadges paste={paste} />
+          {paste.format === "markdown" && (
+            <div className="ml-auto flex rounded-md border border-zinc-200 bg-zinc-50 p-1">
+              <button
+                className={cn("h-7 rounded px-2 text-xs", markdownMode === "preview" && "bg-white shadow")}
+                onClick={() => setMarkdownMode("preview")}
+              >
+                预览
+              </button>
+              <button
+                className={cn("h-7 rounded px-2 text-xs", markdownMode === "source" && "bg-white shadow")}
+                onClick={() => setMarkdownMode("source")}
+              >
+                源格式
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div className="max-h-[calc(100vh-15rem)] overflow-auto">
-        <PasteContent content={paste.content ?? ""} language={paste.language} format={paste.format} light />
+        {paste.format === "markdown" && markdownMode === "source" ? (
+          <pre className="m-0 min-h-full overflow-auto bg-white p-5 font-mono text-sm leading-6 text-zinc-900">
+            <code>{paste.content ?? ""}</code>
+          </pre>
+        ) : (
+          <PasteContent content={paste.content ?? ""} language={paste.language} format={paste.format} light />
+        )}
       </div>
     </article>
   );
@@ -1056,16 +1215,6 @@ function PasteBadges({ paste }: { paste: Paste }) {
       {paste.burnAfterReading && <Badge tone="red"><Flame size={12} />阅后即焚</Badge>}
       {paste.expiresAt && <Badge tone={isExpired(paste.expiresAt) ? "red" : "blue"}><Clock size={12} />{isExpired(paste.expiresAt) ? "已过期" : "会过期"}</Badge>}
     </>
-  );
-}
-
-function AccessPanel() {
-  return (
-    <div className="rounded-md border border-zinc-200 bg-white p-8 text-center">
-      <Shield className="mx-auto mb-3 text-zinc-400" />
-      <h1 className="font-semibold">需要管理员权限</h1>
-      <p className="mt-1 text-sm text-zinc-500">登录管理员账号后可以查看全站内容、用户和设置。</p>
-    </div>
   );
 }
 
