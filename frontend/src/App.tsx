@@ -137,6 +137,7 @@ const languages = [
 ];
 
 const createDraftKey = "letspaste_create_draft_v1";
+const createDraftSaveDelayMs = 500;
 const defaultCreateForm = {
   title: "",
   content: "",
@@ -1135,7 +1136,16 @@ function CreateStudio({
   ];
 
   useEffect(() => {
-    setDraftSaved(saveCreateDraft(form));
+    if (!hasCreateDraft(form)) {
+      clearCreateDraft();
+      setDraftSaved(false);
+      return;
+    }
+    setDraftSaved(false);
+    const timeout = window.setTimeout(() => {
+      setDraftSaved(saveCreateDraft(form));
+    }, createDraftSaveDelayMs);
+    return () => window.clearTimeout(timeout);
   }, [form]);
 
   function updateFormat(format: Paste["format"]) {
