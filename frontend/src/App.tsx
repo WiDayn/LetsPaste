@@ -986,17 +986,32 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [resultSecretSaved, setResultSecretSaved] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"info" | "error">("info");
   const [busy, setBusy] = useState(false);
   const isAdmin = user.role === "admin";
+
+  function showInfo(text: string) {
+    setMessageTone("info");
+    setMessage(text);
+  }
+
+  function showErrorMessage(text: string) {
+    setMessageTone("error");
+    setMessage(text);
+  }
+
+  function clearAccountMessage() {
+    setMessage("");
+  }
 
   async function updateSecret() {
     if (busy) return;
     if (resultSecret && !resultSecretSaved) {
-      setMessage("请先保存新的登录凭据，再继续修改。");
+      showErrorMessage("请先保存新的登录凭据，再继续修改。");
       return;
     }
     setBusy(true);
-    setMessage("");
+    clearAccountMessage();
     setResultSecret("");
     setResultSecretSaved(false);
     setCopiedSecret(false);
@@ -1012,9 +1027,9 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
       }
       setCurrentSecret("");
       setNewSecret("");
-      setMessage(isAdmin ? "管理员密码已更新。当前会话仍可继续使用，下次登录请使用新密码。" : "助记码已更新。当前会话仍可继续使用，下次登录请使用新助记码。");
+      showInfo(isAdmin ? "管理员密码已更新。当前会话仍可继续使用，下次登录请使用新密码。" : "助记码已更新。当前会话仍可继续使用，下次登录请使用新助记码。");
     } catch (e) {
-      setMessage((e as Error).message);
+      showErrorMessage((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -1024,23 +1039,23 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
     if (await copyText(resultSecret)) {
       setCopiedSecret(true);
       setResultSecretSaved(true);
-      setMessage("");
+      clearAccountMessage();
       window.setTimeout(() => setCopiedSecret(false), 1400);
       return;
     }
-    setMessage("复制失败，请手动选中新密钥复制。");
+    showErrorMessage("复制失败，请手动选中新密钥复制。");
   }
 
   function handleLogout() {
     if (resultSecret && !resultSecretSaved) {
-      setMessage("请先保存新的登录凭据，再退出登录。");
+      showErrorMessage("请先保存新的登录凭据，再退出登录。");
       return;
     }
     onLogout();
   }
 
   function clearEditableMessage() {
-    if (!resultSecret || resultSecretSaved) setMessage("");
+    if (!resultSecret || resultSecretSaved) clearAccountMessage();
   }
 
   function updateCurrentSecret(value: string) {
@@ -1100,7 +1115,19 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
           />
           <p className="text-xs leading-5 text-zinc-500">留空时系统会自动生成一组新的登录凭据。</p>
           <Button type="submit" disabled={busy || !currentSecret.trim() || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
-          {message && <p className="text-sm text-zinc-600" role="status" aria-live="polite">{message}</p>}
+          {message && (
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+                messageTone === "info" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-900",
+              )}
+              role={messageTone === "info" ? "status" : "alert"}
+              aria-live={messageTone === "info" ? "polite" : "assertive"}
+            >
+              {messageTone === "info" ? <Check size={16} /> : <AlertTriangle size={16} />}
+              {message}
+            </div>
+          )}
           {resultSecret && (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-center justify-between gap-3">
