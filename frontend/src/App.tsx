@@ -674,6 +674,12 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
+  const authDescriptionId = "auth-dialog-description";
+  const authErrorId = "auth-dialog-error";
+  const mnemonicInputId = "auth-dialog-mnemonic";
+  const mnemonicSavedId = "auth-dialog-mnemonic-saved";
+  const title = generatedMnemonic ? "保存助记码" : mode === "login" ? "助记码登录" : "生成助记码";
+  const loginError = Boolean(error) && mode === "login" && !generatedMnemonic;
 
   async function submit() {
     if (busy) return;
@@ -766,7 +772,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-dialog-title"
-            aria-describedby="auth-dialog-description"
+            aria-describedby={authDescriptionId}
             tabIndex={-1}
             onKeyDown={(e) => {
               if (e.key === "Escape") closeDialog();
@@ -801,22 +807,33 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
               }}
             >
               <h2 id="auth-dialog-title" className="sr-only">
-                助记码登录
+                {title}
               </h2>
               {mode === "login" ? (
                 <>
-                  <Input aria-label="助记码" placeholder="输入你的助记码" value={mnemonic} disabled={busy} autoFocus onChange={(e) => updateMnemonic(e.target.value)} />
-                  <p id="auth-dialog-description" className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
+                  <Input
+                    id={mnemonicInputId}
+                    aria-label="助记码"
+                    aria-invalid={loginError || undefined}
+                    aria-describedby={loginError ? `${authDescriptionId} ${authErrorId}` : authDescriptionId}
+                    className={cn(loginError && "border-red-300 bg-red-50")}
+                    placeholder="输入你的助记码"
+                    value={mnemonic}
+                    disabled={busy}
+                    autoFocus
+                    onChange={(e) => updateMnemonic(e.target.value)}
+                  />
+                  <p id={authDescriptionId} className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
                 </>
               ) : (
-                <div id="auth-dialog-description" className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
+                <div id={authDescriptionId} className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
                   点击生成后会创建新用户，并只显示一次助记码。
                 </div>
               )}
               {generatedMnemonic && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs font-medium text-amber-800">请立即保存助记码</div>
+                    <div className="text-xs font-medium text-amber-800" role="status" aria-live="polite">请立即保存助记码</div>
                     <Button type="button" variant="outline" size="sm" onClick={copyGeneratedMnemonic}>
                       {copiedMnemonic ? <Check size={14} /> : <Copy size={14} />}
                       {copiedMnemonic ? "已复制" : "复制"}
@@ -825,16 +842,18 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                   <div className="mt-2 break-all font-mono text-sm text-amber-950">{generatedMnemonic}</div>
                   <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
                     <input
+                      id={mnemonicSavedId}
                       className="mt-1 h-4 w-4 shrink-0"
                       type="checkbox"
                       checked={mnemonicSaved}
+                      aria-describedby={error ? authErrorId : undefined}
                       onChange={(e) => updateMnemonicSaved(e.target.checked)}
                     />
                     <span>我已经保存这组助记码，之后登录会用到它。</span>
                   </label>
                 </div>
               )}
-              {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
+              {error && <p id={authErrorId} className="text-sm text-red-600" role="alert">{error}</p>}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={closeDialog} disabled={busy}>
                   {generatedMnemonic ? "关闭" : "取消"}
