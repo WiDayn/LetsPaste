@@ -220,13 +220,15 @@ export function App() {
 
   useEffect(() => {
     api<SiteSettings>("/api/settings").then(setSettings).catch(() => {});
-    api<{ user: User }>("/api/me")
-      .then((r) => setUser(r.user))
-      .catch((e) => {
-        if (e instanceof ApiError && e.status === 401) {
-          localStorage.removeItem("letspaste_token");
-        }
-      });
+    if (localStorage.getItem("letspaste_token")) {
+      api<{ user: User }>("/api/me")
+        .then((r) => setUser(r.user))
+        .catch((e) => {
+          if (e instanceof ApiError && e.status === 401) {
+            localStorage.removeItem("letspaste_token");
+          }
+        });
+    }
     const route = currentRoute();
     writeRoute(route, "replace");
     void applyRoute(route);
