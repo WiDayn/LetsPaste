@@ -26,10 +26,124 @@ select {
   font: inherit;
 }
 
-pre code.hljs {
-  border-radius: 0;
-  padding: 1.25rem;
-  min-height: 16rem;
+.content-surface-light {
+  --syntax-fg: #24292e;
+  --syntax-keyword: #d73a49;
+  --syntax-title: #6f42c1;
+  --syntax-constant: #005cc5;
+  --syntax-string: #032f62;
+  --syntax-built-in: #e36209;
+  --syntax-comment: #6a737d;
+  --syntax-tag: #22863a;
+  --syntax-section: #005cc5;
+  --syntax-bullet: #735c0f;
+  --syntax-addition: #22863a;
+  --syntax-addition-bg: #f0fff4;
+  --syntax-deletion: #b31d28;
+  --syntax-deletion-bg: #ffeef0;
+  --markdown-inline-code-bg: #ecece7;
+  --markdown-code-bg: #f6f8fa;
+  --markdown-code-border: #e4e4e7;
+  --markdown-table-border: #d4d4d8;
+  --markdown-table-header: #f4f4f5;
+  --markdown-table-row: #fafafa;
+}
+
+.content-surface-dark {
+  --syntax-fg: #c9d1d9;
+  --syntax-keyword: #ff7b72;
+  --syntax-title: #d2a8ff;
+  --syntax-constant: #79c0ff;
+  --syntax-string: #a5d6ff;
+  --syntax-built-in: #ffa657;
+  --syntax-comment: #8b949e;
+  --syntax-tag: #7ee787;
+  --syntax-section: #58a6ff;
+  --syntax-bullet: #f2cc60;
+  --syntax-addition: #aff5b4;
+  --syntax-addition-bg: #033a16;
+  --syntax-deletion: #ffdcd7;
+  --syntax-deletion-bg: #67060c;
+  --markdown-inline-code-bg: #27272a;
+  --markdown-code-bg: #09090b;
+  --markdown-code-border: #3f3f46;
+  --markdown-table-border: #3f3f46;
+  --markdown-table-header: #18181b;
+  --markdown-table-row: #111113;
+}
+
+.content-surface code.hljs {
+  color: var(--syntax-fg);
+  background: transparent;
+}
+
+.content-surface pre code.hljs {
+  display: block;
+}
+
+.syntax-viewer code.hljs {
+  padding: 0;
+}
+
+.content-surface :is(.hljs-doctag, .hljs-keyword, .hljs-meta .hljs-keyword, .hljs-template-tag, .hljs-template-variable, .hljs-type, .hljs-variable.language_) {
+  color: var(--syntax-keyword);
+}
+
+.content-surface :is(.hljs-title, .hljs-title.class_, .hljs-title.class_.inherited__, .hljs-title.function_) {
+  color: var(--syntax-title);
+}
+
+.content-surface :is(.hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number, .hljs-operator, .hljs-variable, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-id) {
+  color: var(--syntax-constant);
+}
+
+.content-surface :is(.hljs-regexp, .hljs-string, .hljs-meta .hljs-string) {
+  color: var(--syntax-string);
+}
+
+.content-surface :is(.hljs-built_in, .hljs-symbol) {
+  color: var(--syntax-built-in);
+}
+
+.content-surface :is(.hljs-comment, .hljs-code, .hljs-formula) {
+  color: var(--syntax-comment);
+}
+
+.content-surface :is(.hljs-name, .hljs-quote, .hljs-selector-tag, .hljs-selector-pseudo) {
+  color: var(--syntax-tag);
+}
+
+.content-surface .hljs-subst {
+  color: var(--syntax-fg);
+}
+
+.content-surface .hljs-section {
+  color: var(--syntax-section);
+  font-weight: 700;
+}
+
+.content-surface .hljs-bullet {
+  color: var(--syntax-bullet);
+}
+
+.content-surface .hljs-emphasis {
+  color: var(--syntax-fg);
+  font-style: italic;
+}
+
+.content-surface .hljs-strong {
+  color: var(--syntax-fg);
+  font-weight: 700;
+}
+
+.content-surface .hljs-addition {
+  color: var(--syntax-addition);
+  background-color: var(--syntax-addition-bg);
+}
+
+.content-surface .hljs-deletion {
+  color: var(--syntax-deletion);
+  background-color: var(--syntax-deletion-bg);
 }
 
 .markdown-body {
@@ -67,34 +181,62 @@ pre code.hljs {
 
 .markdown-body code:not(pre code) {
   border-radius: 4px;
-  background: #ecece7;
+  background: var(--markdown-inline-code-bg);
   padding: 0.1rem 0.3rem;
+}
+
+.markdown-body pre {
+  overflow-x: auto;
+  border: 1px solid var(--markdown-code-border);
+  border-radius: 6px;
+  background: var(--markdown-code-bg);
+}
+
+.markdown-body pre code.hljs {
+  padding: 1rem;
 }
 
 .markdown-body table {
   display: block;
-  width: 100%;
+  width: max-content;
+  min-width: min(100%, 42rem);
   max-width: 100%;
   overflow-x: auto;
-  border-collapse: collapse;
+  border-collapse: separate;
   border-spacing: 0;
   margin: 1rem 0;
-  font-size: 0.92rem;
+  border: 1px solid var(--markdown-table-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .markdown-body th,
 .markdown-body td {
-  border: 1px solid #d4d4d8;
-  padding: 0.45rem 0.65rem;
+  max-width: min(32rem, 70vw);
+  border: 0;
+  border-right: 1px solid var(--markdown-table-border);
+  border-bottom: 1px solid var(--markdown-table-border);
+  padding: 0.38rem 0.55rem;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body th:last-child,
+.markdown-body td:last-child {
+  border-right: 0;
+}
+
+.markdown-body tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .markdown-body th {
-  background: #f4f4f5;
+  background: var(--markdown-table-header);
   font-weight: 650;
 }
 
 .markdown-body tbody tr:nth-child(even) {
-  background: #fafafa;
+  background: var(--markdown-table-row);
 }

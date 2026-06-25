@@ -29,7 +29,7 @@ export default function PasteContent({
 
 function RendererLoading({ light }: { light: boolean }) {
   return (
-    <div className={cn("markdown-body p-5", light ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-100")}>
+    <div className={cn("content-surface markdown-body p-5", light ? "content-surface-light bg-white text-zinc-900" : "content-surface-dark bg-zinc-950 text-zinc-100")}>
       正在加载渲染器...
     </div>
   );

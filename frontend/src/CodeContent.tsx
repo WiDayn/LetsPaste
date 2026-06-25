@@ -26,11 +26,11 @@ export default function CodeContent({
   return (
     <pre
       className={cn(
-        "m-0 min-h-full overflow-auto p-5 text-sm leading-6",
-        light ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-100",
+        "content-surface syntax-viewer m-0 min-h-full overflow-auto p-5 text-sm leading-6",
+        light ? "content-surface-light bg-white text-zinc-900" : "content-surface-dark bg-zinc-950 text-zinc-100",
       )}
     >
-      <code dangerouslySetInnerHTML={{ __html: html || escapeHTML(content) }} />
+      <code className="hljs" dangerouslySetInnerHTML={{ __html: html || escapeHTML(content) }} />
     </pre>
   );
 }
