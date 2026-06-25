@@ -1,10 +1,9 @@
-import hljs from "highlight.js/lib/common";
-import { useMemo } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import remarkGfm from "remark-gfm";
+import { lazy, Suspense } from "react";
 import type { Paste } from "./api";
 import { cn } from "./lib";
+
+const CodeContent = lazy(() => import("./CodeContent"));
+const MarkdownContent = lazy(() => import("./MarkdownContent"));
 
 export default function PasteContent({
   content,
@@ -17,44 +16,21 @@ export default function PasteContent({
   format: Paste["format"];
   light?: boolean;
 }) {
-  const html = useMemo(() => {
-    if (!content) return "";
-    try {
-      if (language && language !== "plaintext" && hljs.getLanguage(language)) {
-        return hljs.highlight(content, { language }).value;
-      }
-      return hljs.highlightAuto(content).value;
-    } catch {
-      return escapeHTML(content);
-    }
-  }, [content, language]);
-
-  if (format === "markdown") {
-    return (
-      <div className={cn("markdown-body p-5", light ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-100")}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-          {content}
-        </ReactMarkdown>
-      </div>
-    );
-  }
-
   return (
-    <pre className={cn("m-0 min-h-full overflow-auto p-5 text-sm leading-6", light ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-100")}>
-      <code dangerouslySetInnerHTML={{ __html: html || escapeHTML(content) }} />
-    </pre>
+    <Suspense fallback={<RendererLoading light={light} />}>
+      {format === "markdown" ? (
+        <MarkdownContent content={content} light={light} />
+      ) : (
+        <CodeContent content={content} language={language} light={light} />
+      )}
+    </Suspense>
   );
 }
 
-function escapeHTML(value: string) {
-  return value.replace(/[&<>"']/g, (char) => {
-    const entities: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;",
-    };
-    return entities[char];
-  });
+function RendererLoading({ light }: { light: boolean }) {
+  return (
+    <div className={cn("markdown-body p-5", light ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-100")}>
+      正在加载渲染器...
+    </div>
+  );
 }
