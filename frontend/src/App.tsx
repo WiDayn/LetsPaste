@@ -6,6 +6,7 @@ import {
   Columns2,
   Copy,
   Eye,
+  EyeOff,
   FileText,
   Flame,
   Globe2,
@@ -273,6 +274,33 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
         props.className,
       )}
     />
+  );
+}
+
+function SecretInput({
+  className,
+  revealLabel = "密钥",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { revealLabel?: string }) {
+  const [visible, setVisible] = useState(false);
+  const disabled = Boolean(props.disabled);
+  const action = visible ? "隐藏" : "显示";
+
+  return (
+    <div className="relative">
+      <Input {...props} className={cn("pr-10", className)} type={visible ? "text" : "password"} />
+      <button
+        type="button"
+        className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:pointer-events-none disabled:opacity-50"
+        aria-label={`${action}${revealLabel}`}
+        aria-pressed={visible}
+        title={`${action}${revealLabel}`}
+        disabled={disabled}
+        onClick={() => setVisible((current) => !current)}
+      >
+        {visible ? <EyeOff size={14} /> : <Eye size={14} />}
+      </button>
+    </div>
   );
 }
 
@@ -1262,7 +1290,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
           disabled={busy}
           onChange={(e) => updateUsername(e.target.value)}
         />
-        <Input
+        <SecretInput
           id={passwordInputId}
           {...preciseCredentialInputProps}
           autoComplete="current-password"
@@ -1271,7 +1299,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
           aria-describedby={passwordError ? errorId : undefined}
           className={cn(passwordError && "border-red-300 bg-red-50")}
           placeholder="管理员密码"
-          type="password"
+          revealLabel="管理员密码"
           value={password}
           disabled={busy}
           onChange={(e) => updatePassword(e.target.value)}
@@ -1465,31 +1493,62 @@ function AccountPanel({
           }}
         >
           <h2 className="font-semibold">{isAdmin ? "修改管理员密码" : "修改助记码"}</h2>
-          <Input
-            id={currentSecretInputId}
-            {...preciseCredentialInputProps}
-            autoComplete={isAdmin ? "current-password" : "off"}
-            aria-label={isAdmin ? "当前管理员密码" : "当前助记码"}
-            aria-invalid={currentSecretError || undefined}
-            aria-describedby={currentSecretError ? accountMessageId : undefined}
-            className={cn(currentSecretError && "border-red-300 bg-red-50")}
-            placeholder={isAdmin ? "当前管理员密码" : "当前助记码"}
-            type={isAdmin ? "password" : "text"}
-            value={currentSecret}
-            disabled={busy}
-            onChange={(e) => updateCurrentSecret(e.target.value)}
-          />
-          <Input
-            id={newSecretInputId}
-            {...preciseCredentialInputProps}
-            aria-label={isAdmin ? "新管理员密码" : "新助记码"}
-            autoComplete={isAdmin ? "new-password" : "off"}
-            placeholder={isAdmin ? "新管理员密码，可任意长度，留空则自动生成" : "新助记码，可任意长度，留空则自动生成"}
-            type={isAdmin ? "password" : "text"}
-            value={newSecret}
-            disabled={busy}
-            onChange={(e) => updateNewSecret(e.target.value)}
-          />
+          {isAdmin ? (
+            <SecretInput
+              id={currentSecretInputId}
+              {...preciseCredentialInputProps}
+              autoComplete="current-password"
+              aria-label="当前管理员密码"
+              aria-invalid={currentSecretError || undefined}
+              aria-describedby={currentSecretError ? accountMessageId : undefined}
+              className={cn(currentSecretError && "border-red-300 bg-red-50")}
+              placeholder="当前管理员密码"
+              revealLabel="当前管理员密码"
+              value={currentSecret}
+              disabled={busy}
+              onChange={(e) => updateCurrentSecret(e.target.value)}
+            />
+          ) : (
+            <Input
+              id={currentSecretInputId}
+              {...preciseCredentialInputProps}
+              autoComplete="off"
+              aria-label="当前助记码"
+              aria-invalid={currentSecretError || undefined}
+              aria-describedby={currentSecretError ? accountMessageId : undefined}
+              className={cn(currentSecretError && "border-red-300 bg-red-50")}
+              placeholder="当前助记码"
+              type="text"
+              value={currentSecret}
+              disabled={busy}
+              onChange={(e) => updateCurrentSecret(e.target.value)}
+            />
+          )}
+          {isAdmin ? (
+            <SecretInput
+              id={newSecretInputId}
+              {...preciseCredentialInputProps}
+              aria-label="新管理员密码"
+              autoComplete="new-password"
+              placeholder="新管理员密码，可任意长度，留空则自动生成"
+              revealLabel="新管理员密码"
+              value={newSecret}
+              disabled={busy}
+              onChange={(e) => updateNewSecret(e.target.value)}
+            />
+          ) : (
+            <Input
+              id={newSecretInputId}
+              {...preciseCredentialInputProps}
+              aria-label="新助记码"
+              autoComplete="off"
+              placeholder="新助记码，可任意长度，留空则自动生成"
+              type="text"
+              value={newSecret}
+              disabled={busy}
+              onChange={(e) => updateNewSecret(e.target.value)}
+            />
+          )}
           <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据会直接保存，不限制长度；留空时系统会自动生成一组新的登录凭据。</p>
           <Button
             type="submit"
@@ -1872,7 +1931,7 @@ function CreateStudio({
               </Field>
               {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
               <Field label="访问密码" htmlFor={passwordInputId}>
-                <Input id={passwordInputId} {...preciseCredentialInputProps} autoComplete="new-password" placeholder="可留空" type="password" value={form.password} onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))} />
+                <SecretInput id={passwordInputId} {...preciseCredentialInputProps} autoComplete="new-password" placeholder="可留空" revealLabel="访问密码" value={form.password} onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))} />
               </Field>
               <Field label="自动销毁" htmlFor={expiryInputId}>
                 <Input
@@ -2560,12 +2619,12 @@ function PasteViewer({
             <label className="text-sm font-medium" htmlFor={passwordInputId}>
               访问密码
             </label>
-            <Input
+            <SecretInput
               id={passwordInputId}
               {...preciseCredentialInputProps}
               autoComplete="current-password"
-              type="password"
               placeholder="输入这条 Paste 的访问密码"
+              revealLabel="访问密码"
               value={password}
               disabled={unlocking}
               autoFocus
