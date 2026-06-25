@@ -996,6 +996,12 @@ function CreateStudio({
   const [error, setError] = useState("");
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const titleInputId = "create-paste-title";
+  const contentInputId = "create-paste-content";
+  const formatSelectId = "create-paste-format";
+  const languageSelectId = "create-paste-language";
+  const passwordInputId = "create-paste-password";
+  const expiryInputId = "create-paste-expiry";
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
@@ -1098,7 +1104,9 @@ function CreateStudio({
         <div className="p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Input
+              id={titleInputId}
               className="min-w-64 flex-1"
+              aria-label="Paste 标题"
               placeholder="标题，例如：nginx 502 调试日志"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -1114,10 +1122,11 @@ function CreateStudio({
             {showEditor && (
               <div className="min-w-0">
                 <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
-                  <span>正文</span>
+                  <label htmlFor={contentInputId}>正文</label>
                   <span>{form.content.length} 字符</span>
                 </div>
                 <Textarea
+                  id={contentInputId}
                   className="h-[calc(100vh-17rem)] min-h-[30rem] resize-none"
                   placeholder="粘贴代码、日志或 Markdown..."
                   value={form.content}
@@ -1135,27 +1144,36 @@ function CreateStudio({
           <section className="rounded-md border border-zinc-200 bg-white p-4">
             <h2 className="mb-3 font-semibold">元数据</h2>
             <div className="space-y-3">
-              <Select value={form.format} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
-                <option value="code">代码</option>
-                <option value="markdown">Markdown</option>
-              </Select>
-              <Select value={form.language} disabled={form.format === "markdown"} onChange={(e) => setForm({ ...form, language: e.target.value })}>
-                {languages.map((language) => (
-                  <option key={language}>{language}</option>
-                ))}
-              </Select>
+              <Field label="内容格式" htmlFor={formatSelectId}>
+                <Select id={formatSelectId} value={form.format} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
+                  <option value="code">代码</option>
+                  <option value="markdown">Markdown</option>
+                </Select>
+              </Field>
+              <Field label="代码语言" htmlFor={languageSelectId}>
+                <Select id={languageSelectId} value={form.language} disabled={form.format === "markdown"} onChange={(e) => setForm({ ...form, language: e.target.value })}>
+                  {languages.map((language) => (
+                    <option key={language}>{language}</option>
+                  ))}
+                </Select>
+              </Field>
               {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
-              <Input placeholder="访问密码，可留空" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              <Input
-                placeholder="自动销毁时间，单位分钟"
-                type="number"
-                min="1"
-                step="1"
-                aria-invalid={invalidExpiry || undefined}
-                className={cn(invalidExpiry && "border-red-300 bg-red-50")}
-                value={form.expiresInMinutes}
-                onChange={(e) => setForm({ ...form, expiresInMinutes: e.target.value })}
-              />
+              <Field label="访问密码" htmlFor={passwordInputId}>
+                <Input id={passwordInputId} placeholder="可留空" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              </Field>
+              <Field label="自动销毁" htmlFor={expiryInputId}>
+                <Input
+                  id={expiryInputId}
+                  placeholder="分钟，可留空"
+                  type="number"
+                  min="1"
+                  step="1"
+                  aria-invalid={invalidExpiry || undefined}
+                  className={cn(invalidExpiry && "border-red-300 bg-red-50")}
+                  value={form.expiresInMinutes}
+                  onChange={(e) => setForm({ ...form, expiresInMinutes: e.target.value })}
+                />
+              </Field>
               {invalidExpiry && <p className="text-xs text-red-600">自动销毁时间需要填写大于等于 1 的整数分钟。</p>}
             </div>
           </section>
@@ -1197,6 +1215,17 @@ function CreateStudio({
           </section>
         </aside>
       )}
+    </div>
+  );
+}
+
+function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-medium text-zinc-600" htmlFor={htmlFor}>
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
