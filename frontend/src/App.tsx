@@ -154,6 +154,10 @@ const defaultCreateForm = {
 };
 type CreateFormState = typeof defaultCreateForm;
 
+function focusFieldById(id: string) {
+  window.requestAnimationFrame(() => document.getElementById(id)?.focus());
+}
+
 function freshCreateForm(): CreateFormState {
   return { ...defaultCreateForm };
 }
@@ -856,7 +860,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
     }
     if (mode === "login" && !mnemonic.trim()) {
       setError(emptyMnemonicError);
-      window.setTimeout(() => document.getElementById(mnemonicInputId)?.focus(), 0);
+      focusFieldById(mnemonicInputId);
       return;
     }
     authSubmitInFlightRef.current = true;
@@ -1188,12 +1192,12 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
     const trimmedUsername = username.trim();
     if (!trimmedUsername) {
       setError(emptyUsernameError);
-      window.setTimeout(() => document.getElementById(usernameInputId)?.focus(), 0);
+      focusFieldById(usernameInputId);
       return;
     }
     if (!password) {
       setError(emptyPasswordError);
-      window.setTimeout(() => document.getElementById(passwordInputId)?.focus(), 0);
+      focusFieldById(passwordInputId);
       return;
     }
     adminLoginInFlightRef.current = true;
@@ -1338,7 +1342,7 @@ function AccountPanel({
     if (busy || secretUpdateInFlightRef.current) return;
     if (!currentSecret.trim()) {
       showErrorMessage(emptyCurrentSecretError);
-      window.setTimeout(() => document.getElementById(currentSecretInputId)?.focus(), 0);
+      focusFieldById(currentSecretInputId);
       return;
     }
     if (resultSecretUnsaved) {
@@ -1705,7 +1709,7 @@ function CreateStudio({
     if (!form.content.trim()) {
       setComposeMode("write");
       setError(emptyContentError);
-      window.setTimeout(() => document.getElementById(contentInputId)?.focus(), 0);
+      focusFieldById(contentInputId);
       return;
     }
     if (invalidExpiry) {
@@ -2437,7 +2441,7 @@ function PasteViewer({
     if (unlocking || unlockInFlightRef.current) return;
     if (!password) {
       setError(emptyPasswordError);
-      window.setTimeout(() => document.getElementById(passwordInputId)?.focus(), 0);
+      focusFieldById(passwordInputId);
       return;
     }
     unlockInFlightRef.current = true;
