@@ -461,7 +461,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             onChange={(e) => setCurrentSecret(e.target.value)}
           />
           <Input
-            placeholder={isAdmin ? "新管理员密码，至少 16 个字符" : "新助记码，留空则自动生成"}
+            placeholder={isAdmin ? "新管理员密码" : "新助记码，留空则自动生成"}
             type={isAdmin ? "password" : "text"}
             value={newSecret}
             onChange={(e) => setNewSecret(e.target.value)}

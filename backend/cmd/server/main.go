@@ -198,8 +198,8 @@ func (a *app) register(w http.ResponseWriter, r *http.Request) {
 	if mnemonic == "" {
 		mnemonic = generateMnemonic()
 	}
-	if len(mnemonic) < 16 {
-		errorJSON(w, http.StatusBadRequest, "助记码至少 16 个字符")
+	if mnemonic == "" {
+		errorJSON(w, http.StatusBadRequest, "助记码不能为空")
 		return
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(mnemonic), bcrypt.DefaultCost)
@@ -268,8 +268,8 @@ func (a *app) updateMySecret(w http.ResponseWriter, r *http.Request) {
 	if newSecret == "" {
 		newSecret = generateMnemonic()
 	}
-	if len(newSecret) < 16 {
-		errorJSON(w, http.StatusBadRequest, "新密钥至少 16 个字符")
+	if newSecret == "" {
+		errorJSON(w, http.StatusBadRequest, "新密钥不能为空")
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(currentSecret)) != nil {
