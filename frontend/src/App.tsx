@@ -1337,7 +1337,11 @@ function CreateStudio({
   }, []);
 
   function updateCreateForm(update: (current: CreateFormState) => CreateFormState) {
-    setForm(update);
+    setForm((current) => {
+      const next = update(current);
+      formRef.current = next;
+      return next;
+    });
     if (error) setError("");
   }
 
@@ -1351,7 +1355,9 @@ function CreateStudio({
 
   function resetDraft() {
     clearCreateDraft();
-    setForm(freshCreateForm());
+    const emptyForm = freshCreateForm();
+    formRef.current = emptyForm;
+    setForm(emptyForm);
     setDraftSaved(false);
     setDraftReset(true);
     setError("");
@@ -1386,6 +1392,9 @@ function CreateStudio({
       };
       const paste = await api<Paste>("/api/pastes", { method: "POST", body: JSON.stringify(payload) });
       clearCreateDraft();
+      const emptyForm = freshCreateForm();
+      formRef.current = emptyForm;
+      setForm(emptyForm);
       setDraftSaved(false);
       onCreated(paste);
     } catch (e) {
