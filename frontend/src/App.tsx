@@ -44,6 +44,7 @@ type AppRoute = {
 
 const routeViews: View[] = ["explore", "create", "mine", "account", "admin"];
 const appBasePath = normalizeBasePath(import.meta.env.BASE_URL);
+const menuItemSelector = "[role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox']";
 
 function normalizeBasePath(base: string) {
   const pathname = new URL(base || "/", window.location.origin).pathname;
@@ -2566,6 +2567,8 @@ function PasteViewer({
   const copyStatus = useTransientStatus();
   const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const actionsInitialFocusRef = useRef<"first" | "last">("first");
   const unlockRequestId = useRef(0);
   const unlockInFlightRef = useRef(false);
   const unlockAbortRef = useRef<AbortController | null>(null);
@@ -2579,6 +2582,53 @@ function PasteViewer({
   const lockedWithoutContent = paste.hasPassword && !paste.content;
   const permalink = pastePermalink(paste.id);
   const canToggleWrap = paste.format !== "markdown" || markdownMode === "source";
+
+  function focusActionsButton() {
+    actionsRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
+  }
+
+  function getActionMenuItems() {
+    return Array.from(actionsMenuRef.current?.querySelectorAll<HTMLButtonElement>(menuItemSelector) ?? []).filter((item) => !item.disabled);
+  }
+
+  function focusActionMenuItem(index: number) {
+    const items = getActionMenuItems();
+    if (items.length === 0) return;
+    const nextIndex = ((index % items.length) + items.length) % items.length;
+    items[nextIndex]?.focus();
+  }
+
+  function handleActionsButtonKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    actionsInitialFocusRef.current = event.key === "ArrowUp" ? "last" : "first";
+    setActionsOpen(true);
+  }
+
+  function handleActionsMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setActionsOpen(false);
+      focusActionsButton();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const items = getActionMenuItems();
+    if (items.length === 0) return;
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === "Home") {
+      focusActionMenuItem(0);
+      return;
+    }
+    if (event.key === "End") {
+      focusActionMenuItem(items.length - 1);
+      return;
+    }
+    const fallbackIndex = event.key === "ArrowUp" ? items.length : -1;
+    const baseIndex = currentIndex >= 0 ? currentIndex : fallbackIndex;
+    focusActionMenuItem(baseIndex + (event.key === "ArrowDown" ? 1 : -1));
+  }
 
   useEffect(() => {
     unlockRequestId.current += 1;
@@ -2617,6 +2667,16 @@ function PasteViewer({
 
   useEffect(() => {
     if (!actionsOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      const items = getActionMenuItems();
+      const initialIndex = actionsInitialFocusRef.current === "last" ? items.length - 1 : 0;
+      focusActionMenuItem(initialIndex);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [actionsOpen]);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
 
     function handlePointerDown(event: PointerEvent) {
       if (actionsRef.current?.contains(event.target as Node)) return;
@@ -2626,7 +2686,7 @@ function PasteViewer({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       setActionsOpen(false);
-      actionsRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
+      focusActionsButton();
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -2812,7 +2872,11 @@ function PasteViewer({
                 aria-haspopup="menu"
                 aria-expanded={actionsOpen}
                 aria-controls={actionsMenuId}
-                onClick={() => setActionsOpen((open) => !open)}
+                onClick={() => {
+                  actionsInitialFocusRef.current = "first";
+                  setActionsOpen((open) => !open);
+                }}
+                onKeyDown={handleActionsButtonKeyDown}
               >
                 <MoreHorizontal size={14} />
                 更多
@@ -2820,8 +2884,10 @@ function PasteViewer({
               {actionsOpen && (
                 <div
                   id={actionsMenuId}
+                  ref={actionsMenuRef}
                   className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg"
                   role="menu"
+                  onKeyDown={handleActionsMenuKeyDown}
                 >
                   {paste.format === "markdown" && (
                     <>
