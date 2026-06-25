@@ -41,7 +41,6 @@ docker run -d \
 仓库已包含 `.github/workflows/docker-publish.yml`。在 GitHub 仓库的 Settings -> Secrets and variables -> Actions 中添加：
 
 ```text
-DOCKERHUB_USERNAME=你的 Docker Hub 用户名
 DOCKERHUB_TOKEN=你的 Docker Hub Access Token
 ```
 
