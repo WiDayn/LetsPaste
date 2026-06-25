@@ -2252,6 +2252,7 @@ function PasteViewer({
   const copyStatus = useTransientStatus();
   const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
   const unlockRequestId = useRef(0);
+  const unlockInFlightRef = useRef(false);
   const unlockAbortRef = useRef<AbortController | null>(null);
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
@@ -2261,6 +2262,7 @@ function PasteViewer({
 
   useEffect(() => {
     unlockRequestId.current += 1;
+    unlockInFlightRef.current = false;
     unlockAbortRef.current?.abort();
     unlockAbortRef.current = null;
     setPassword("");
@@ -2276,6 +2278,7 @@ function PasteViewer({
   useEffect(() => {
     return () => {
       unlockRequestId.current += 1;
+      unlockInFlightRef.current = false;
       unlockAbortRef.current?.abort();
       unlockAbortRef.current = null;
     };
@@ -2287,12 +2290,13 @@ function PasteViewer({
   }, [lockedWithoutContent, paste.id]);
 
   async function unlock() {
-    if (unlocking) return;
+    if (unlocking || unlockInFlightRef.current) return;
     if (!password) {
       setError(emptyPasswordError);
       window.setTimeout(() => document.getElementById(passwordInputId)?.focus(), 0);
       return;
     }
+    unlockInFlightRef.current = true;
     const requestId = ++unlockRequestId.current;
     unlockAbortRef.current?.abort();
     const controller = new AbortController();
@@ -2314,6 +2318,7 @@ function PasteViewer({
     } finally {
       if (requestId === unlockRequestId.current) {
         unlockAbortRef.current = null;
+        unlockInFlightRef.current = false;
         setUnlocking(false);
       }
     }
@@ -2396,7 +2401,7 @@ function PasteViewer({
               密码不会保存到浏览器，解锁后仅显示当前 Paste 内容。
             </p>
           </div>
-          <Button type="submit" disabled={unlocking}>{unlocking ? "解锁中" : "解锁"}</Button>
+          <Button type="submit" disabled={unlocking} aria-busy={unlocking || undefined}>{unlocking ? "解锁中" : "解锁"}</Button>
           {error && <p id={passwordErrorId} className="text-sm text-red-600" role="alert">{error}</p>}
         </div>
       </form>
