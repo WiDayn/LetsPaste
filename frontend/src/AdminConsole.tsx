@@ -97,6 +97,7 @@ export default function AdminConsole({
   async function loadPastes() {
     const requestId = ++pasteRequestId.current;
     setLoadingPastes(true);
+    setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const params = new URLSearchParams();
       Object.entries(pasteFilters).forEach(([key, value]) => {
@@ -115,6 +116,7 @@ export default function AdminConsole({
   async function loadUsers() {
     const requestId = ++userRequestId.current;
     setLoadingUsers(true);
+    setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const params = new URLSearchParams();
       Object.entries(userFilters).forEach(([key, value]) => {

@@ -552,6 +552,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       return;
     }
     setBusy(true);
+    setError("");
     try {
       const data = await api<{ token: string; user: User; mnemonic?: string }>(`/api/auth/${mode}`, {
         method: "POST",
@@ -782,6 +783,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
   async function submit() {
     if (busy) return;
     setBusy(true);
+    setError("");
     try {
       const data = await api<{ token: string; user: User }>("/api/auth/login", {
         method: "POST",
