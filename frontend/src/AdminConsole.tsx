@@ -200,12 +200,38 @@ export default function AdminConsole({
     }
   }
 
+  function clearSuccessNotice() {
+    setNotice((current) => (current?.tone === "success" ? null : current));
+  }
+
+  function changeTab(nextTab: AdminTab) {
+    setTab(nextTab);
+    clearSuccessNotice();
+  }
+
+  function updatePasteFilters(patch: Partial<typeof defaultPasteFilters>) {
+    setPasteFilters((current) => ({ ...current, ...patch }));
+    clearSuccessNotice();
+  }
+
+  function updateUserFilters(patch: Partial<typeof defaultUserFilters>) {
+    setUserFilters((current) => ({ ...current, ...patch }));
+    clearSuccessNotice();
+  }
+
+  function updateSettingsDraft(patch: Partial<SiteSettings>) {
+    setDraft((current) => ({ ...current, ...patch }));
+    clearSuccessNotice();
+  }
+
   function clearPasteFilters() {
     setPasteFilters({ ...defaultPasteFilters });
+    clearSuccessNotice();
   }
 
   function clearUserFilters() {
     setUserFilters({ ...defaultUserFilters });
+    clearSuccessNotice();
   }
 
   return (
@@ -216,10 +242,10 @@ export default function AdminConsole({
           <p className="text-sm text-zinc-500">集中管理全站 Paste、用户、权限和发布策略。</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <AdminTabButton active={tab === "overview"} onClick={() => setTab("overview")} icon={<LayoutDashboard size={15} />} label="概览" />
-          <AdminTabButton active={tab === "pastes"} onClick={() => setTab("pastes")} icon={<FileText size={15} />} label="Paste" />
-          <AdminTabButton active={tab === "users"} onClick={() => setTab("users")} icon={<Users size={15} />} label="用户" />
-          <AdminTabButton active={tab === "settings"} onClick={() => setTab("settings")} icon={<Settings size={15} />} label="设置" />
+          <AdminTabButton active={tab === "overview"} onClick={() => changeTab("overview")} icon={<LayoutDashboard size={15} />} label="概览" />
+          <AdminTabButton active={tab === "pastes"} onClick={() => changeTab("pastes")} icon={<FileText size={15} />} label="Paste" />
+          <AdminTabButton active={tab === "users"} onClick={() => changeTab("users")} icon={<Users size={15} />} label="用户" />
+          <AdminTabButton active={tab === "settings"} onClick={() => changeTab("settings")} icon={<Settings size={15} />} label="设置" />
         </div>
       </div>
 
@@ -262,37 +288,37 @@ export default function AdminConsole({
                 aria-label="搜索 Paste"
                 placeholder="搜索标题、ID 或作者"
                 value={pasteFilters.search}
-                onChange={(e) => setPasteFilters({ ...pasteFilters, search: e.target.value })}
+                onChange={(e) => updatePasteFilters({ search: e.target.value })}
               />
               {pasteFilters.search.trim() && (
                 <button
                   type="button"
                   className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
                   aria-label="清空 Paste 搜索"
-                  onClick={() => setPasteFilters({ ...pasteFilters, search: "" })}
+                  onClick={() => updatePasteFilters({ search: "" })}
                 >
                   <X size={14} />
                 </button>
               )}
             </div>
-            <Select aria-label="筛选可见性" value={pasteFilters.visibility} onChange={(e) => setPasteFilters({ ...pasteFilters, visibility: e.target.value })}>
+            <Select aria-label="筛选可见性" value={pasteFilters.visibility} onChange={(e) => updatePasteFilters({ visibility: e.target.value })}>
               <option value="">全部可见性</option>
               <option value="public">公开</option>
               <option value="private">私密</option>
             </Select>
-            <Select aria-label="筛选保护策略" value={pasteFilters.security} onChange={(e) => setPasteFilters({ ...pasteFilters, security: e.target.value })}>
+            <Select aria-label="筛选保护策略" value={pasteFilters.security} onChange={(e) => updatePasteFilters({ security: e.target.value })}>
               <option value="">全部策略</option>
               <option value="active">有效</option>
               <option value="expired">已过期</option>
               <option value="password">有密码</option>
               <option value="burn">阅后即焚</option>
             </Select>
-            <Select aria-label="筛选内容格式" value={pasteFilters.format} onChange={(e) => setPasteFilters({ ...pasteFilters, format: e.target.value })}>
+            <Select aria-label="筛选内容格式" value={pasteFilters.format} onChange={(e) => updatePasteFilters({ format: e.target.value })}>
               <option value="">全部格式</option>
               <option value="code">代码</option>
               <option value="markdown">Markdown</option>
             </Select>
-            <Select aria-label="排序 Paste" value={pasteFilters.sort} onChange={(e) => setPasteFilters({ ...pasteFilters, sort: e.target.value })}>
+            <Select aria-label="排序 Paste" value={pasteFilters.sort} onChange={(e) => updatePasteFilters({ sort: e.target.value })}>
               <option value="newest">最新</option>
               <option value="views">访问量</option>
               <option value="title">标题</option>
@@ -336,20 +362,20 @@ export default function AdminConsole({
                 aria-label="搜索用户"
                 placeholder="搜索用户名"
                 value={userFilters.search}
-                onChange={(e) => setUserFilters({ ...userFilters, search: e.target.value })}
+                onChange={(e) => updateUserFilters({ search: e.target.value })}
               />
               {userFilters.search.trim() && (
                 <button
                   type="button"
                   className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
                   aria-label="清空用户搜索"
-                  onClick={() => setUserFilters({ ...userFilters, search: "" })}
+                  onClick={() => updateUserFilters({ search: "" })}
                 >
                   <X size={14} />
                 </button>
               )}
             </div>
-            <Select aria-label="筛选用户角色" value={userFilters.role} onChange={(e) => setUserFilters({ ...userFilters, role: e.target.value })}>
+            <Select aria-label="筛选用户角色" value={userFilters.role} onChange={(e) => updateUserFilters({ role: e.target.value })}>
               <option value="">全部角色</option>
               <option value="admin">管理员</option>
               <option value="user">用户</option>
@@ -387,13 +413,13 @@ export default function AdminConsole({
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium" htmlFor={siteNameInputId}>站点名称</label>
-              <Input id={siteNameInputId} value={draft.siteName} disabled={savingSettings} aria-invalid={settingsInvalid} onChange={(e) => setDraft({ ...draft, siteName: e.target.value })} />
+              <Input id={siteNameInputId} value={draft.siteName} disabled={savingSettings} aria-invalid={settingsInvalid} onChange={(e) => updateSettingsDraft({ siteName: e.target.value })} />
               {settingsInvalid && <p className="mt-2 text-xs text-red-600" role="alert">站点名称不能为空。</p>}
             </div>
             <Toggle
               checked={draft.allowAnonymousPaste}
               disabled={savingSettings}
-              onChange={(checked) => setDraft({ ...draft, allowAnonymousPaste: checked })}
+              onChange={(checked) => updateSettingsDraft({ allowAnonymousPaste: checked })}
               label="允许匿名发布 Paste"
               description="关闭后，访客仍可浏览公开内容，但创建 Paste 前需要登录。"
             />
