@@ -36,6 +36,30 @@ docker run -d \
   widayn/letspaste:latest
 ```
 
+## 自动更新部署
+
+项目提供 `docker-compose.auto-update.yml`，使用 Watchtower 自动拉取并重启 `widayn/letspaste:latest`。
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.auto-update.yml up -d
+```
+
+默认每 300 秒检查一次新镜像。可在 `.env` 中调整：
+
+```text
+WATCHTOWER_POLL_INTERVAL=300
+DOCKER_API_VERSION=1.40
+```
+
+这个编排启用了 Watchtower label 过滤，只会更新带有 `com.centurylinklabs.watchtower.enable=true` 标签的 LetsPaste 容器。
+
+如果 Watchtower 日志出现 `client version 1.25 is too old`，说明 Docker API 版本协商失败。把 `.env` 里的 `DOCKER_API_VERSION` 设置为错误信息里提示的最低版本即可；例如提示 `Minimum supported API version is 1.44` 时，设置：
+
+```text
+DOCKER_API_VERSION=1.44
+```
+
 ## GitHub Actions 发布到 Docker Hub
 
 仓库已包含 `.github/workflows/docker-publish.yml`。在 GitHub 仓库的 Settings -> Secrets and variables -> Actions 中添加：
