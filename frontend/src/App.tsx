@@ -1217,7 +1217,7 @@ function CreateStudio({
   const invalidExpiry = hasExpiry && (!Number.isInteger(parsedExpiry) || parsedExpiry < 1);
   const hasBody = form.content.trim().length > 0;
   const hasFormInput = hasCreateDraft(form) || form.password.trim().length > 0;
-  const canSubmit = canPost && hasBody && !busy && !invalidExpiry;
+  const canAttemptSubmit = canPost && hasBody && !busy;
   const protectionSummary = [
     form.password.trim() ? "访问密码" : "",
     form.burnAfterReading ? "阅后即焚" : "",
@@ -1342,7 +1342,7 @@ function CreateStudio({
               {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
               {settingsOpen ? "收起设置" : "设置"}
             </Button>
-            <Button disabled={!canSubmit} onClick={submit}>
+            <Button disabled={!canAttemptSubmit} onClick={submit}>
               <Plus size={16} />
               {publishLabel}
             </Button>
