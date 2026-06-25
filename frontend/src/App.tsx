@@ -319,9 +319,11 @@ function Badge({
 }
 
 export function App() {
+  const initialRouteRef = useRef<AppRoute | null>(null);
+  if (!initialRouteRef.current) initialRouteRef.current = currentRoute();
   const [settings, setSettings] = useState<SiteSettings>({ allowAnonymousPaste: true, siteName: "LetsPaste" });
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<View>("explore");
+  const [view, setView] = useState<View>(() => initialRouteRef.current?.view ?? "explore");
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [selected, setSelected] = useState<Paste | null>(null);
@@ -347,7 +349,7 @@ export function App() {
           }
         });
     }
-    const route = currentRoute();
+    const route = initialRouteRef.current ?? currentRoute();
     writeRoute(route, "replace");
     void applyRoute(route);
     const handlePopState = () => {
