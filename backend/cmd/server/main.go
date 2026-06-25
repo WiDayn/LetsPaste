@@ -105,6 +105,7 @@ func main() {
 		r.Get("/api/me", a.me)
 		r.Put("/api/me/secret", a.updateMySecret)
 		r.Get("/api/my/pastes", a.myPastes)
+		r.Delete("/api/my/pastes/{id}", a.deleteMyPaste)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -456,6 +457,21 @@ func (a *app) myPastes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, scanPastes(rows))
 }
 
+func (a *app) deleteMyPaste(w http.ResponseWriter, r *http.Request) {
+	u, _ := currentUser(r)
+	res, err := a.db.Exec(`DELETE FROM pastes WHERE id = ? AND owner_id = ?`, chi.URLParam(r, "id"), u.ID)
+	if err != nil {
+		errorJSON(w, http.StatusInternalServerError, "删除失败")
+		return
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		errorJSON(w, http.StatusNotFound, "Paste 不存在或无权删除")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *app) adminPastes(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	where := []string{"1 = 1"}
@@ -507,7 +523,16 @@ func (a *app) adminPastes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) deletePaste(w http.ResponseWriter, r *http.Request) {
-	a.db.Exec(`DELETE FROM pastes WHERE id = ?`, chi.URLParam(r, "id"))
+	res, err := a.db.Exec(`DELETE FROM pastes WHERE id = ?`, chi.URLParam(r, "id"))
+	if err != nil {
+		errorJSON(w, http.StatusInternalServerError, "删除失败")
+		return
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		errorJSON(w, http.StatusNotFound, "Paste 不存在")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

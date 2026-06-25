@@ -143,6 +143,7 @@ export function App() {
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [selected, setSelected] = useState<Paste | null>(null);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -174,14 +175,14 @@ export function App() {
           ? ((await api<Paste[]>("/api/my/pastes")) ?? [])
           : ((await api<Paste[]>("/api/pastes")) ?? []);
       setPastes(data);
-      setMessage("");
+      clearMessage();
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         localStorage.removeItem("letspaste_token");
         setUser(null);
         if (view === "mine") setView("explore");
       }
-      setMessage((e as Error).message);
+      showError(e);
       setPastes([]);
     }
   }
@@ -191,7 +192,7 @@ export function App() {
       const next = await api<Paste>(`/api/pastes/${id}`);
       setSelected(next);
       setView("explore");
-      setMessage("");
+      clearMessage();
       if (updateUrl) window.history.replaceState(null, "", `/${id}`);
     } catch (e) {
       if (e instanceof ApiError && e.status === 423) {
@@ -207,18 +208,33 @@ export function App() {
           createdAt: "",
         });
         setView("explore");
-        setMessage(e.message);
+        showError(e);
         return;
       }
       setSelected(null);
-      setMessage((e as Error).message);
+      showError(e);
       if (updateUrl) window.history.replaceState(null, "", "/");
+    }
+  }
+
+  async function deleteMyPaste(paste: Paste) {
+    if (!window.confirm(`删除「${paste.title}」？此操作不可恢复。`)) return;
+    try {
+      await api<void>(`/api/my/pastes/${paste.id}`, { method: "DELETE" });
+      setPastes((current) => current.filter((item) => item.id !== paste.id));
+      if (selected?.id === paste.id) {
+        setSelected(null);
+        window.history.replaceState(null, "", "/");
+      }
+      showInfo("Paste 已删除");
+    } catch (e) {
+      showError(e);
     }
   }
 
   function changeView(next: View) {
     setView(next);
-    setMessage("");
+    clearMessage();
     if (next === "admin") {
       window.history.replaceState(null, "", "/admin");
       return;
@@ -230,6 +246,20 @@ export function App() {
     localStorage.removeItem("letspaste_token");
     setUser(null);
     setView("explore");
+  }
+
+  function clearMessage() {
+    setMessage("");
+  }
+
+  function showInfo(text: string) {
+    setMessageTone("info");
+    setMessage(text);
+  }
+
+  function showError(e: unknown) {
+    setMessageTone("error");
+    setMessage((e as Error).message);
   }
 
   return (
@@ -263,8 +293,13 @@ export function App() {
 
       <main className="mx-auto max-w-[1680px] px-4 py-4">
         {message && (
-          <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <AlertTriangle size={16} />
+          <div
+            className={cn(
+              "mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+              messageTone === "info" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-900",
+            )}
+          >
+            {messageTone === "info" ? <Check size={16} /> : <AlertTriangle size={16} />}
             {message}
           </div>
         )}
@@ -285,7 +320,7 @@ export function App() {
         {view === "explore" && <PasteWorkspace title="公开 Paste" pastes={pastes} selected={selected} onOpen={openPaste} onUnlocked={setSelected} onCreate={() => changeView("create")} />}
 
         {view === "mine" && (
-          <PasteWorkspace title="我的 Paste" pastes={pastes} selected={selected} onOpen={openPaste} onUnlocked={setSelected} onCreate={() => changeView("create")} privateMode />
+          <PasteWorkspace title="我的 Paste" pastes={pastes} selected={selected} onOpen={openPaste} onUnlocked={setSelected} onCreate={() => changeView("create")} onDelete={deleteMyPaste} privateMode />
         )}
 
         {view === "account" && user && <AccountPanel user={user} onLogout={logout} />}
@@ -663,6 +698,7 @@ function PasteWorkspace({
   onOpen,
   onUnlocked,
   onCreate,
+  onDelete,
   privateMode = false,
 }: {
   title: string;
@@ -671,6 +707,7 @@ function PasteWorkspace({
   onOpen: (id: string) => void;
   onUnlocked: (paste: Paste) => void;
   onCreate: () => void;
+  onDelete?: (paste: Paste) => void;
   privateMode?: boolean;
 }) {
   const [search, setSearch] = useState("");
@@ -726,7 +763,7 @@ function PasteWorkspace({
               <option value="title">标题 A-Z</option>
             </Select>
           </div>
-          <PasteIndex pastes={filtered} selectedId={selected?.id} onOpen={onOpen} />
+          <PasteIndex pastes={filtered} selectedId={selected?.id} onOpen={onOpen} onDelete={onDelete} />
         </aside>
         <section className="min-w-0 bg-white">
           {selected ? <PasteViewer paste={selected} onUnlocked={onUnlocked} /> : <WorkspaceInsight pastes={pastes} onCreate={onCreate} onOpen={onOpen} />}
@@ -746,7 +783,17 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
   );
 }
 
-function PasteIndex({ pastes, selectedId, onOpen }: { pastes: Paste[]; selectedId?: string; onOpen: (id: string) => void }) {
+function PasteIndex({
+  pastes,
+  selectedId,
+  onOpen,
+  onDelete,
+}: {
+  pastes: Paste[];
+  selectedId?: string;
+  onOpen: (id: string) => void;
+  onDelete?: (paste: Paste) => void;
+}) {
   if (pastes.length === 0) {
     return (
       <div className="grid min-h-72 place-items-center p-6 text-center">
@@ -762,16 +809,24 @@ function PasteIndex({ pastes, selectedId, onOpen }: { pastes: Paste[]; selectedI
     <div className="max-h-[calc(100vh-19rem)] overflow-y-auto p-2">
       <div className="space-y-2">
         {pastes.map((paste) => (
-          <button
+          <div
             key={paste.id}
             className={cn(
-              "w-full rounded-md border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-300 hover:bg-zinc-50",
+              "rounded-md border border-zinc-200 bg-white p-3 transition hover:border-zinc-300 hover:bg-zinc-50",
               selectedId === paste.id && "border-sky-300 bg-sky-50",
             )}
-            onClick={() => onOpen(paste.id)}
           >
-            <div className="line-clamp-2 text-sm font-medium leading-5">{paste.title}</div>
-            <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{paste.id}</div>
+            <div className="flex items-start gap-2">
+              <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(paste.id)}>
+                <div className="line-clamp-2 text-sm font-medium leading-5">{paste.title}</div>
+                <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{paste.id}</div>
+              </button>
+              {onDelete && (
+                <Button className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700" variant="ghost" size="icon" title="删除 Paste" onClick={() => onDelete(paste)}>
+                  <Trash2 size={15} />
+                </Button>
+              )}
+            </div>
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
               <Badge>{paste.language}</Badge>
@@ -783,7 +838,7 @@ function PasteIndex({ pastes, selectedId, onOpen }: { pastes: Paste[]; selectedI
             <div className="mt-2 flex flex-wrap gap-1">
               <PasteBadges paste={paste} />
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </div>
@@ -942,7 +997,7 @@ function AdminConsole({
   const [pasteFilters, setPasteFilters] = useState({ search: "", visibility: "", security: "", format: "", sort: "newest" });
   const [userFilters, setUserFilters] = useState({ search: "", role: "" });
   const [draft, setDraft] = useState(settings);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -979,21 +1034,37 @@ function AdminConsole({
   }
 
   async function saveSettings() {
-    const next = await api<SiteSettings>("/api/admin/settings", { method: "PUT", body: JSON.stringify(draft) });
-    setSettings(next);
-    setNotice("设置已保存");
+    try {
+      const next = await api<SiteSettings>("/api/admin/settings", { method: "PUT", body: JSON.stringify(draft) });
+      setSettings(next);
+      setNotice({ message: "设置已保存", tone: "success" });
+    } catch (e) {
+      setNotice({ message: (e as Error).message, tone: "error" });
+    }
   }
 
-  async function removePaste(id: string) {
-    await api<void>(`/api/admin/pastes/${id}`, { method: "DELETE" });
-    await loadPastes();
-    await loadStats();
+  async function removePaste(paste: Paste) {
+    if (!window.confirm(`删除「${paste.title}」？此操作不可恢复。`)) return;
+    try {
+      await api<void>(`/api/admin/pastes/${paste.id}`, { method: "DELETE" });
+      await loadPastes();
+      await loadStats();
+      setNotice({ message: "Paste 已删除", tone: "success" });
+    } catch (e) {
+      setNotice({ message: (e as Error).message, tone: "error" });
+    }
   }
 
-  async function removeUser(id: number) {
-    await api<void>(`/api/admin/users/${id}`, { method: "DELETE" });
-    await loadUsers();
-    await loadStats();
+  async function removeUser(user: User) {
+    if (!window.confirm(`删除用户「${user.username}」？该用户的 Paste 会保留为匿名。`)) return;
+    try {
+      await api<void>(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      await loadUsers();
+      await loadStats();
+      setNotice({ message: "用户已删除", tone: "success" });
+    } catch (e) {
+      setNotice({ message: (e as Error).message, tone: "error" });
+    }
   }
 
   async function updateRole(id: number, role: User["role"]) {
@@ -1017,7 +1088,16 @@ function AdminConsole({
         </div>
       </div>
 
-      {notice && <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{notice}</div>}
+      {notice && (
+        <div
+          className={cn(
+            "border-b px-4 py-2 text-sm",
+            notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700",
+          )}
+        >
+          {notice.message}
+        </div>
+      )}
 
       {tab === "overview" && (
         <div className="space-y-4 p-4">
@@ -1149,7 +1229,7 @@ function AdminBreakdown({ title, rows }: { title: string; rows: [string, number]
   );
 }
 
-function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen: (id: string) => void; onDelete: (id: string) => void }) {
+function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen: (id: string) => void; onDelete: (paste: Paste) => void }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[880px] text-left text-sm">
@@ -1183,7 +1263,7 @@ function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen
               <td className="px-4 py-3">{paste.views}</td>
               <td className="px-4 py-3 text-zinc-500">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</td>
               <td className="px-4 py-3">
-                <Button variant="danger" size="sm" onClick={() => onDelete(paste.id)}>
+                <Button variant="danger" size="sm" onClick={() => onDelete(paste)}>
                   <Trash2 size={14} />
                   删除
                 </Button>
@@ -1202,7 +1282,7 @@ function AdminUserTable({
   onRoleChange,
 }: {
   users: User[];
-  onDelete: (id: number) => void;
+  onDelete: (user: User) => void;
   onRoleChange: (id: number, role: User["role"]) => void;
 }) {
   return (
@@ -1229,7 +1309,7 @@ function AdminUserTable({
               <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
               <td className="px-4 py-3">
                 {user.role !== "admin" && (
-                  <Button variant="danger" size="sm" onClick={() => onDelete(user.id)}>
+                  <Button variant="danger" size="sm" onClick={() => onDelete(user)}>
                     <Trash2 size={14} />
                     删除
                   </Button>
