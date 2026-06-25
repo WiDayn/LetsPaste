@@ -2702,7 +2702,7 @@ function PasteAdjacentNav({
         variant="outline"
         size="sm"
         disabled={!previousPaste || opening}
-        aria-keyshortcuts="Alt+ArrowLeft"
+        aria-keyshortcuts="Alt+Shift+ArrowLeft"
         aria-label={previousPaste ? `打开上一条 Paste：${previousPaste.title}` : "没有上一条 Paste"}
         onClick={() => previousPaste && onOpen(previousPaste)}
       >
@@ -2713,7 +2713,7 @@ function PasteAdjacentNav({
         variant="outline"
         size="sm"
         disabled={!nextPaste || opening}
-        aria-keyshortcuts="Alt+ArrowRight"
+        aria-keyshortcuts="Alt+Shift+ArrowRight"
         aria-label={nextPaste ? `打开下一条 Paste：${nextPaste.title}` : "没有下一条 Paste"}
         onClick={() => nextPaste && onOpen(nextPaste)}
       >
@@ -2876,7 +2876,7 @@ function PasteViewer({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       if (isEditableEventTarget(event.target)) return;
       const target = event.key === "ArrowLeft" ? previousPaste : nextPaste;
