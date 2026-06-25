@@ -1538,8 +1538,10 @@ function CreateStudio({
   const [error, setError] = useState("");
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsRevealNonce, setSettingsRevealNonce] = useState(0);
   const formRef = useRef(form);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
+  const settingsFocusTargetIdRef = useRef<string | null>(null);
   const settingsOpenRequestedRef = useRef(false);
   const submitInFlightRef = useRef(false);
   const titleInputId = "create-paste-title";
@@ -1619,15 +1621,19 @@ function CreateStudio({
   useEffect(() => {
     if (!settingsOpen || !settingsOpenRequestedRef.current) return;
     settingsOpenRequestedRef.current = false;
+    const targetId = settingsFocusTargetIdRef.current;
+    settingsFocusTargetIdRef.current = null;
     const panel = settingsPanelRef.current;
     if (!panel) return;
     const frame = window.requestAnimationFrame(() => {
-      panel.focus({ preventScroll: true });
+      const target = targetId ? document.getElementById(targetId) : null;
+      const focusTarget = target ?? panel;
+      focusTarget.focus({ preventScroll: true });
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      panel.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+      focusTarget.scrollIntoView({ block: target ? "center" : "start", behavior: reducedMotion ? "auto" : "smooth" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [settingsOpen]);
+  }, [settingsOpen, settingsRevealNonce]);
 
   function updateCreateForm(update: (current: CreateFormState) => CreateFormState) {
     setForm((current) => {
@@ -1658,16 +1664,24 @@ function CreateStudio({
     setSettingsOpen(false);
   }
 
+  function openSettingsPanel(focusTargetId?: string) {
+    settingsFocusTargetIdRef.current = focusTargetId ?? null;
+    settingsOpenRequestedRef.current = true;
+    setSettingsOpen(true);
+    setSettingsRevealNonce((value) => value + 1);
+  }
+
   function toggleSettingsPanel() {
-    setSettingsOpen((open) => {
-      const nextOpen = !open;
-      settingsOpenRequestedRef.current = nextOpen;
-      return nextOpen;
-    });
+    if (settingsOpen) {
+      closeSettingsPanel();
+      return;
+    }
+    openSettingsPanel();
   }
 
   function closeSettingsPanel() {
     settingsOpenRequestedRef.current = false;
+    settingsFocusTargetIdRef.current = null;
     setSettingsOpen(false);
   }
 
@@ -1684,9 +1698,8 @@ function CreateStudio({
       return;
     }
     if (invalidExpiry) {
-      setSettingsOpen(true);
+      openSettingsPanel(expiryInputId);
       setError(expiryError);
-      window.setTimeout(() => document.getElementById(expiryInputId)?.focus(), 0);
       return;
     }
     submitInFlightRef.current = true;
