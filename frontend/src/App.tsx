@@ -27,6 +27,71 @@ import { cn } from "./lib";
 
 type View = "explore" | "create" | "mine" | "account" | "admin";
 type ComposeMode = "write" | "split" | "preview";
+type AppRoute = {
+  app: "letspaste";
+  view: View;
+  pasteId?: string;
+  targetView?: "explore" | "mine";
+};
+
+const routeViews: View[] = ["explore", "create", "mine", "account", "admin"];
+
+function isView(value: unknown): value is View {
+  return typeof value === "string" && routeViews.includes(value as View);
+}
+
+function routeFromLocation(): AppRoute {
+  const id = window.location.pathname.split("/").filter(Boolean)[0];
+  if (id === "admin") return { app: "letspaste", view: "admin" };
+  if (id) return { app: "letspaste", view: "explore", pasteId: id, targetView: "explore" };
+  return { app: "letspaste", view: "explore" };
+}
+
+function normalizeRouteState(value: unknown): AppRoute | null {
+  if (!value || typeof value !== "object") return null;
+  const route = value as Partial<AppRoute>;
+  if (route.app !== "letspaste" || !isView(route.view)) return null;
+  const pasteId = typeof route.pasteId === "string" && route.pasteId ? route.pasteId : undefined;
+  if (pasteId) {
+    const targetView = route.targetView === "mine" ? "mine" : "explore";
+    return { app: "letspaste", view: targetView, pasteId, targetView };
+  }
+  return { app: "letspaste", view: route.view };
+}
+
+function currentRoute(): AppRoute {
+  const pathRoute = routeFromLocation();
+  const stateRoute = normalizeRouteState(window.history.state);
+  if (!stateRoute) return pathRoute;
+  if (pathRoute.pasteId) return stateRoute.pasteId === pathRoute.pasteId ? stateRoute : pathRoute;
+  if (pathRoute.view === "admin") return stateRoute.view === "admin" ? stateRoute : pathRoute;
+  if (stateRoute.pasteId) return pathRoute;
+  return stateRoute;
+}
+
+function routePath(route: AppRoute) {
+  if (route.pasteId) return `/${encodeURIComponent(route.pasteId)}`;
+  if (route.view === "admin") return "/admin";
+  return "/";
+}
+
+function writeRoute(route: AppRoute, mode: "push" | "replace" = "push") {
+  const nextPath = routePath(route);
+  if (mode === "replace") {
+    window.history.replaceState(route, "", nextPath);
+    return;
+  }
+  window.history.pushState(route, "", nextPath);
+}
+
+function viewRoute(view: View): AppRoute {
+  return { app: "letspaste", view };
+}
+
+function pasteRoute(id: string, targetView: View): AppRoute {
+  const view = targetView === "mine" ? "mine" : "explore";
+  return { app: "letspaste", view, pasteId: id, targetView: view };
+}
 
 const languages = [
   "plaintext",
@@ -155,12 +220,14 @@ export function App() {
           localStorage.removeItem("letspaste_token");
         }
       });
-    const id = window.location.pathname.split("/").filter(Boolean)[0];
-    if (id === "admin") {
-      setView("admin");
-    } else if (id) {
-      openPaste(id, false);
-    }
+    const route = currentRoute();
+    writeRoute(route, "replace");
+    void applyRoute(route);
+    const handlePopState = () => {
+      void applyRoute(currentRoute());
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   useEffect(() => {
@@ -193,7 +260,7 @@ export function App() {
       setSelected(next);
       setView(targetView);
       clearMessage();
-      if (updateUrl) window.history.replaceState(null, "", `/${id}`);
+      if (updateUrl) writeRoute(pasteRoute(id, targetView));
     } catch (e) {
       if (e instanceof ApiError && e.status === 423) {
         setSelected({
@@ -208,13 +275,23 @@ export function App() {
           createdAt: "",
         });
         setView(targetView);
+        if (updateUrl) writeRoute(pasteRoute(id, targetView));
         showError(e);
         return;
       }
       setSelected(null);
       showError(e);
-      if (updateUrl) window.history.replaceState(null, "", "/");
     }
+  }
+
+  async function applyRoute(route: AppRoute) {
+    clearMessage();
+    if (route.pasteId) {
+      await openPaste(route.pasteId, false, route.targetView ?? "explore");
+      return;
+    }
+    setSelected(null);
+    setView(route.view);
   }
 
   async function deleteMyPaste(paste: Paste) {
@@ -223,7 +300,7 @@ export function App() {
       setPastes((current) => current.filter((item) => item.id !== paste.id));
       if (selected?.id === paste.id) {
         setSelected(null);
-        window.history.replaceState(null, "", "/");
+        writeRoute(viewRoute(view), "replace");
       }
       showInfo("Paste 已删除");
     } catch (e) {
@@ -232,22 +309,24 @@ export function App() {
   }
 
   function changeView(next: View) {
+    if (next === view && !selected) {
+      clearMessage();
+      return;
+    }
     setView(next);
     clearMessage();
     if (next === "explore" || next === "mine") {
       setSelected(null);
     }
-    if (next === "admin") {
-      window.history.replaceState(null, "", "/admin");
-      return;
-    }
-    window.history.replaceState(null, "", "/");
+    writeRoute(viewRoute(next));
   }
 
   function logout() {
     localStorage.removeItem("letspaste_token");
     setUser(null);
     setView("explore");
+    setSelected(null);
+    writeRoute(viewRoute("explore"), "replace");
   }
 
   function clearMessage() {
@@ -317,7 +396,7 @@ export function App() {
               if (nextView === "mine" || !paste.isPrivate) {
                 setPastes((current) => [paste, ...current.filter((item) => item.id !== paste.id)]);
               }
-              window.history.replaceState(null, "", `/${paste.id}`);
+              writeRoute(pasteRoute(paste.id, nextView));
             }}
           />
         )}
@@ -332,7 +411,7 @@ export function App() {
             onCreate={() => changeView("create")}
             onClose={() => {
               setSelected(null);
-              window.history.replaceState(null, "", "/");
+              writeRoute(viewRoute("explore"));
             }}
           />
         )}
@@ -347,7 +426,7 @@ export function App() {
             onCreate={() => changeView("create")}
             onClose={() => {
               setSelected(null);
-              window.history.replaceState(null, "", "/");
+              writeRoute(viewRoute("mine"));
             }}
             onDelete={setDeleteTarget}
             privateMode
