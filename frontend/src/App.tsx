@@ -121,6 +121,20 @@ function pasteRoute(id: string, targetView: View): AppRoute {
   return { app: "letspaste", view, pasteId: id, targetView: view };
 }
 
+function compactDocumentTitle(value: string, fallback: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const title = normalized || fallback;
+  return title.length > 80 ? `${title.slice(0, 79)}...` : title;
+}
+
+function viewDocumentTitle(view: View) {
+  if (view === "create") return "创建 Paste";
+  if (view === "mine") return "我的 Paste";
+  if (view === "account") return "用户信息";
+  if (view === "admin") return "后台管理";
+  return "公开 Paste";
+}
+
 const languages = [
   "plaintext",
   "go",
@@ -428,6 +442,16 @@ export function App() {
   useEffect(() => {
     adminSettingsUnsavedRef.current = adminSettingsUnsaved;
   }, [adminSettingsUnsaved]);
+
+  useEffect(() => {
+    const siteName = compactDocumentTitle(settings.siteName, "LetsPaste");
+    const pageTitle = selected
+      ? compactDocumentTitle(selected.title, selected.id)
+      : openingPasteId
+        ? "正在打开 Paste"
+        : viewDocumentTitle(view);
+    document.title = pageTitle === siteName ? siteName : `${pageTitle} - ${siteName}`;
+  }, [openingPasteId, selected?.id, selected?.title, settings.siteName, view]);
 
   useBeforeUnloadWarning(adminSettingsUnsaved);
 
