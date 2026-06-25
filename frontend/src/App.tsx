@@ -362,6 +362,7 @@ export function App() {
   const [view, setView] = useState<View>(() => initialRouteRef.current?.view ?? "explore");
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState("");
   const [selected, setSelected] = useState<Paste | null>(null);
   const [openingPasteId, setOpeningPasteId] = useState<string | null>(null);
   const [createdPasteId, setCreatedPasteId] = useState<string | null>(null);
@@ -436,6 +437,7 @@ export function App() {
     if (view === "admin" || view === "account" || view === "create") {
       listAbortRef.current = null;
       setListLoading(false);
+      setListError("");
       return;
     }
     const controller = new AbortController();
@@ -450,6 +452,7 @@ export function App() {
       if (requestId !== listRequestId.current) return;
       listViewRef.current = view;
       setPastes(data);
+      setListError("");
       clearMessage();
     } catch (e) {
       if (controller.signal.aborted) return;
@@ -460,6 +463,7 @@ export function App() {
         if (view === "mine") setView("explore");
       }
       showError(e);
+      setListError((e as Error).message);
       setPastes([]);
     } finally {
       if (requestId === listRequestId.current) {
@@ -735,6 +739,7 @@ export function App() {
             title="公开 Paste"
             pastes={pastes}
             loading={listLoading}
+            error={listError}
             openingPasteId={openingPasteId}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "explore")}
@@ -755,6 +760,7 @@ export function App() {
             title="我的 Paste"
             pastes={pastes}
             loading={listLoading}
+            error={listError}
             openingPasteId={openingPasteId}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "mine")}
@@ -2166,6 +2172,7 @@ function PasteWorkspace({
   title,
   pastes,
   loading,
+  error,
   openingPasteId,
   selected,
   justCreated,
@@ -2180,6 +2187,7 @@ function PasteWorkspace({
   title: string;
   pastes: Paste[];
   loading: boolean;
+  error: string;
   openingPasteId: string | null;
   selected: Paste | null;
   justCreated?: boolean;
@@ -2305,6 +2313,7 @@ function PasteWorkspace({
           <PasteIndex
             pastes={filtered}
             loading={loading}
+            error={error}
             openingPasteId={openingPasteId}
             selectedId={selected?.id}
             onOpen={onOpen}
@@ -2313,6 +2322,7 @@ function PasteWorkspace({
             search={deferredSearch}
             onClearSearch={() => setSearch("")}
             onCreate={onCreate}
+            onRetry={onRefresh}
             privateMode={privateMode}
           />
         </aside>
@@ -2325,7 +2335,7 @@ function PasteWorkspace({
               onClose={onClose}
             />
           ) : (
-            <WorkspaceInsight pastes={pastes} loading={loading} openingPasteId={openingPasteId} onCreate={onCreate} onOpen={onOpen} />
+            <WorkspaceInsight pastes={pastes} loading={loading} error={error} openingPasteId={openingPasteId} onCreate={onCreate} onOpen={onOpen} onRetry={onRefresh} />
           )}
         </section>
       </div>
@@ -2336,6 +2346,7 @@ function PasteWorkspace({
 function PasteIndex({
   pastes,
   loading,
+  error,
   openingPasteId,
   selectedId,
   onOpen,
@@ -2344,10 +2355,12 @@ function PasteIndex({
   search,
   onClearSearch,
   onCreate,
+  onRetry,
   privateMode = false,
 }: {
   pastes: Paste[];
   loading: boolean;
+  error: string;
   openingPasteId: string | null;
   selectedId?: string;
   onOpen: (paste: Paste) => void;
@@ -2356,6 +2369,7 @@ function PasteIndex({
   search: string;
   onClearSearch: () => void;
   onCreate: () => void;
+  onRetry: () => void;
   privateMode?: boolean;
 }) {
   const [visibleCount, setVisibleCount] = useState(pasteIndexBatchSize);
@@ -2367,16 +2381,19 @@ function PasteIndex({
 
   if (pastes.length === 0) {
     const isFiltered = search.length > 0 && totalCount > 0;
+    const hasError = error.length > 0;
     return (
       <div className="grid min-h-72 place-items-center p-6 text-center">
         <div>
-          {loading ? <Clock className="mx-auto mb-3 text-zinc-400" /> : <FileText className="mx-auto mb-3 text-zinc-400" />}
+          {loading ? <Clock className="mx-auto mb-3 text-zinc-400" /> : hasError ? <AlertTriangle className="mx-auto mb-3 text-amber-500" /> : <FileText className="mx-auto mb-3 text-zinc-400" />}
           <p className="font-medium">
-            {loading ? "正在加载 Paste" : isFiltered ? "没有匹配的 Paste" : privateMode ? "还没有自己的 Paste" : "还没有公开 Paste"}
+            {loading ? "正在加载 Paste" : hasError ? "列表加载失败" : isFiltered ? "没有匹配的 Paste" : privateMode ? "还没有自己的 Paste" : "还没有公开 Paste"}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
             {loading ? (
               "列表返回后会自动更新。"
+            ) : hasError ? (
+              <span className="break-words">{error}</span>
             ) : isFiltered ? (
               <>
                 没有找到包含
@@ -2388,9 +2405,9 @@ function PasteIndex({
             )}
           </p>
           {!loading && (
-            <Button className="mt-4" variant={isFiltered ? "outline" : "default"} size="sm" onClick={isFiltered ? onClearSearch : onCreate}>
-              {isFiltered ? <X size={14} /> : <Plus size={14} />}
-              {isFiltered ? "清空搜索" : "新建 Paste"}
+            <Button className="mt-4" variant={isFiltered || hasError ? "outline" : "default"} size="sm" onClick={hasError ? onRetry : isFiltered ? onClearSearch : onCreate}>
+              {hasError ? <RotateCcw size={14} /> : isFiltered ? <X size={14} /> : <Plus size={14} />}
+              {hasError ? "重试加载" : isFiltered ? "清空搜索" : "新建 Paste"}
             </Button>
           )}
         </div>
@@ -2467,15 +2484,19 @@ function PasteIndex({
 function WorkspaceInsight({
   pastes,
   loading,
+  error,
   openingPasteId,
   onCreate,
   onOpen,
+  onRetry,
 }: {
   pastes: Paste[];
   loading: boolean;
+  error: string;
   openingPasteId: string | null;
   onCreate: () => void;
   onOpen: (paste: Paste) => void;
+  onRetry: () => void;
 }) {
   const latest = pastes[0];
   const popular = useMemo(
@@ -2501,6 +2522,21 @@ function WorkspaceInsight({
           <Clock className="mx-auto mb-3 text-zinc-400" size={24} />
           <h2 className="font-semibold">正在加载工作台</h2>
           <p className="mt-1 text-sm text-zinc-500">Paste 列表返回后会显示最近动态和快捷入口。</p>
+        </div>
+      </div>
+    );
+  }
+  if (error && pastes.length === 0) {
+    return (
+      <div className="grid min-h-[18rem] place-items-center p-6 text-center lg:min-h-[calc(100vh-9.5rem)]" role="alert">
+        <div className="max-w-md">
+          <AlertTriangle className="mx-auto mb-3 text-amber-500" size={24} />
+          <h2 className="font-semibold">列表加载失败</h2>
+          <p className="mt-1 break-words text-sm leading-6 text-zinc-500">{error}</p>
+          <Button className="mt-4" variant="outline" onClick={onRetry}>
+            <RotateCcw size={16} />
+            重试加载
+          </Button>
         </div>
       </div>
     );
