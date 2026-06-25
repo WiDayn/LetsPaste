@@ -116,8 +116,12 @@ func main() {
 		r.Put("/api/admin/settings", a.updateSettings)
 	})
 
+	if staticDir := env("STATIC_DIR", "./public"); dirExists(staticDir) {
+		serveSPA(r, staticDir)
+	}
+
 	addr := ":" + env("PORT", "8080")
-	log.Printf("LetsPaste API listening on %s", addr)
+	log.Printf("LetsPaste listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, r))
 }
 
@@ -222,7 +226,8 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) me(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"user": r.Context().Value("user")})
+	u, _ := currentUser(r)
+	writeJSON(w, http.StatusOK, map[string]any{"user": u})
 }
 
 func (a *app) publicSettings(w http.ResponseWriter, r *http.Request) {
@@ -651,4 +656,25 @@ func randomID(n int) string {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b)
+}
+
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func serveSPA(r chi.Router, staticDir string) {
+	fileServer := http.FileServer(http.Dir(staticDir))
+	r.NotFound(func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasPrefix(req.URL.Path, "/api/") {
+			http.NotFound(w, req)
+			return
+		}
+		path := filepath.Join(staticDir, filepath.Clean(req.URL.Path))
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			fileServer.ServeHTTP(w, req)
+			return
+		}
+		http.ServeFile(w, req, filepath.Join(staticDir, "index.html"))
+	})
 }

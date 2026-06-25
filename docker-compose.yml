@@ -1,7 +1,8 @@
 services:
-  backend:
+  letspaste:
+    image: widayn/letspaste:latest
     build:
-      context: ./backend
+      context: .
     environment:
       PORT: "8080"
       DB_PATH: /data/letspaste.db
@@ -9,17 +10,11 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      STATIC_DIR: /app/public
     volumes:
       - letspaste_data:/data
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-    depends_on:
-      - backend
     ports:
-      - "${APP_PORT:-8088}:80"
+      - "${APP_PORT:-8088}:8080"
     restart: unless-stopped
 
 volumes:

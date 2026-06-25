@@ -23,6 +23,19 @@ admin / changeme123
 
 生产环境请务必修改 `JWT_SECRET` 和 `ADMIN_PASSWORD`。
 
+也可以直接拉取单镜像运行：
+
+```bash
+docker run -d \
+  --name letspaste \
+  -p 8088:8080 \
+  -v letspaste_data:/data \
+  -e JWT_SECRET=replace-with-a-long-random-secret \
+  -e ADMIN_USERNAME=admin \
+  -e ADMIN_PASSWORD=changeme123 \
+  widayn/letspaste:latest
+```
+
 ## GitHub Actions 发布到 Docker Hub
 
 仓库已包含 `.github/workflows/docker-publish.yml`。在 GitHub 仓库的 Settings -> Secrets and variables -> Actions 中添加：
@@ -32,11 +45,10 @@ DOCKERHUB_USERNAME=你的 Docker Hub 用户名
 DOCKERHUB_TOKEN=你的 Docker Hub Access Token
 ```
 
-之后 push 到 `main` / `master` 或推送 `v*.*.*` tag 时，会发布：
+之后 push 到 `main` / `master` 或推送 `v*.*.*` tag 时，会发布单镜像：
 
 ```text
-docker.io/<DOCKERHUB_USERNAME>/letspaste-backend
-docker.io/<DOCKERHUB_USERNAME>/letspaste-frontend
+docker.io/widayn/letspaste
 ```
 
 ## 本地开发
