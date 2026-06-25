@@ -1,4 +1,3 @@
-import hljs from "highlight.js/lib/common";
 import {
   AlertTriangle,
   Check,
@@ -22,10 +21,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import remarkGfm from "remark-gfm";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { cn } from "./lib";
@@ -50,6 +46,8 @@ const languages = [
   "css",
   "markdown",
 ];
+
+const PasteContent = lazy(() => import("./PasteContent"));
 
 function Button({
   className,
@@ -601,7 +599,9 @@ function CreateStudio({
               <span>{form.format === "markdown" ? "Markdown" : form.language}</span>
             </div>
             <div className="max-h-80 overflow-auto">
-              <PasteContent content={form.content || "预览会显示在这里。"} language={form.language} format={form.format as Paste["format"]} />
+              <Suspense fallback={<ContentLoading dark />}>
+                <PasteContent content={form.content || "预览会显示在这里。"} language={form.language} format={form.format as Paste["format"]} />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -909,40 +909,20 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
             <code>{paste.content ?? ""}</code>
           </pre>
         ) : (
-          <PasteContent content={paste.content ?? ""} language={paste.language} format={paste.format} light />
+          <Suspense fallback={<ContentLoading />}>
+            <PasteContent content={paste.content ?? ""} language={paste.language} format={paste.format} light />
+          </Suspense>
         )}
       </div>
     </article>
   );
 }
 
-function PasteContent({ content, language, format, light = false }: { content: string; language: string; format: Paste["format"]; light?: boolean }) {
-  const html = useMemo(() => {
-    if (!content) return "";
-    try {
-      if (language && language !== "plaintext" && hljs.getLanguage(language)) {
-        return hljs.highlight(content, { language }).value;
-      }
-      return hljs.highlightAuto(content).value;
-    } catch {
-      return escapeHTML(content);
-    }
-  }, [content, language]);
-
-  if (format === "markdown") {
-    return (
-      <div className={cn("markdown-body p-5", light ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-100")}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-          {content}
-        </ReactMarkdown>
-      </div>
-    );
-  }
-
+function ContentLoading({ dark = false }: { dark?: boolean }) {
   return (
-    <pre className={cn("m-0 min-h-full overflow-auto p-5 text-sm leading-6", light ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-100")}>
-      <code dangerouslySetInnerHTML={{ __html: html || escapeHTML(content) }} />
-    </pre>
+    <div className={cn("p-5 text-sm", dark ? "bg-zinc-950 text-zinc-400" : "bg-white text-zinc-500")}>
+      正在加载渲染器...
+    </div>
   );
 }
 
@@ -1308,17 +1288,4 @@ async function copyText(value: string) {
   } finally {
     document.body.removeChild(textarea);
   }
-}
-
-function escapeHTML(value: string) {
-  return value.replace(/[&<>"']/g, (char) => {
-    const entities: Record<string, string> = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;",
-    };
-    return entities[char];
-  });
 }
