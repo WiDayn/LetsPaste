@@ -2232,7 +2232,17 @@ function PasteIndex({
             {loading ? "正在加载 Paste" : isFiltered ? "没有匹配的 Paste" : privateMode ? "还没有自己的 Paste" : "还没有公开 Paste"}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            {loading ? "列表返回后会自动更新。" : isFiltered ? `没有找到包含“${search}”的内容。` : "创建第一条分享后，它会出现在这里。"}
+            {loading ? (
+              "列表返回后会自动更新。"
+            ) : isFiltered ? (
+              <>
+                没有找到包含
+                <span className="mx-1 break-all font-mono text-zinc-700">“{search}”</span>
+                的内容。
+              </>
+            ) : (
+              "创建第一条分享后，它会出现在这里。"
+            )}
           </p>
           {!loading && (
             <Button className="mt-4" variant={isFiltered ? "outline" : "default"} size="sm" onClick={isFiltered ? onClearSearch : onCreate}>
