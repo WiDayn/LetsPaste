@@ -47,6 +47,7 @@ select {
   --markdown-table-border: #d4d4d8;
   --markdown-table-header: #f4f4f5;
   --markdown-table-row: #fafafa;
+  --markdown-focus-ring: rgba(24, 24, 27, 0.18);
 }
 
 .content-surface-dark {
@@ -70,6 +71,7 @@ select {
   --markdown-table-border: #3f3f46;
   --markdown-table-header: #18181b;
   --markdown-table-row: #111113;
+  --markdown-focus-ring: rgba(244, 244, 245, 0.22);
 }
 
 .content-surface code.hljs {
@@ -196,17 +198,24 @@ select {
   padding: 1rem;
 }
 
-.markdown-body table {
-  display: block;
-  width: max-content;
-  min-width: min(100%, 42rem);
+.markdown-table-scroll {
+  margin: 1rem 0;
   max-width: 100%;
   overflow-x: auto;
-  border-collapse: separate;
-  border-spacing: 0;
-  margin: 1rem 0;
   border: 1px solid var(--markdown-table-border);
   border-radius: 6px;
+  outline: none;
+}
+
+.markdown-table-scroll:focus-visible {
+  box-shadow: 0 0 0 3px var(--markdown-focus-ring);
+}
+
+.markdown-body table {
+  width: max-content;
+  min-width: min(100%, 42rem);
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.9rem;
   line-height: 1.45;
 }
