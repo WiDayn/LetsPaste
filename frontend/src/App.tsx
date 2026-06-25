@@ -137,6 +137,11 @@ const languages = [
 const createDraftKey = "letspaste_create_draft_v1";
 const createDraftSaveDelayMs = 500;
 const pasteIndexBatchSize = 80;
+const preciseCredentialInputProps = {
+  autoCapitalize: "none",
+  autoCorrect: "off",
+  spellCheck: false,
+} as const;
 const defaultCreateForm = {
   title: "",
   content: "",
@@ -1005,6 +1010,8 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 <>
                   <Input
                     id={mnemonicInputId}
+                    {...preciseCredentialInputProps}
+                    autoComplete="off"
                     aria-label="助记码"
                     aria-invalid={loginError || undefined}
                     aria-describedby={loginError ? `${authDescriptionId} ${authErrorId}` : authDescriptionId}
@@ -1224,6 +1231,8 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
       >
         <Input
           id={usernameInputId}
+          {...preciseCredentialInputProps}
+          autoComplete="username"
           aria-label="管理员用户名"
           aria-invalid={usernameError || undefined}
           aria-describedby={usernameError ? errorId : undefined}
@@ -1235,6 +1244,8 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
         />
         <Input
           id={passwordInputId}
+          {...preciseCredentialInputProps}
+          autoComplete="current-password"
           aria-label="管理员密码"
           aria-invalid={passwordError || undefined}
           aria-describedby={passwordError ? errorId : undefined}
@@ -1436,6 +1447,8 @@ function AccountPanel({
           <h2 className="font-semibold">{isAdmin ? "修改管理员密码" : "修改助记码"}</h2>
           <Input
             id={currentSecretInputId}
+            {...preciseCredentialInputProps}
+            autoComplete={isAdmin ? "current-password" : "off"}
             aria-label={isAdmin ? "当前管理员密码" : "当前助记码"}
             aria-invalid={currentSecretError || undefined}
             aria-describedby={currentSecretError ? accountMessageId : undefined}
@@ -1448,8 +1461,9 @@ function AccountPanel({
           />
           <Input
             id={newSecretInputId}
+            {...preciseCredentialInputProps}
             aria-label={isAdmin ? "新管理员密码" : "新助记码"}
-            autoComplete="off"
+            autoComplete={isAdmin ? "new-password" : "off"}
             placeholder={isAdmin ? "新管理员密码，可任意长度，留空则自动生成" : "新助记码，可任意长度，留空则自动生成"}
             type={isAdmin ? "password" : "text"}
             value={newSecret}
@@ -1785,7 +1799,7 @@ function CreateStudio({
               </Field>
               {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
               <Field label="访问密码" htmlFor={passwordInputId}>
-                <Input id={passwordInputId} placeholder="可留空" value={form.password} onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))} />
+                <Input id={passwordInputId} {...preciseCredentialInputProps} autoComplete="new-password" placeholder="可留空" type="password" value={form.password} onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))} />
               </Field>
               <Field label="自动销毁" htmlFor={expiryInputId}>
                 <Input
@@ -2465,6 +2479,8 @@ function PasteViewer({
             </label>
             <Input
               id={passwordInputId}
+              {...preciseCredentialInputProps}
+              autoComplete="current-password"
               type="password"
               placeholder="输入这条 Paste 的访问密码"
               value={password}
