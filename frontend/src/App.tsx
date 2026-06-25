@@ -1148,6 +1148,21 @@ function CreateStudio({
     return () => window.clearTimeout(timeout);
   }, [form]);
 
+  useEffect(() => {
+    const flushDraft = () => {
+      if (hasCreateDraft(form)) saveCreateDraft(form);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushDraft();
+    };
+    window.addEventListener("pagehide", flushDraft);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", flushDraft);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [form]);
+
   function updateFormat(format: Paste["format"]) {
     setForm({
       ...form,
