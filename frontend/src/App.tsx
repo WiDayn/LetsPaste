@@ -1177,6 +1177,7 @@ function CreateStudio({
   const languageSelectId = "create-paste-language";
   const passwordInputId = "create-paste-password";
   const expiryInputId = "create-paste-expiry";
+  const expiryErrorId = "create-paste-expiry-error";
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
@@ -1273,6 +1274,7 @@ function CreateStudio({
     if (invalidExpiry) {
       setSettingsOpen(true);
       setError("自动销毁时间需要填写大于等于 1 的整数分钟。");
+      window.setTimeout(() => document.getElementById(expiryInputId)?.focus(), 0);
       return;
     }
     setBusy(true);
@@ -1400,12 +1402,17 @@ function CreateStudio({
                   min="1"
                   step="1"
                   aria-invalid={invalidExpiry || undefined}
+                  aria-describedby={invalidExpiry ? expiryErrorId : undefined}
                   className={cn(invalidExpiry && "border-red-300 bg-red-50")}
                   value={form.expiresInMinutes}
                   onChange={(e) => updateCreateForm((current) => ({ ...current, expiresInMinutes: e.target.value }))}
                 />
               </Field>
-              {invalidExpiry && <p className="text-xs text-red-600">自动销毁时间需要填写大于等于 1 的整数分钟。</p>}
+              {invalidExpiry && (
+                <p id={expiryErrorId} className="text-xs text-red-600" role="alert">
+                  自动销毁时间需要填写大于等于 1 的整数分钟。
+                </p>
+              )}
             </div>
           </section>
 

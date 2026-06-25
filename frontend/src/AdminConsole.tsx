@@ -63,6 +63,7 @@ export default function AdminConsole({
   const settingsDirty = draft.siteName !== settings.siteName || draft.allowAnonymousPaste !== settings.allowAnonymousPaste;
   const settingsInvalid = draft.siteName.trim().length === 0;
   const siteNameInputId = "admin-site-name";
+  const siteNameErrorId = "admin-site-name-error";
 
   useEffect(() => {
     void loadStats();
@@ -142,6 +143,7 @@ export default function AdminConsole({
     }
     if (settingsInvalid) {
       setNotice({ message: "站点名称不能为空", tone: "error" });
+      document.getElementById(siteNameInputId)?.focus();
       return;
     }
     setSavingSettings(true);
@@ -413,8 +415,20 @@ export default function AdminConsole({
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium" htmlFor={siteNameInputId}>站点名称</label>
-              <Input id={siteNameInputId} value={draft.siteName} disabled={savingSettings} aria-invalid={settingsInvalid} onChange={(e) => updateSettingsDraft({ siteName: e.target.value })} />
-              {settingsInvalid && <p className="mt-2 text-xs text-red-600" role="alert">站点名称不能为空。</p>}
+              <Input
+                id={siteNameInputId}
+                value={draft.siteName}
+                disabled={savingSettings}
+                aria-invalid={settingsInvalid || undefined}
+                aria-describedby={settingsInvalid ? siteNameErrorId : undefined}
+                className={cn(settingsInvalid && "border-red-300 bg-red-50")}
+                onChange={(e) => updateSettingsDraft({ siteName: e.target.value })}
+              />
+              {settingsInvalid && (
+                <p id={siteNameErrorId} className="mt-2 text-xs text-red-600" role="alert">
+                  站点名称不能为空。
+                </p>
+              )}
             </div>
             <Toggle
               checked={draft.allowAnonymousPaste}
