@@ -136,6 +136,92 @@ const languages = [
   "markdown",
 ];
 
+const createDraftKey = "letspaste_create_draft_v1";
+const defaultCreateForm = {
+  title: "",
+  content: "",
+  language: "go",
+  format: "code" as Paste["format"],
+  password: "",
+  expiresInMinutes: "",
+  isPrivate: false,
+  burnAfterReading: false,
+};
+type CreateFormState = typeof defaultCreateForm;
+
+function freshCreateForm(): CreateFormState {
+  return { ...defaultCreateForm };
+}
+
+function normalizeCreateDraft(value: unknown): CreateFormState {
+  if (!value || typeof value !== "object") return freshCreateForm();
+  const draft = value as Partial<CreateFormState>;
+  const format: Paste["format"] = draft.format === "markdown" ? "markdown" : "code";
+  const language = format === "markdown"
+    ? "markdown"
+    : typeof draft.language === "string" && languages.includes(draft.language)
+      ? draft.language
+      : defaultCreateForm.language;
+  return {
+    ...defaultCreateForm,
+    title: typeof draft.title === "string" ? draft.title : "",
+    content: typeof draft.content === "string" ? draft.content : "",
+    language,
+    format,
+    expiresInMinutes: typeof draft.expiresInMinutes === "string" ? draft.expiresInMinutes : "",
+    isPrivate: typeof draft.isPrivate === "boolean" ? draft.isPrivate : false,
+    burnAfterReading: typeof draft.burnAfterReading === "boolean" ? draft.burnAfterReading : false,
+    password: "",
+  };
+}
+
+function loadCreateDraft(): CreateFormState {
+  try {
+    return normalizeCreateDraft(JSON.parse(sessionStorage.getItem(createDraftKey) ?? "null"));
+  } catch {
+    return freshCreateForm();
+  }
+}
+
+function createDraftPayload(form: CreateFormState): CreateFormState {
+  return { ...form, password: "" };
+}
+
+function hasCreateDraft(form: CreateFormState) {
+  const payload = createDraftPayload(form);
+  return (
+    payload.title.trim().length > 0 ||
+    payload.content.length > 0 ||
+    payload.language !== defaultCreateForm.language ||
+    payload.format !== defaultCreateForm.format ||
+    payload.expiresInMinutes.trim().length > 0 ||
+    payload.isPrivate ||
+    payload.burnAfterReading
+  );
+}
+
+function saveCreateDraft(form: CreateFormState) {
+  try {
+    const payload = createDraftPayload(form);
+    if (!hasCreateDraft(payload)) {
+      sessionStorage.removeItem(createDraftKey);
+      return false;
+    }
+    sessionStorage.setItem(createDraftKey, JSON.stringify(payload));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearCreateDraft() {
+  try {
+    sessionStorage.removeItem(createDraftKey);
+  } catch {
+    // Ignore storage restrictions; the in-memory form is still authoritative.
+  }
+}
+
 const PasteContent = lazy(() => import("./PasteContent"));
 const AdminConsole = lazy(() => import("./AdminConsole"));
 
@@ -1007,16 +1093,8 @@ function CreateStudio({
   authed: boolean;
   onCreated: (p: Paste) => void;
 }) {
-  const [form, setForm] = useState({
-    title: "",
-    content: "",
-    language: "go",
-    format: "code",
-    password: "",
-    expiresInMinutes: "",
-    isPrivate: false,
-    burnAfterReading: false,
-  });
+  const [form, setForm] = useState<CreateFormState>(() => loadCreateDraft());
+  const [draftSaved, setDraftSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
@@ -1048,12 +1126,17 @@ function CreateStudio({
   const publishLabel = busy ? "发布中" : !canPost ? "需要登录" : !hasBody ? "先输入内容" : invalidExpiry ? "时间无效" : "发布 Paste";
   const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
     { label: hasBody ? `${form.content.length} 字符` : "正文为空", tone: hasBody ? "neutral" : "red" },
+    ...(draftSaved ? [{ label: "草稿已保存", tone: "blue" as const }] : []),
     { label: form.isPrivate ? "私密链接" : "公开库可见", tone: form.isPrivate ? "amber" : "green" },
     { label: identitySummary, tone: identityTone },
     { label: form.format === "markdown" ? "Markdown" : form.language, tone: form.format === "markdown" ? "blue" : "neutral" },
     { label: protectionSummary.length ? protectionSummary.join("、") : "无额外保护", tone: protectionSummary.length ? "amber" : "neutral" },
     { label: lifecycleSummary, tone: invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral" },
   ];
+
+  useEffect(() => {
+    setDraftSaved(saveCreateDraft(form));
+  }, [form]);
 
   function updateFormat(format: Paste["format"]) {
     setForm({
@@ -1085,7 +1168,10 @@ function CreateStudio({
         ...form,
         expiresInMinutes: hasExpiry ? parsedExpiry : undefined,
       };
-      onCreated(await api<Paste>("/api/pastes", { method: "POST", body: JSON.stringify(payload) }));
+      const paste = await api<Paste>("/api/pastes", { method: "POST", body: JSON.stringify(payload) });
+      clearCreateDraft();
+      setDraftSaved(false);
+      onCreated(paste);
     } catch (e) {
       setError((e as Error).message);
     } finally {
