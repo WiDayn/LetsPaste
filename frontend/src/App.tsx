@@ -1879,14 +1879,15 @@ function PasteIndex({
   return (
     <div className="max-h-[calc(100vh-19rem)] overflow-y-auto p-2">
       {loading && (
-        <div className="mb-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-500" role="status">
+        <div className="mb-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-500" role="status" aria-live="polite">
           正在刷新列表...
         </div>
       )}
-      <div className="space-y-2">
+      <div className="space-y-2" role="list" aria-label="Paste 索引">
         {visiblePastes.map((paste) => (
           <div
             key={paste.id}
+            role="listitem"
             className={cn(
               "rounded-md border border-zinc-200 bg-white p-3 transition hover:border-zinc-300 hover:bg-zinc-50",
               selectedId === paste.id && "border-sky-300 bg-sky-50",
@@ -1897,6 +1898,8 @@ function PasteIndex({
                 className="min-w-0 flex-1 text-left disabled:cursor-wait disabled:opacity-70"
                 disabled={openingPasteId === paste.id}
                 aria-busy={openingPasteId === paste.id || undefined}
+                aria-current={selectedId === paste.id ? "true" : undefined}
+                aria-label={`打开 ${paste.title}`}
                 onClick={() => onOpen(paste)}
               >
                 <div className="line-clamp-2 text-sm font-medium leading-5">{paste.title}</div>
@@ -2024,11 +2027,13 @@ function PasteViewer({
   const [copyError, setCopyError] = useState("");
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [unlocking, setUnlocking] = useState(false);
+  const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
   const unlockRequestId = useRef(0);
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
   const passwordErrorId = `paste-password-error-${paste.id}`;
   const emptyPasswordError = "请输入访问密码。";
+  const lockedWithoutContent = paste.hasPassword && !paste.content;
 
   useEffect(() => {
     unlockRequestId.current += 1;
@@ -2040,6 +2045,11 @@ function PasteViewer({
     setMarkdownMode("preview");
     setUnlocking(false);
   }, [paste.id]);
+
+  useEffect(() => {
+    if (lockedWithoutContent) return;
+    window.setTimeout(() => viewerHeadingRef.current?.focus(), 0);
+  }, [lockedWithoutContent, paste.id]);
 
   async function unlock() {
     if (unlocking) return;
@@ -2086,7 +2096,7 @@ function PasteViewer({
     setCopyError("复制内容失败，请手动选中内容复制。");
   }
 
-  if (paste.hasPassword && !paste.content) {
+  if (lockedWithoutContent) {
     return (
       <form
         className="min-h-full p-4"
@@ -2159,7 +2169,13 @@ function PasteViewer({
       <div className="sticky top-0 z-10 border-b border-zinc-200 bg-white p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="break-all text-lg font-semibold">{paste.title}</h2>
+            <h2
+              ref={viewerHeadingRef}
+              tabIndex={-1}
+              className="break-all rounded-sm text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/20"
+            >
+              {paste.title}
+            </h2>
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
               <span>{paste.id}</span>
               <span>{formatViews(paste.views)}</span>
