@@ -1888,12 +1888,12 @@ function CreateStudio({
   }
 
   function changeComposeMode(nextMode: ComposeMode) {
-    if (nextMode !== "write") preloadPasteContent(form.format);
+    if (nextMode !== "write" && hasBody) preloadPasteContent(form.format);
     setComposeMode(nextMode);
   }
 
   function updateFormat(format: Paste["format"]) {
-    if (composeMode !== "write") preloadPasteContent(format);
+    if (composeMode !== "write" && hasBody) preloadPasteContent(format);
     updateCreateForm((current) => ({
       ...current,
       format,
