@@ -277,7 +277,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
     <textarea
       {...props}
       className={cn(
-        "min-h-[28rem] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10 focus-visible:ring-zinc-950/20",
+        "min-h-[18rem] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10 focus-visible:ring-zinc-950/20 md:min-h-[22rem] lg:min-h-[28rem]",
         props.className,
       )}
     />
@@ -1691,7 +1691,7 @@ function CreateStudio({
 
   return (
     <div className={cn("grid gap-4", settingsOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
-      <section className="flex min-h-[calc(100vh-9.5rem)] flex-col rounded-md border border-zinc-200 bg-white">
+      <section className="flex flex-col rounded-md border border-zinc-200 bg-white lg:min-h-[calc(100vh-9.5rem)]">
         <div className="shrink-0 border-b border-zinc-200 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -1749,7 +1749,7 @@ function CreateStudio({
             </div>
           </div>
 
-          <div className={cn("grid min-h-0 flex-1 gap-3", composeMode === "split" && "xl:grid-cols-2")}>
+          <div className={cn("grid min-h-0 flex-1 gap-3", composeMode === "split" && "lg:grid-cols-2")}>
             {showEditor && (
               <div className="flex min-h-0 min-w-0 flex-col">
                 <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
@@ -1758,7 +1758,7 @@ function CreateStudio({
                 </div>
                 <Textarea
                   id={contentInputId}
-                  className={cn("min-h-[30rem] flex-1 resize-none", contentError && "border-red-300 bg-red-50")}
+                  className={cn("min-h-[18rem] flex-1 resize-none md:min-h-[22rem] lg:min-h-[30rem]", contentError && "border-red-300 bg-red-50")}
                   placeholder="粘贴代码、日志或 Markdown..."
                   value={form.content}
                   aria-invalid={contentError || undefined}
@@ -1919,7 +1919,7 @@ function DraftPreview({ content, language, format, pending = false }: { content:
   const hasContent = content.trim().length > 0;
 
   return (
-    <div className="flex min-h-[30rem] min-w-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div className="flex min-h-[18rem] min-w-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white md:min-h-[22rem] lg:min-h-[30rem]">
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
         <span>预览</span>
         <span className="inline-flex items-center gap-2">
