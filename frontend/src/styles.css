@@ -206,6 +206,7 @@ select {
 
 .markdown-table-scroll {
   margin: 1rem 0;
+  width: fit-content;
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--markdown-table-border);
@@ -219,23 +220,39 @@ select {
 
 .markdown-body table {
   width: max-content;
-  min-width: min(100%, 42rem);
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
 }
 
 .markdown-body th,
 .markdown-body td {
-  max-width: min(32rem, 70vw);
+  max-width: min(24rem, 70vw);
   border: 0;
   border-right: 1px solid var(--markdown-table-border);
   border-bottom: 1px solid var(--markdown-table-border);
-  padding: 0.38rem 0.55rem;
+  padding: 0.32rem 0.5rem;
   text-align: left;
   vertical-align: top;
   overflow-wrap: anywhere;
+}
+
+.markdown-body td :is(p, ul, ol),
+.markdown-body th :is(p, ul, ol) {
+  margin: 0.25rem 0;
+}
+
+.markdown-body td :is(p, ul, ol):first-child,
+.markdown-body th :is(p, ul, ol):first-child {
+  margin-top: 0;
+}
+
+.markdown-body td :is(p, ul, ol):last-child,
+.markdown-body th :is(p, ul, ol):last-child {
+  margin-bottom: 0;
 }
 
 .markdown-body th:last-child,
