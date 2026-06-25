@@ -1526,30 +1526,32 @@ function CreateStudio({
 
   return (
     <div className={cn("grid gap-4", settingsOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
-      <section className="rounded-md border border-zinc-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
-          <div>
-            <h1 className="text-lg font-semibold">创建 Paste</h1>
-            <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开设置或并排预览。</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {hasFormInput && (
-              <Button variant="ghost" onClick={resetDraft}>
-                <RotateCcw size={16} />
-                清空草稿
+      <section className="flex min-h-[calc(100vh-9.5rem)] flex-col rounded-md border border-zinc-200 bg-white">
+        <div className="shrink-0 border-b border-zinc-200 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg font-semibold">创建 Paste</h1>
+              <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开设置或并排预览。</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {hasFormInput && (
+                <Button variant="ghost" onClick={resetDraft}>
+                  <RotateCcw size={16} />
+                  清空草稿
+                </Button>
+              )}
+              <Button variant="outline" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
+                {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+                {settingsOpen ? "收起设置" : "设置"}
               </Button>
-            )}
-            <Button variant="outline" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
-              {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-              {settingsOpen ? "收起设置" : "设置"}
-            </Button>
-            <Button disabled={!canAttemptSubmit} onClick={submit}>
-              <Plus size={16} />
-              {publishLabel}
-            </Button>
+              <Button disabled={!canAttemptSubmit} onClick={submit}>
+                <Plus size={16} />
+                {publishLabel}
+              </Button>
+            </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-2">
           {summaryBadges.map((item) => (
             <Badge key={item.label} tone={item.tone}>
               {item.label}
@@ -1563,7 +1565,7 @@ function CreateStudio({
             <span>管理员已关闭匿名发布。你可以先编辑草稿，使用右上角助记码登录后再发布。</span>
           </div>
         )}
-        <div className="p-4">
+        <div className="flex min-h-0 flex-1 flex-col p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Input
               id={titleInputId}
@@ -1582,16 +1584,16 @@ function CreateStudio({
             </div>
           </div>
 
-          <div className={cn("grid gap-3", composeMode === "split" && "xl:grid-cols-2")}>
+          <div className={cn("grid min-h-0 flex-1 gap-3", composeMode === "split" && "xl:grid-cols-2")}>
             {showEditor && (
-              <div className="min-w-0">
+              <div className="flex min-h-0 min-w-0 flex-col">
                 <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
                   <label htmlFor={contentInputId}>正文</label>
                   <span>{form.content.length} 字符</span>
                 </div>
                 <Textarea
                   id={contentInputId}
-                  className={cn("h-[calc(100vh-17rem)] min-h-[30rem] resize-none", contentError && "border-red-300 bg-red-50")}
+                  className={cn("min-h-[30rem] flex-1 resize-none", contentError && "border-red-300 bg-red-50")}
                   placeholder="粘贴代码、日志或 Markdown..."
                   value={form.content}
                   aria-invalid={contentError || undefined}
@@ -1748,15 +1750,15 @@ function DraftPreview({ content, language, format, pending = false }: { content:
   const hasContent = content.trim().length > 0;
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-md border border-zinc-200 bg-white">
-      <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
+    <div className="flex min-h-[30rem] min-w-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
         <span>预览</span>
         <span className="inline-flex items-center gap-2">
           {pending && <span className="text-sky-600">同步中</span>}
           <span>{format === "markdown" ? "Markdown" : language}</span>
         </span>
       </div>
-      <div className="h-[calc(100vh-17rem)] min-h-[30rem] overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
         {hasContent ? (
           <Suspense fallback={<ContentLoading />}>
             <PasteContent content={content} language={language} format={format} light />
