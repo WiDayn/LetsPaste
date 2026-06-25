@@ -336,6 +336,8 @@ export function App() {
   const listViewRef = useRef<View | null>(null);
   const openRequestId = useRef(0);
   const openingPasteIdRef = useRef<string | null>(null);
+  const listAbortRef = useRef<AbortController | null>(null);
+  const openAbortRef = useRef<AbortController | null>(null);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -356,7 +358,11 @@ export function App() {
       void applyRoute(currentRoute());
     };
     window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      listAbortRef.current?.abort();
+      openAbortRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -365,22 +371,27 @@ export function App() {
 
   async function refreshList() {
     const requestId = ++listRequestId.current;
+    listAbortRef.current?.abort();
     if (view === "admin" || view === "account" || view === "create") {
+      listAbortRef.current = null;
       setListLoading(false);
       return;
     }
+    const controller = new AbortController();
+    listAbortRef.current = controller;
     setListLoading(true);
     if (listViewRef.current !== view) setPastes([]);
     try {
       const data =
         view === "mine"
-          ? ((await api<Paste[]>("/api/my/pastes")) ?? [])
-          : ((await api<Paste[]>("/api/pastes")) ?? []);
+          ? ((await api<Paste[]>("/api/my/pastes", { signal: controller.signal })) ?? [])
+          : ((await api<Paste[]>("/api/pastes", { signal: controller.signal })) ?? []);
       if (requestId !== listRequestId.current) return;
       listViewRef.current = view;
       setPastes(data);
       clearMessage();
     } catch (e) {
+      if (controller.signal.aborted) return;
       if (requestId !== listRequestId.current) return;
       if (e instanceof ApiError && e.status === 401) {
         localStorage.removeItem("letspaste_token");
@@ -390,17 +401,23 @@ export function App() {
       showError(e);
       setPastes([]);
     } finally {
-      if (requestId === listRequestId.current) setListLoading(false);
+      if (requestId === listRequestId.current) {
+        listAbortRef.current = null;
+        setListLoading(false);
+      }
     }
   }
 
   async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste) {
     if (openingPasteIdRef.current === id) return false;
     const requestId = ++openRequestId.current;
+    openAbortRef.current?.abort();
+    const controller = new AbortController();
+    openAbortRef.current = controller;
     openingPasteIdRef.current = id;
     setOpeningPasteId(id);
     try {
-      const next = await api<Paste>(`/api/pastes/${id}`);
+      const next = await api<Paste>(`/api/pastes/${id}`, { signal: controller.signal });
       if (requestId !== openRequestId.current) return false;
       setSelected(next);
       setView(targetView);
@@ -412,6 +429,7 @@ export function App() {
       if (updateUrl) writeRoute(pasteRoute(id, targetView));
       return true;
     } catch (e) {
+      if (controller.signal.aborted) return false;
       if (requestId !== openRequestId.current) return false;
       if (e instanceof ApiError && e.status === 423) {
         const lockedPaste = e.body.paste ?? knownPaste;
@@ -438,10 +456,19 @@ export function App() {
       return false;
     } finally {
       if (requestId === openRequestId.current) {
+        openAbortRef.current = null;
         openingPasteIdRef.current = null;
         setOpeningPasteId(null);
       }
     }
+  }
+
+  function cancelOpenRequest() {
+    openRequestId.current += 1;
+    openAbortRef.current?.abort();
+    openAbortRef.current = null;
+    openingPasteIdRef.current = null;
+    setOpeningPasteId(null);
   }
 
   async function confirmBurnOpen() {
@@ -475,6 +502,7 @@ export function App() {
       await openPaste(route.pasteId, false, route.targetView ?? "explore");
       return;
     }
+    cancelOpenRequest();
     setSelected(null);
     setView(route.view);
   }
@@ -500,6 +528,7 @@ export function App() {
     }
     setView(next);
     clearMessage();
+    cancelOpenRequest();
     if (next === "explore" || next === "mine") {
       setSelected(null);
     }
@@ -507,6 +536,9 @@ export function App() {
   }
 
   function logout() {
+    cancelOpenRequest();
+    listAbortRef.current?.abort();
+    listAbortRef.current = null;
     localStorage.removeItem("letspaste_token");
     setUser(null);
     setView("explore");
