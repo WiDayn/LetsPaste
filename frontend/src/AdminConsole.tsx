@@ -605,6 +605,17 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      const target = previousFocusRef.current;
+      previousFocusRef.current = null;
+      if (target?.isConnected) window.setTimeout(() => target.focus(), 0);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (open) setBusy(false);

@@ -663,6 +663,20 @@ function NavButton({ active, icon, label, onClick }: { active: boolean; icon: Re
   );
 }
 
+function useRestoreFocusOnClose(open: boolean) {
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      const target = previousFocusRef.current;
+      previousFocusRef.current = null;
+      if (target?.isConnected) window.setTimeout(() => target.focus(), 0);
+    };
+  }, [open]);
+}
+
 function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void; showTrigger?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -672,6 +686,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  useRestoreFocusOnClose(open);
 
   async function submit() {
     if (busy) return;
@@ -862,6 +877,7 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  useRestoreFocusOnClose(open);
 
   useEffect(() => {
     if (open) setBusy(false);
