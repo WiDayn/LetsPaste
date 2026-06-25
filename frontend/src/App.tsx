@@ -827,6 +827,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [currentSecret, setCurrentSecret] = useState("");
   const [newSecret, setNewSecret] = useState("");
   const [resultSecret, setResultSecret] = useState("");
+  const [resultSecretSaved, setResultSecretSaved] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -834,9 +835,14 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
 
   async function updateSecret() {
     if (busy) return;
+    if (resultSecret && !resultSecretSaved) {
+      setMessage("请先保存新的登录凭据，再继续修改。");
+      return;
+    }
     setBusy(true);
     setMessage("");
     setResultSecret("");
+    setResultSecretSaved(false);
     setCopiedSecret(false);
     try {
       const res = await api<{ mnemonic?: string }>("/api/me/secret", {
@@ -845,11 +851,12 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
       });
       if (res.mnemonic) {
         setResultSecret(res.mnemonic);
+        setResultSecretSaved(false);
         setCopiedSecret(false);
       }
       setCurrentSecret("");
       setNewSecret("");
-      setMessage(isAdmin ? "管理员密码已更新" : "助记码已更新");
+      setMessage(isAdmin ? "管理员密码已更新。当前会话仍可继续使用，下次登录请使用新密码。" : "助记码已更新。当前会话仍可继续使用，下次登录请使用新助记码。");
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -860,11 +867,20 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   async function copyResultSecret() {
     if (await copyText(resultSecret)) {
       setCopiedSecret(true);
+      setResultSecretSaved(true);
       setMessage("");
       window.setTimeout(() => setCopiedSecret(false), 1400);
       return;
     }
     setMessage("复制失败，请手动选中新密钥复制。");
+  }
+
+  function handleLogout() {
+    if (resultSecret && !resultSecretSaved) {
+      setMessage("请先保存新的登录凭据，再退出登录。");
+      return;
+    }
+    onLogout();
   }
 
   return (
@@ -874,7 +890,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
           <h1 className="text-lg font-semibold">用户信息</h1>
           <p className="text-sm text-zinc-500">管理当前登录凭据和会话。</p>
         </div>
-        <Button variant="outline" onClick={onLogout}>
+        <Button variant="outline" onClick={handleLogout}>
           <LogOut size={16} />
           退出登录
         </Button>
@@ -911,7 +927,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             onChange={(e) => setNewSecret(e.target.value)}
           />
           <p className="text-xs leading-5 text-zinc-500">新凭据不设最短长度；留空时系统会自动生成一组新的登录凭据。</p>
-          <Button type="submit" disabled={busy || !currentSecret.trim()}>{busy ? "保存中" : "保存修改"}</Button>
+          <Button type="submit" disabled={busy || !currentSecret.trim() || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
           {message && <p className="text-sm text-zinc-600">{message}</p>}
           {resultSecret && (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
@@ -923,6 +939,15 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
                 </Button>
               </div>
               <div className="mt-2 break-all font-mono text-sm text-amber-950">{resultSecret}</div>
+              <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
+                <input
+                  className="mt-1 h-4 w-4 shrink-0"
+                  type="checkbox"
+                  checked={resultSecretSaved}
+                  onChange={(e) => setResultSecretSaved(e.target.checked)}
+                />
+                <span>我已经保存新的登录凭据，下次登录会用到它。</span>
+              </label>
             </div>
           )}
         </form>
