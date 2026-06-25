@@ -952,14 +952,14 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       )}
       {open && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) closeDialog();
           }}
         >
           <div
             ref={dialogRef}
-            className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-dialog-title"
@@ -1118,14 +1118,14 @@ function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onCancel();
       }}
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
+        className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
