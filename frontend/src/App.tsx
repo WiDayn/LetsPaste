@@ -1988,14 +1988,18 @@ function PasteViewer({
           <Badge>{paste.language}</Badge>
           <PasteBadges paste={paste} />
           {paste.format === "markdown" && (
-            <div className="ml-auto flex rounded-md border border-zinc-200 bg-zinc-50 p-1">
+            <div className="ml-auto flex rounded-md border border-zinc-200 bg-zinc-50 p-1" role="group" aria-label="Markdown 显示模式">
               <button
+                type="button"
+                aria-pressed={markdownMode === "preview"}
                 className={cn("h-7 rounded px-2 text-xs", markdownMode === "preview" && "bg-white shadow")}
                 onClick={() => setMarkdownMode("preview")}
               >
                 预览
               </button>
               <button
+                type="button"
+                aria-pressed={markdownMode === "source"}
                 className={cn("h-7 rounded px-2 text-xs", markdownMode === "source" && "bg-white shadow")}
                 onClick={() => setMarkdownMode("source")}
               >
@@ -2027,7 +2031,7 @@ function PasteViewer({
 
 function ContentLoading({ dark = false }: { dark?: boolean }) {
   return (
-    <div className={cn("p-5 text-sm", dark ? "bg-zinc-950 text-zinc-400" : "bg-white text-zinc-500")}>
+    <div className={cn("p-5 text-sm", dark ? "bg-zinc-950 text-zinc-400" : "bg-white text-zinc-500")} role="status" aria-live="polite">
       正在加载渲染器...
     </div>
   );
