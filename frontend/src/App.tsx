@@ -242,7 +242,7 @@ function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50",
         size === "default" && "h-10 px-4 text-sm",
         size === "sm" && "h-8 px-3 text-xs",
         size === "icon" && "h-9 w-9",
@@ -264,7 +264,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10",
+        "h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10 focus-visible:ring-zinc-950/20",
         props.className,
       )}
     />
@@ -276,7 +276,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
     <textarea
       {...props}
       className={cn(
-        "min-h-[28rem] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10",
+        "min-h-[28rem] w-full resize-y rounded-md border border-zinc-300 bg-white p-4 font-mono text-sm leading-6 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10 focus-visible:ring-zinc-950/20",
         props.className,
       )}
     />
@@ -288,7 +288,7 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className={cn(
-        "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10",
+        "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10 focus-visible:ring-zinc-950/20",
         props.className,
       )}
     />
@@ -564,7 +564,11 @@ export function App() {
     <div className="min-h-screen bg-[#f4f5f2] text-zinc-950">
       <header className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-4 px-4 py-4">
-          <button className="flex items-center gap-3" onClick={() => changeView("explore")}>
+          <button
+            type="button"
+            className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            onClick={() => changeView("explore")}
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-zinc-950 text-white">
               <Code2 size={20} />
             </div>
@@ -894,7 +898,10 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
             <div className="mb-4 flex rounded-md bg-zinc-100 p-1" role="group" aria-label="登录方式">
               <button
                 type="button"
-                className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "login" && "bg-white shadow")}
+                className={cn(
+                  "h-9 flex-1 rounded px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                  mode === "login" && "bg-white shadow",
+                )}
                 aria-pressed={mode === "login"}
                 disabled={busy || Boolean(generatedMnemonic)}
                 onClick={() => updateMode("login")}
@@ -903,7 +910,10 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
               </button>
               <button
                 type="button"
-                className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "register" && "bg-white shadow")}
+                className={cn(
+                  "h-9 flex-1 rounded px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                  mode === "register" && "bg-white shadow",
+                )}
                 aria-pressed={mode === "register"}
                 disabled={busy || Boolean(generatedMnemonic)}
                 onClick={() => updateMode("register")}
@@ -1734,7 +1744,7 @@ function ComposeModeButton({
     <button
       type="button"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded px-2.5 text-xs font-medium text-zinc-600 transition hover:text-zinc-950",
+        "inline-flex h-8 items-center gap-1.5 rounded px-2.5 text-xs font-medium text-zinc-600 transition hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
         active && "bg-white text-zinc-950 shadow-sm",
       )}
       aria-pressed={active}
@@ -1874,7 +1884,7 @@ function PasteWorkspace({
               {hasSearch && (
                 <button
                   type="button"
-                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
                   aria-label="清空搜索"
                   onClick={() => setSearch("")}
                 >
@@ -1906,7 +1916,11 @@ function PasteWorkspace({
                 {searchPending ? "正在更新结果..." : hasSearch ? `匹配 ${filtered.length} / ${pastes.length}` : `共 ${pastes.length} 条`}
               </span>
               {hasSearch && (
-                <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={() => setSearch("")}>
+                <button
+                  type="button"
+                  className="rounded-sm font-medium text-zinc-700 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
+                  onClick={() => setSearch("")}
+                >
                   清除筛选
                 </button>
               )}
@@ -2020,7 +2034,7 @@ function PasteIndex({
           >
             <div className="flex items-start gap-2">
               <button
-                className="min-w-0 flex-1 text-left disabled:cursor-wait disabled:opacity-70"
+                className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-wait disabled:opacity-70"
                 disabled={openingPasteId === paste.id}
                 aria-busy={openingPasteId === paste.id || undefined}
                 aria-current={selectedId === paste.id ? "true" : undefined}
@@ -2115,7 +2129,7 @@ function WorkspaceInsight({
 function InsightRow({ title, paste, opening, onOpen }: { title: string; paste: Paste; opening: boolean; onOpen: (paste: Paste) => void }) {
   return (
     <button
-      className="w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-70"
+      className="w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-wait disabled:opacity-70"
       disabled={opening}
       aria-busy={opening || undefined}
       onClick={() => onOpen(paste)}
@@ -2364,7 +2378,10 @@ function PasteViewer({
               <button
                 type="button"
                 aria-pressed={markdownMode === "preview"}
-                className={cn("h-7 rounded px-2 text-xs", markdownMode === "preview" && "bg-white shadow")}
+                className={cn(
+                  "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                  markdownMode === "preview" && "bg-white shadow",
+                )}
                 onClick={() => setMarkdownMode("preview")}
               >
                 预览
@@ -2372,7 +2389,10 @@ function PasteViewer({
               <button
                 type="button"
                 aria-pressed={markdownMode === "source"}
-                className={cn("h-7 rounded px-2 text-xs", markdownMode === "source" && "bg-white shadow")}
+                className={cn(
+                  "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                  markdownMode === "source" && "bg-white shadow",
+                )}
                 onClick={() => setMarkdownMode("source")}
               >
                 源格式

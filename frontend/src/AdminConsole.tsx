@@ -325,7 +325,7 @@ export default function AdminConsole({
               {pasteFilters.search.trim() && (
                 <button
                   type="button"
-                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
                   aria-label="清空 Paste 搜索"
                   onClick={() => updatePasteFilters({ search: "" })}
                 >
@@ -368,7 +368,11 @@ export default function AdminConsole({
               {hasPasteFilters ? `当前筛选返回 ${pastes.length} 条 Paste` : `共 ${stats.totalPastes ?? pastes.length} 条 Paste`}
             </span>
             {hasPasteFilters && (
-              <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={clearPasteFilters}>
+              <button
+                type="button"
+                className="rounded-sm font-medium text-zinc-700 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
+                onClick={clearPasteFilters}
+              >
                 恢复全部 Paste
               </button>
             )}
@@ -405,7 +409,7 @@ export default function AdminConsole({
               {userFilters.search.trim() && (
                 <button
                   type="button"
-                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
                   aria-label="清空用户搜索"
                   onClick={() => updateUserFilters({ search: "" })}
                 >
@@ -431,7 +435,11 @@ export default function AdminConsole({
               {hasUserFilters ? `当前筛选返回 ${users.length} 个用户` : `共 ${stats.totalUsers ?? users.length} 个用户`}
             </span>
             {hasUserFilters && (
-              <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={clearUserFilters}>
+              <button
+                type="button"
+                className="rounded-sm font-medium text-zinc-700 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
+                onClick={clearUserFilters}
+              >
                 恢复全部用户
               </button>
             )}
@@ -558,7 +566,7 @@ function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50",
         size === "default" && "h-10 px-4 text-sm",
         size === "sm" && "h-8 px-3 text-xs",
         size === "icon" && "h-9 w-9",
@@ -580,7 +588,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10",
+        "h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10 focus-visible:ring-zinc-950/20",
         props.className,
       )}
     />
@@ -592,7 +600,7 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className={cn(
-        "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10",
+        "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none transition focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/10 focus-visible:ring-zinc-950/20",
         props.className,
       )}
     />
@@ -819,7 +827,7 @@ function AdminPasteTable({
               <tr key={paste.id} className="hover:bg-zinc-50">
                 <td className="px-4 py-3">
                   <button
-                    className="max-w-[300px] truncate font-medium hover:underline disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
+                    className="max-w-[300px] truncate rounded-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
                     disabled={openingPasteId === paste.id}
                     aria-busy={openingPasteId === paste.id || undefined}
                     aria-label={`打开 Paste ${paste.title}`}
