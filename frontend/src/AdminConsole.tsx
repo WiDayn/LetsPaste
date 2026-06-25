@@ -54,6 +54,7 @@ export default function AdminConsole({
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [roleUpdatingUserIds, setRoleUpdatingUserIds] = useState<Set<number>>(() => new Set());
   const roleUpdatingUserIdsRef = useRef<Set<number>>(new Set());
+  const settingsSaveInFlightRef = useRef(false);
   const pasteRequestId = useRef(0);
   const userRequestId = useRef(0);
   const pasteAbortRef = useRef<AbortController | null>(null);
@@ -74,6 +75,18 @@ export default function AdminConsole({
 
   useEffect(() => {
     void loadStats();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      pasteRequestId.current += 1;
+      userRequestId.current += 1;
+      pasteAbortRef.current?.abort();
+      pasteAbortRef.current = null;
+      userAbortRef.current?.abort();
+      userAbortRef.current = null;
+      roleUpdatingUserIdsRef.current = new Set();
+    };
   }, []);
 
   useEffect(() => {
@@ -157,7 +170,7 @@ export default function AdminConsole({
   }
 
   async function saveSettings() {
-    if (savingSettings) return;
+    if (savingSettings || settingsSaveInFlightRef.current) return;
     if (!settingsDirty) {
       setNotice({ message: "没有需要保存的设置", tone: "success" });
       return;
@@ -167,6 +180,7 @@ export default function AdminConsole({
       document.getElementById(siteNameInputId)?.focus();
       return;
     }
+    settingsSaveInFlightRef.current = true;
     setSavingSettings(true);
     setNotice(null);
     try {
@@ -180,6 +194,7 @@ export default function AdminConsole({
     } catch (e) {
       setNotice({ message: (e as Error).message, tone: "error" });
     } finally {
+      settingsSaveInFlightRef.current = false;
       setSavingSettings(false);
     }
   }
@@ -503,7 +518,7 @@ export default function AdminConsole({
               description="关闭后，访客仍可浏览公开内容，但创建 Paste 前需要登录。"
             />
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" disabled={!canAttemptSaveSettings}>
+              <Button type="submit" disabled={!canAttemptSaveSettings} aria-busy={savingSettings || undefined}>
                 <Save size={16} />
                 {saveSettingsLabel}
               </Button>
@@ -670,6 +685,7 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const confirmInFlightRef = useRef(false);
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
 
   useEffect(() => {
@@ -677,11 +693,13 @@ function ConfirmDialog({
   }, [open]);
 
   async function confirm() {
-    if (busy) return;
+    if (busy || confirmInFlightRef.current) return;
+    confirmInFlightRef.current = true;
     setBusy(true);
     try {
       await onConfirm();
     } finally {
+      confirmInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -721,7 +739,7 @@ function ConfirmDialog({
           <Button variant="ghost" onClick={onCancel} disabled={busy} autoFocus>
             取消
           </Button>
-          <Button variant="danger" onClick={confirm} disabled={busy}>
+          <Button variant="danger" onClick={confirm} disabled={busy} aria-busy={busy || undefined}>
             {busy ? "处理中" : confirmLabel}
           </Button>
         </div>
