@@ -438,7 +438,7 @@ export default function AdminConsole({
           <div className="grid gap-3 md:grid-cols-3">
             <AdminBreakdown title="可见性" rows={[["公开", stats.publicPastes ?? 0], ["私密", stats.privatePastes ?? 0], ["匿名", stats.anonymousPastes ?? 0]]} />
             <AdminBreakdown title="保护策略" rows={[["密码", stats.passwordPastes ?? 0], ["阅后即焚", stats.burnPastes ?? 0], ["已过期", stats.expiredPastes ?? 0]]} />
-            <AdminBreakdown title="内容类型" rows={[["Markdown", stats.markdownPastes ?? 0], ["设置过期", stats.activeExpiring ?? 0], ["管理员", stats.adminUsers ?? 0]]} />
+            <AdminBreakdown title="内容类型" rows={[["Markdown", stats.markdownPastes ?? 0], ["限时有效", stats.activeExpiring ?? 0], ["管理员", stats.adminUsers ?? 0]]} />
           </div>
         </div>
       )}
@@ -1124,7 +1124,7 @@ function AdminPasteTable({
                     <dd className="mt-0.5 font-medium text-zinc-800">{paste.views}</dd>
                   </div>
                   <div className="col-span-2">
-                    <dt className="text-zinc-500">过期</dt>
+                    <dt className="text-zinc-500">到期时间</dt>
                     <dd className="mt-0.5 text-zinc-800">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</dd>
                   </div>
                 </dl>
@@ -1144,7 +1144,7 @@ function AdminPasteTable({
               <th className="px-4 py-3 font-medium">作者</th>
               <th className="px-4 py-3 font-medium">属性</th>
               <th className="px-4 py-3 font-medium">访问</th>
-              <th className="px-4 py-3 font-medium">过期</th>
+              <th className="px-4 py-3 font-medium">到期时间</th>
               <th className="px-4 py-3 font-medium">操作</th>
             </tr>
           </thead>
