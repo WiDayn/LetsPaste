@@ -1260,6 +1260,7 @@ function CreateStudio({
   const [error, setError] = useState("");
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const formRef = useRef(form);
   const titleInputId = "create-paste-title";
   const contentInputId = "create-paste-content";
   const contentErrorId = "create-paste-content-error";
@@ -1303,6 +1304,7 @@ function CreateStudio({
   ];
 
   useEffect(() => {
+    formRef.current = form;
     if (!hasCreateDraft(form)) {
       clearCreateDraft();
       setDraftSaved(false);
@@ -1318,7 +1320,8 @@ function CreateStudio({
 
   useEffect(() => {
     const flushDraft = () => {
-      if (hasCreateDraft(form)) saveCreateDraft(form);
+      const currentForm = formRef.current;
+      if (hasCreateDraft(currentForm)) saveCreateDraft(currentForm);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") flushDraft();
@@ -1329,7 +1332,7 @@ function CreateStudio({
       window.removeEventListener("pagehide", flushDraft);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [form]);
+  }, []);
 
   function updateCreateForm(update: (current: CreateFormState) => CreateFormState) {
     setForm(update);
