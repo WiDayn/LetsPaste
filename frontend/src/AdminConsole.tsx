@@ -1098,11 +1098,15 @@ function AdminPasteTable({
 
   return (
     <div>
-      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {copyFeedback?.message ?? ""}
-      </span>
-      {copyFeedback?.tone === "error" && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="alert">
+      {copyFeedback && (
+        <div
+          className={cn(
+            "border-b px-4 py-2 text-sm",
+            copyFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900",
+          )}
+          role={copyFeedback.tone === "success" ? "status" : "alert"}
+          aria-live={copyFeedback.tone === "success" ? "polite" : "assertive"}
+        >
           {copyFeedback.message}
         </div>
       )}
