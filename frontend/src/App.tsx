@@ -1685,9 +1685,11 @@ function PasteWorkspace({
   const [sort, setSort] = useState("newest");
   const [indexCollapsed, setIndexCollapsed] = useState(false);
   const normalizedSearch = search.trim();
+  const deferredSearch = useDeferredValue(normalizedSearch);
   const hasSearch = normalizedSearch.length > 0;
+  const searchPending = deferredSearch !== normalizedSearch;
   const filtered = useMemo(() => {
-    const query = normalizedSearch.toLowerCase();
+    const query = deferredSearch.toLowerCase();
     const data = query
       ? pastes.filter((paste) => {
           return [paste.title, paste.id, paste.language, paste.ownerUsername ?? ""].join(" ").toLowerCase().includes(query);
@@ -1696,7 +1698,7 @@ function PasteWorkspace({
     if (sort === "views") return [...data].sort((a, b) => b.views - a.views);
     if (sort === "title") return [...data].sort((a, b) => a.title.localeCompare(b.title));
     return data;
-  }, [pastes, normalizedSearch, sort]);
+  }, [pastes, deferredSearch, sort]);
   const { protectedCount, expiringCount } = useMemo(
     () =>
       pastes.reduce(
@@ -1770,7 +1772,7 @@ function PasteWorkspace({
               <option value="title">标题 A-Z</option>
             </Select>
             <div className="flex items-center justify-between text-xs text-zinc-500">
-              <span>{hasSearch ? `匹配 ${filtered.length} / ${pastes.length}` : `共 ${pastes.length} 条`}</span>
+              <span>{searchPending ? "正在更新结果..." : hasSearch ? `匹配 ${filtered.length} / ${pastes.length}` : `共 ${pastes.length} 条`}</span>
               {hasSearch && (
                 <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={() => setSearch("")}>
                   清除筛选
@@ -1786,7 +1788,7 @@ function PasteWorkspace({
             onOpen={onOpen}
             onDelete={onDelete}
             totalCount={pastes.length}
-            search={normalizedSearch}
+            search={deferredSearch}
             onClearSearch={() => setSearch("")}
             onCreate={onCreate}
             privateMode={privateMode}
