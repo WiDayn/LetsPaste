@@ -1580,27 +1580,41 @@ function PasteViewer({
   if (paste.hasPassword && !paste.content) {
     return (
       <form
-        className="mx-auto max-w-sm space-y-3 p-6"
+        className="min-h-full p-4"
         onSubmit={(e) => {
           e.preventDefault();
           void unlock();
         }}
       >
-        <Lock className="text-zinc-500" />
-        <h2 className="font-semibold">此 Paste 需要密码</h2>
-        <p className="text-sm text-zinc-500">输入访问密码后才能查看内容。</p>
-        {paste.burnAfterReading && (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
-            <div className="mb-1 flex items-center gap-2 font-medium">
-              <Flame size={14} />
-              解锁后会触发阅后即焚
+        <div className="mb-4 flex flex-wrap justify-end gap-2">
+          {indexCollapsed && (
+            <Button type="button" variant="outline" size="sm" onClick={onRevealIndex}>
+              <PanelLeftOpen size={14} />
+              显示索引
+            </Button>
+          )}
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            <PanelLeftClose size={14} />
+            返回列表
+          </Button>
+        </div>
+        <div className="mx-auto max-w-sm space-y-3 py-4">
+          <Lock className="text-zinc-500" />
+          <h2 className="break-all font-semibold">{paste.title}</h2>
+          <p className="text-sm text-zinc-500">此 Paste 需要密码，输入访问密码后才能查看内容。</p>
+          {paste.burnAfterReading && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
+              <div className="mb-1 flex items-center gap-2 font-medium">
+                <Flame size={14} />
+                解锁后会触发阅后即焚
+              </div>
+              首次成功查看内容后，这条 Paste 会立即销毁。
             </div>
-            首次成功查看内容后，这条 Paste 会立即销毁。
-          </div>
-        )}
-        <Input type="password" value={password} disabled={unlocking} autoFocus onChange={(e) => setPassword(e.target.value)} />
-        <Button type="submit" disabled={unlocking || !password}>{unlocking ? "解锁中" : "解锁"}</Button>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+          )}
+          <Input type="password" value={password} disabled={unlocking} autoFocus onChange={(e) => setPassword(e.target.value)} />
+          <Button type="submit" disabled={unlocking || !password}>{unlocking ? "解锁中" : "解锁"}</Button>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
       </form>
     );
   }
