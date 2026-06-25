@@ -17,6 +17,7 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
+import { trapDialogTab, useDialogFocus } from "./dialogFocus";
 import { cn } from "./lib";
 
 type AdminTab = "overview" | "pastes" | "users" | "settings";
@@ -605,17 +606,7 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    return () => {
-      const target = previousFocusRef.current;
-      previousFocusRef.current = null;
-      if (target?.isConnected) window.setTimeout(() => target.focus(), 0);
-    };
-  }, [open]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(open);
 
   useEffect(() => {
     if (open) setBusy(false);
@@ -641,13 +632,16 @@ function ConfirmDialog({
       }}
     >
       <div
+        ref={dialogRef}
         className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-confirm-dialog-title"
         aria-describedby="admin-confirm-dialog-description"
+        tabIndex={-1}
         onKeyDown={(e) => {
           if (e.key === "Escape" && !busy) onCancel();
+          trapDialogTab(e, dialogRef.current);
         }}
       >
         <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-600">

@@ -27,6 +27,7 @@ import {
 import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
+import { trapDialogTab, useDialogFocus } from "./dialogFocus";
 import { cn } from "./lib";
 
 type View = "explore" | "create" | "mine" | "account" | "admin";
@@ -663,20 +664,6 @@ function NavButton({ active, icon, label, onClick }: { active: boolean; icon: Re
   );
 }
 
-function useRestoreFocusOnClose(open: boolean) {
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    return () => {
-      const target = previousFocusRef.current;
-      previousFocusRef.current = null;
-      if (target?.isConnected) window.setTimeout(() => target.focus(), 0);
-    };
-  }, [open]);
-}
-
 function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void; showTrigger?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -686,7 +673,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  useRestoreFocusOnClose(open);
+  const dialogRef = useDialogFocus<HTMLDivElement>(open);
 
   async function submit() {
     if (busy) return;
@@ -774,13 +761,16 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
           }}
         >
           <div
+            ref={dialogRef}
             className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-dialog-title"
             aria-describedby="auth-dialog-description"
+            tabIndex={-1}
             onKeyDown={(e) => {
               if (e.key === "Escape") closeDialog();
+              trapDialogTab(e, dialogRef.current);
             }}
           >
             <div className="mb-4 flex rounded-md bg-zinc-100 p-1" role="group" aria-label="登录方式">
@@ -877,7 +867,7 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
-  useRestoreFocusOnClose(open);
+  const dialogRef = useDialogFocus<HTMLDivElement>(open);
 
   useEffect(() => {
     if (open) setBusy(false);
@@ -903,13 +893,16 @@ function ConfirmDialog({
       }}
     >
       <div
+        ref={dialogRef}
         className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
+        tabIndex={-1}
         onKeyDown={(e) => {
           if (e.key === "Escape" && !busy) onCancel();
+          trapDialogTab(e, dialogRef.current);
         }}
       >
         <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-600">
