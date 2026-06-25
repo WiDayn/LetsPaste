@@ -1390,6 +1390,12 @@ function CreateStudio({
     }
   }
 
+  function submitFromShortcut(event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || (!event.ctrlKey && !event.metaKey)) return;
+    event.preventDefault();
+    void submit();
+  }
+
   return (
     <div className={cn("grid gap-4", settingsOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
       <section className="rounded-md border border-zinc-200 bg-white">
@@ -1435,9 +1441,11 @@ function CreateStudio({
               id={titleInputId}
               className="min-w-64 flex-1"
               aria-label="Paste 标题"
+              aria-keyshortcuts="Control+Enter Meta+Enter"
               placeholder="标题，例如：nginx 502 调试日志"
               value={form.title}
               onChange={(e) => updateCreateForm((current) => ({ ...current, title: e.target.value }))}
+              onKeyDown={submitFromShortcut}
             />
             <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="编辑模式">
               <ComposeModeButton active={composeMode === "write"} icon={<Code2 size={14} />} label="编辑" onClick={() => setComposeMode("write")} />
@@ -1460,7 +1468,9 @@ function CreateStudio({
                   value={form.content}
                   aria-invalid={contentError || undefined}
                   aria-describedby={contentError ? contentErrorId : undefined}
+                  aria-keyshortcuts="Control+Enter Meta+Enter"
                   onChange={(e) => updateCreateForm((current) => ({ ...current, content: e.target.value }))}
+                  onKeyDown={submitFromShortcut}
                 />
                 {contentError && (
                   <p id={contentErrorId} className="mt-2 text-xs text-red-600" role="alert">
