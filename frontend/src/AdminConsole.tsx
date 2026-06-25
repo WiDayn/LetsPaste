@@ -29,6 +29,7 @@ type RoleChangeTarget = { user: User; role: User["role"] };
 const defaultPasteFilters = { search: "", visibility: "", security: "", format: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
+const adminServerListLimit = 250;
 const adminTabs: AdminTab[] = ["overview", "pastes", "users", "settings"];
 
 function adminTabId(tab: AdminTab) {
@@ -92,6 +93,22 @@ export default function AdminConsole({
   const settingsInvalid = draft.siteName.trim().length === 0;
   const canAttemptSaveSettings = settingsDirty && !savingSettings;
   const saveSettingsLabel = savingSettings ? "保存中" : settingsInvalid ? "检查站点名称" : "保存设置";
+  const totalPastes = stats.totalPastes ?? pastes.length;
+  const totalUsers = stats.totalUsers ?? users.length;
+  const pasteStatusText = hasPasteFilters
+    ? pastes.length >= adminServerListLimit
+      ? `当前筛选返回前 ${adminServerListLimit} 条 Paste，请继续收窄筛选定位更多结果`
+      : `当前筛选返回 ${pastes.length} 条 Paste`
+    : totalPastes > pastes.length
+      ? `已载入 ${pastes.length} / ${totalPastes} 条 Paste，使用搜索或筛选定位更多`
+      : `共 ${totalPastes} 条 Paste`;
+  const userStatusText = hasUserFilters
+    ? users.length >= adminServerListLimit
+      ? `当前筛选返回前 ${adminServerListLimit} 个用户，请继续收窄筛选定位更多结果`
+      : `当前筛选返回 ${users.length} 个用户`
+    : totalUsers > users.length
+      ? `已载入 ${users.length} / ${totalUsers} 个用户，使用搜索或筛选定位更多`
+      : `共 ${totalUsers} 个用户`;
   const siteNameInputId = "admin-site-name";
   const siteNameErrorId = "admin-site-name-error";
 
@@ -499,7 +516,7 @@ export default function AdminConsole({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
             <span role="status" aria-live="polite" aria-atomic="true">
-              {hasPasteFilters ? `当前筛选返回 ${pastes.length} 条 Paste` : `共 ${stats.totalPastes ?? pastes.length} 条 Paste`}
+              {pasteStatusText}
             </span>
             {hasPasteFilters && (
               <button
@@ -568,7 +585,7 @@ export default function AdminConsole({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
             <span role="status" aria-live="polite" aria-atomic="true">
-              {hasUserFilters ? `当前筛选返回 ${users.length} 个用户` : `共 ${stats.totalUsers ?? users.length} 个用户`}
+              {userStatusText}
             </span>
             {hasUserFilters && (
               <button
