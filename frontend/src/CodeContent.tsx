@@ -17,7 +17,7 @@ export default function CodeContent({
       if (language && language !== "plaintext" && hljs.getLanguage(language)) {
         return hljs.highlight(content, { language }).value;
       }
-      return hljs.highlightAuto(content).value;
+      return escapeHTML(content);
     } catch {
       return escapeHTML(content);
     }
