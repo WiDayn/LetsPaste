@@ -108,8 +108,10 @@ func main() {
 
 	r.Group(func(r chi.Router) {
 		r.Use(a.requireAdmin)
+		r.Get("/api/admin/stats", a.adminStats)
 		r.Get("/api/admin/users", a.adminUsers)
 		r.Delete("/api/admin/users/{id}", a.adminDeleteUser)
+		r.Put("/api/admin/users/{id}/role", a.adminUpdateUserRole)
 		r.Get("/api/admin/pastes", a.adminPastes)
 		r.Delete("/api/admin/pastes/{id}", a.deletePaste)
 		r.Get("/api/admin/settings", a.adminSettings)
@@ -399,8 +401,47 @@ func (a *app) myPastes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) adminPastes(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.db.Query(`SELECT p.id, p.title, '', p.language, p.format, p.is_private, p.password_hash IS NOT NULL, p.burn_after_reading,
-		p.expires_at, p.views, p.owner_id, u.username, p.created_at FROM pastes p LEFT JOIN users u ON p.owner_id = u.id ORDER BY p.created_at DESC`)
+	q := r.URL.Query()
+	where := []string{"1 = 1"}
+	args := []any{}
+	if search := strings.TrimSpace(q.Get("search")); search != "" {
+		where = append(where, "(p.title LIKE ? OR p.id LIKE ? OR u.username LIKE ?)")
+		like := "%" + search + "%"
+		args = append(args, like, like, like)
+	}
+	switch q.Get("visibility") {
+	case "public":
+		where = append(where, "p.is_private = 0")
+	case "private":
+		where = append(where, "p.is_private = 1")
+	}
+	switch q.Get("security") {
+	case "password":
+		where = append(where, "p.password_hash IS NOT NULL")
+	case "burn":
+		where = append(where, "p.burn_after_reading = 1")
+	case "expired":
+		where = append(where, "p.expires_at IS NOT NULL AND p.expires_at <= ?")
+		args = append(args, time.Now().UTC().Format(time.RFC3339))
+	case "active":
+		where = append(where, "(p.expires_at IS NULL OR p.expires_at > ?)")
+		args = append(args, time.Now().UTC().Format(time.RFC3339))
+	}
+	if format := q.Get("format"); format == "code" || format == "markdown" {
+		where = append(where, "p.format = ?")
+		args = append(args, format)
+	}
+	orderBy := "p.created_at DESC"
+	switch q.Get("sort") {
+	case "views":
+		orderBy = "p.views DESC, p.created_at DESC"
+	case "title":
+		orderBy = "p.title ASC"
+	}
+	query := `SELECT p.id, p.title, '', p.language, p.format, p.is_private, p.password_hash IS NOT NULL, p.burn_after_reading,
+		p.expires_at, p.views, p.owner_id, u.username, p.created_at FROM pastes p LEFT JOIN users u ON p.owner_id = u.id
+		WHERE ` + strings.Join(where, " AND ") + ` ORDER BY ` + orderBy + ` LIMIT 250`
+	rows, err := a.db.Query(query, args...)
 	if err != nil {
 		errorJSON(w, http.StatusInternalServerError, "读取失败")
 		return
@@ -415,7 +456,18 @@ func (a *app) deletePaste(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) adminUsers(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.db.Query(`SELECT id, username, '', role, created_at FROM users ORDER BY created_at DESC`)
+	q := r.URL.Query()
+	where := []string{"1 = 1"}
+	args := []any{}
+	if search := strings.TrimSpace(q.Get("search")); search != "" {
+		where = append(where, "username LIKE ?")
+		args = append(args, "%"+search+"%")
+	}
+	if role := q.Get("role"); role == "admin" || role == "user" {
+		where = append(where, "role = ?")
+		args = append(args, role)
+	}
+	rows, err := a.db.Query(`SELECT id, username, '', role, created_at FROM users WHERE `+strings.Join(where, " AND ")+` ORDER BY created_at DESC LIMIT 250`, args...)
 	if err != nil {
 		errorJSON(w, http.StatusInternalServerError, "读取失败")
 		return
@@ -430,6 +482,39 @@ func (a *app) adminUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, users)
 }
 
+func (a *app) adminStats(w http.ResponseWriter, r *http.Request) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	stats := map[string]int64{}
+	queries := map[string]string{
+		"totalPastes":     `SELECT COUNT(*) FROM pastes`,
+		"publicPastes":    `SELECT COUNT(*) FROM pastes WHERE is_private = 0`,
+		"privatePastes":   `SELECT COUNT(*) FROM pastes WHERE is_private = 1`,
+		"passwordPastes":  `SELECT COUNT(*) FROM pastes WHERE password_hash IS NOT NULL`,
+		"burnPastes":      `SELECT COUNT(*) FROM pastes WHERE burn_after_reading = 1`,
+		"markdownPastes":  `SELECT COUNT(*) FROM pastes WHERE format = 'markdown'`,
+		"anonymousPastes": `SELECT COUNT(*) FROM pastes WHERE owner_id IS NULL`,
+		"totalUsers":      `SELECT COUNT(*) FROM users`,
+		"adminUsers":      `SELECT COUNT(*) FROM users WHERE role = 'admin'`,
+		"totalViews":      `SELECT COALESCE(SUM(views), 0) FROM pastes`,
+		"expiredPastes":   `SELECT COUNT(*) FROM pastes WHERE expires_at IS NOT NULL AND expires_at <= ?`,
+		"activeExpiring":  `SELECT COUNT(*) FROM pastes WHERE expires_at IS NOT NULL AND expires_at > ?`,
+		"createdToday":    `SELECT COUNT(*) FROM pastes WHERE created_at >= datetime('now', '-1 day')`,
+	}
+	for key, query := range queries {
+		var count int64
+		var err error
+		if strings.Contains(query, "?") {
+			err = a.db.QueryRow(query, now).Scan(&count)
+		} else {
+			err = a.db.QueryRow(query).Scan(&count)
+		}
+		if err == nil {
+			stats[key] = count
+		}
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
 func (a *app) adminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	u, _ := currentUser(r)
@@ -438,6 +523,47 @@ func (a *app) adminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.db.Exec(`DELETE FROM users WHERE id = ? AND role != 'admin'`, id)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *app) adminUpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req struct {
+		Role string `json:"role"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if req.Role != "admin" && req.Role != "user" {
+		errorJSON(w, http.StatusBadRequest, "role must be admin or user")
+		return
+	}
+	current, _ := currentUser(r)
+	if strconv.FormatInt(current.ID, 10) == id && req.Role != "admin" {
+		errorJSON(w, http.StatusBadRequest, "不能移除当前管理员权限")
+		return
+	}
+	if req.Role != "admin" {
+		var adminCount int
+		if err := a.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'admin'`).Scan(&adminCount); err == nil && adminCount <= 1 {
+			var oldRole string
+			a.db.QueryRow(`SELECT role FROM users WHERE id = ?`, id).Scan(&oldRole)
+			if oldRole == "admin" {
+				errorJSON(w, http.StatusBadRequest, "至少保留一个管理员")
+				return
+			}
+		}
+	}
+	res, err := a.db.Exec(`UPDATE users SET role = ? WHERE id = ?`, req.Role, id)
+	if err != nil {
+		errorJSON(w, http.StatusInternalServerError, "更新失败")
+		return
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		errorJSON(w, http.StatusNotFound, "用户不存在")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
