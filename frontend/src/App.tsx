@@ -445,8 +445,9 @@ export function App() {
 
   useEffect(() => {
     const siteName = compactDocumentTitle(settings.siteName, "LetsPaste");
-    const pageTitle = selected
-      ? compactDocumentTitle(selected.title, selected.id)
+    const selectedForTitle = view === "explore" || view === "mine" ? selected : null;
+    const pageTitle = selectedForTitle
+      ? compactDocumentTitle(selectedForTitle.title, selectedForTitle.id)
       : openingPasteId
         ? "正在打开 Paste"
         : viewDocumentTitle(view);
@@ -642,9 +643,7 @@ export function App() {
     setView(next);
     clearMessage();
     cancelOpenRequest();
-    if (next === "explore" || next === "mine") {
-      setSelected(null);
-    }
+    setSelected(null);
     setCreatedPasteId(null);
     writeRoute(viewRoute(next));
   }
