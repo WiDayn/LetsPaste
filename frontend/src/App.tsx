@@ -831,6 +831,11 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const mnemonicSavedId = "auth-dialog-mnemonic-saved";
   const emptyMnemonicError = "请输入助记码。";
   const title = generatedMnemonic ? "保存助记码" : mode === "login" ? "助记码登录" : "生成助记码";
+  const description = generatedMnemonic
+    ? "这组助记码只显示一次，确认保存后再关闭窗口。"
+    : mode === "login"
+      ? "普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。"
+      : "点击生成后会创建新用户，并只显示一次助记码。";
   const loginError = Boolean(error) && mode === "login" && !generatedMnemonic;
   const generatedMnemonicUnsaved = Boolean(generatedMnemonic) && !mnemonicSaved;
 
@@ -970,6 +975,14 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
               trapDialogTab(e, dialogRef.current);
             }}
           >
+            <div className="mb-4">
+              <h2 id="auth-dialog-title" className="text-base font-semibold">
+                {title}
+              </h2>
+              <p id={authDescriptionId} className="mt-1 text-xs leading-5 text-zinc-500">
+                {description}
+              </p>
+            </div>
             <div className="mb-4 flex rounded-md bg-zinc-100 p-1" role="group" aria-label="登录方式">
               <button
                 type="button"
@@ -1003,11 +1016,8 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 void submit();
               }}
             >
-              <h2 id="auth-dialog-title" className="sr-only">
-                {title}
-              </h2>
               {mode === "login" ? (
-                <>
+                !generatedMnemonic && (
                   <Input
                     id={mnemonicInputId}
                     {...preciseCredentialInputProps}
@@ -1022,12 +1032,13 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                     autoFocus
                     onChange={(e) => updateMnemonic(e.target.value)}
                   />
-                  <p id={authDescriptionId} className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
-                </>
+                )
               ) : (
-                <div id={authDescriptionId} className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
-                  点击生成后会创建新用户，并只显示一次助记码。
-                </div>
+                !generatedMnemonic && (
+                  <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
+                    新用户会自动生成一组助记码。
+                  </div>
+                )
               )}
               {generatedMnemonic && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
