@@ -17,6 +17,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  RotateCcw,
   Search,
   Shield,
   Trash2,
@@ -1096,6 +1097,7 @@ function CreateStudio({
 }) {
   const [form, setForm] = useState<CreateFormState>(() => loadCreateDraft());
   const [draftSaved, setDraftSaved] = useState(false);
+  const [draftReset, setDraftReset] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
@@ -1116,6 +1118,7 @@ function CreateStudio({
   const hasExpiry = expiresValue.length > 0;
   const invalidExpiry = hasExpiry && (!Number.isInteger(parsedExpiry) || parsedExpiry < 1);
   const hasBody = form.content.trim().length > 0;
+  const hasFormInput = hasCreateDraft(form) || form.password.trim().length > 0;
   const canSubmit = canPost && hasBody && !busy && !invalidExpiry;
   const protectionSummary = [
     form.password.trim() ? "访问密码" : "",
@@ -1128,6 +1131,7 @@ function CreateStudio({
   const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
     { label: hasBody ? `${form.content.length} 字符` : "正文为空", tone: hasBody ? "neutral" : "red" },
     ...(draftSaved ? [{ label: "草稿已保存", tone: "blue" as const }] : []),
+    ...(draftReset ? [{ label: "草稿已清空", tone: "neutral" as const }] : []),
     { label: form.isPrivate ? "私密链接" : "公开库可见", tone: form.isPrivate ? "amber" : "green" },
     { label: identitySummary, tone: identityTone },
     { label: form.format === "markdown" ? "Markdown" : form.language, tone: form.format === "markdown" ? "blue" : "neutral" },
@@ -1141,6 +1145,7 @@ function CreateStudio({
       setDraftSaved(false);
       return;
     }
+    setDraftReset(false);
     setDraftSaved(false);
     const timeout = window.setTimeout(() => {
       setDraftSaved(saveCreateDraft(form));
@@ -1169,6 +1174,16 @@ function CreateStudio({
       format,
       language: format === "markdown" ? "markdown" : form.language === "markdown" ? "plaintext" : form.language,
     });
+  }
+
+  function resetDraft() {
+    clearCreateDraft();
+    setForm(freshCreateForm());
+    setDraftSaved(false);
+    setDraftReset(true);
+    setError("");
+    setComposeMode("write");
+    setSettingsOpen(false);
   }
 
   async function submit() {
@@ -1213,6 +1228,12 @@ function CreateStudio({
             <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开设置或并排预览。</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {hasFormInput && (
+              <Button variant="ghost" onClick={resetDraft}>
+                <RotateCcw size={16} />
+                清空草稿
+              </Button>
+            )}
             <Button variant="outline" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
               {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
               {settingsOpen ? "收起设置" : "设置"}
