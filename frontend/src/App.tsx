@@ -2485,6 +2485,7 @@ function PasteWorkspace({
               onUnlocked={onUnlocked}
               onDismissCreatedNotice={onDismissCreatedNotice}
               onClose={onClose}
+              onDelete={onDelete}
             />
           ) : (
             <WorkspaceInsight pastes={pastes} loading={loading} error={error} openingPasteId={openingPasteId} onCreate={onCreate} onOpen={onOpen} onRetry={onRefresh} />
@@ -2788,6 +2789,7 @@ function PasteViewer({
   onUnlocked,
   onDismissCreatedNotice,
   onClose,
+  onDelete,
 }: {
   paste: Paste;
   justCreated?: boolean;
@@ -2798,6 +2800,7 @@ function PasteViewer({
   onUnlocked: (p: Paste) => void;
   onDismissCreatedNotice?: () => void;
   onClose: () => void;
+  onDelete?: (paste: Paste) => void;
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -2827,7 +2830,7 @@ function PasteViewer({
   const lockedWithoutContent = paste.hasPassword && !paste.content;
   const permalink = pastePermalink(paste.id);
   const canToggleWrap = paste.format !== "markdown" || markdownMode === "source";
-  const hasSecondaryActions = canToggleWrap;
+  const hasSecondaryActions = canToggleWrap || Boolean(onDelete);
 
   function focusActionsButton() {
     actionsRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
@@ -3052,10 +3055,18 @@ function PasteViewer({
       >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <PasteAdjacentNav previousPaste={previousPaste} nextPaste={nextPaste} openingPasteId={openingPasteId} onOpen={onOpenAdjacent} />
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            <PanelLeftClose size={14} />
-            返回列表
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {onDelete && (
+              <Button type="button" variant="danger" size="sm" onClick={() => onDelete(paste)}>
+                <Trash2 size={14} />
+                删除
+              </Button>
+            )}
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              <PanelLeftClose size={14} />
+              返回列表
+            </Button>
+          </div>
         </div>
         <div className="mx-auto max-w-sm space-y-3 py-4">
           <Lock className="text-zinc-500" />
@@ -3191,6 +3202,20 @@ function PasteViewer({
                       </span>
                       {wrapLongLines && <Check size={14} />}
                     </button>
+                    {onDelete && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-600/25"
+                        onClick={() => {
+                          setActionsOpen(false);
+                          onDelete(paste);
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        删除 Paste
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
