@@ -861,8 +861,58 @@ function AdminPasteTable({
     }
   }
 
+  function renderPasteActions(paste: Paste) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`复制 Paste ${paste.title} 链接`}
+          aria-busy={copyingPasteId === paste.id || undefined}
+          disabled={copyBusy}
+          onClick={() => void copyPasteLink(paste)}
+        >
+          {copiedPasteId === paste.id ? <Check size={14} /> : <Copy size={14} />}
+          {copyingPasteId === paste.id ? "复制中" : copiedPasteId === paste.id ? "已复制" : "复制链接"}
+        </Button>
+        <Button variant="danger" size="sm" aria-label={`删除 Paste ${paste.title}`} onClick={() => onDelete(paste)}>
+          <Trash2 size={14} />
+          删除
+        </Button>
+      </div>
+    );
+  }
+
+  function renderEmptyState() {
+    return (
+      <div className="px-4 py-12 text-center">
+        <FileText className="mx-auto mb-3 text-zinc-400" size={24} />
+        <div className="font-medium text-zinc-800">{emptyTitle}</div>
+        <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
+        {!loading && filtersActive && (
+          <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
+            <X size={14} />
+            清空筛选
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  function renderMoreButton() {
+    if (hiddenCount <= 0) return null;
+    return (
+      <div className="px-4 py-4 text-center">
+        <div className="text-xs text-zinc-500">已显示 {visiblePastes.length} / {pastes.length} 条 Paste</div>
+        <Button className="mt-2" variant="outline" size="sm" onClick={() => setVisibleCount((count) => Math.min(count + adminTableBatchSize, pastes.length))}>
+          再显示 {Math.min(adminTableBatchSize, hiddenCount)} 条
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-x-auto">
+    <div>
       <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {copyFeedback?.message ?? ""}
       </span>
@@ -871,93 +921,109 @@ function AdminPasteTable({
           {copyFeedback.message}
         </div>
       )}
-      <table className="w-full min-w-[880px] text-left text-sm">
-        <caption className="sr-only">后台 Paste 列表</caption>
-        <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
-          <tr>
-            <th className="px-4 py-3 font-medium">Paste</th>
-            <th className="px-4 py-3 font-medium">作者</th>
-            <th className="px-4 py-3 font-medium">属性</th>
-            <th className="px-4 py-3 font-medium">访问</th>
-            <th className="px-4 py-3 font-medium">过期</th>
-            <th className="px-4 py-3 font-medium">操作</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-200">
-          {pastes.length === 0 ? (
-            <tr>
-              <td className="px-4 py-12 text-center" colSpan={6}>
-                <FileText className="mx-auto mb-3 text-zinc-400" size={24} />
-                <div className="font-medium text-zinc-800">{emptyTitle}</div>
-                <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
-                {!loading && filtersActive && (
-                  <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
-                    <X size={14} />
-                    清空筛选
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ) : (
-            visiblePastes.map((paste) => (
-              <tr key={paste.id} className="hover:bg-zinc-50">
-                <td className="px-4 py-3">
-                  <button
-                    className="max-w-[300px] truncate rounded-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
-                    disabled={openingPasteId === paste.id}
-                    aria-busy={openingPasteId === paste.id || undefined}
-                    aria-label={`打开 Paste ${paste.title}`}
-                    title={paste.title}
-                    onClick={() => onOpen(paste)}
-                  >
-                    {openingPasteId === paste.id ? "打开中..." : paste.title}
-                  </button>
-                  <div className="text-xs text-zinc-500">{paste.id}</div>
-                </td>
-                <td className="px-4 py-3 text-zinc-600">{paste.ownerUsername ?? "匿名"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    <Badge>{paste.language}</Badge>
-                    <Badge tone={paste.isPrivate ? "amber" : "green"}>{paste.isPrivate ? "私密" : "公开"}</Badge>
-                    <PasteBadges paste={paste} />
-                  </div>
-                </td>
-                <td className="px-4 py-3">{paste.views}</td>
-                <td className="px-4 py-3 text-zinc-500">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label={`复制 Paste ${paste.title} 链接`}
-                      aria-busy={copyingPasteId === paste.id || undefined}
-                      disabled={copyBusy}
-                      onClick={() => void copyPasteLink(paste)}
+      <div className="md:hidden">
+        {pastes.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <div className="space-y-3 p-3">
+            {visiblePastes.map((paste) => (
+              <article key={paste.id} className="rounded-md border border-zinc-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <button
+                      className="max-w-full break-words rounded-sm text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
+                      disabled={openingPasteId === paste.id}
+                      aria-busy={openingPasteId === paste.id || undefined}
+                      aria-label={`打开 Paste ${paste.title}`}
+                      onClick={() => onOpen(paste)}
                     >
-                      {copiedPasteId === paste.id ? <Check size={14} /> : <Copy size={14} />}
-                      {copyingPasteId === paste.id ? "复制中" : copiedPasteId === paste.id ? "已复制" : "复制链接"}
-                    </Button>
-                    <Button variant="danger" size="sm" aria-label={`删除 Paste ${paste.title}`} onClick={() => onDelete(paste)}>
-                      <Trash2 size={14} />
-                      删除
-                    </Button>
+                      {openingPasteId === paste.id ? "打开中..." : paste.title}
+                    </button>
+                    <div className="mt-1 break-all font-mono text-[11px] text-zinc-500">{paste.id}</div>
                   </div>
-                </td>
-              </tr>
-            ))
-          )}
-          {hiddenCount > 0 && (
+                  <Badge tone={paste.isPrivate ? "amber" : "green"}>{paste.isPrivate ? "私密" : "公开"}</Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <Badge>{paste.language}</Badge>
+                  <PasteBadges paste={paste} />
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <dt className="text-zinc-500">作者</dt>
+                    <dd className="mt-0.5 truncate font-medium text-zinc-800">{paste.ownerUsername ?? "匿名"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-zinc-500">访问</dt>
+                    <dd className="mt-0.5 font-medium text-zinc-800">{paste.views}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-zinc-500">过期</dt>
+                    <dd className="mt-0.5 text-zinc-800">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</dd>
+                  </div>
+                </dl>
+                <div className="mt-3">{renderPasteActions(paste)}</div>
+              </article>
+            ))}
+          </div>
+        )}
+        {renderMoreButton()}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[880px] text-left text-sm">
+          <caption className="sr-only">后台 Paste 列表</caption>
+          <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
             <tr>
-              <td className="px-4 py-4 text-center" colSpan={6}>
-                <div className="text-xs text-zinc-500">已显示 {visiblePastes.length} / {pastes.length} 条 Paste</div>
-                <Button className="mt-2" variant="outline" size="sm" onClick={() => setVisibleCount((count) => Math.min(count + adminTableBatchSize, pastes.length))}>
-                  再显示 {Math.min(adminTableBatchSize, hiddenCount)} 条
-                </Button>
-              </td>
+              <th className="px-4 py-3 font-medium">Paste</th>
+              <th className="px-4 py-3 font-medium">作者</th>
+              <th className="px-4 py-3 font-medium">属性</th>
+              <th className="px-4 py-3 font-medium">访问</th>
+              <th className="px-4 py-3 font-medium">过期</th>
+              <th className="px-4 py-3 font-medium">操作</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-zinc-200">
+            {pastes.length === 0 ? (
+              <tr>
+                <td colSpan={6}>{renderEmptyState()}</td>
+              </tr>
+            ) : (
+              visiblePastes.map((paste) => (
+                <tr key={paste.id} className="hover:bg-zinc-50">
+                  <td className="px-4 py-3">
+                    <button
+                      className="max-w-[300px] truncate rounded-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
+                      disabled={openingPasteId === paste.id}
+                      aria-busy={openingPasteId === paste.id || undefined}
+                      aria-label={`打开 Paste ${paste.title}`}
+                      title={paste.title}
+                      onClick={() => onOpen(paste)}
+                    >
+                      {openingPasteId === paste.id ? "打开中..." : paste.title}
+                    </button>
+                    <div className="text-xs text-zinc-500">{paste.id}</div>
+                  </td>
+                  <td className="px-4 py-3 text-zinc-600">{paste.ownerUsername ?? "匿名"}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      <Badge>{paste.language}</Badge>
+                      <Badge tone={paste.isPrivate ? "amber" : "green"}>{paste.isPrivate ? "私密" : "公开"}</Badge>
+                      <PasteBadges paste={paste} />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">{paste.views}</td>
+                  <td className="px-4 py-3 text-zinc-500">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</td>
+                  <td className="px-4 py-3">{renderPasteActions(paste)}</td>
+                </tr>
+              ))
+            )}
+            {hiddenCount > 0 && (
+              <tr>
+                <td colSpan={6}>{renderMoreButton()}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
