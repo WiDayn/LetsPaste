@@ -71,18 +71,20 @@ export default function AdminConsole({
   }, [settings.allowAnonymousPaste, settings.siteName]);
 
   useEffect(() => {
+    if (tab !== "pastes") return;
     const timeout = window.setTimeout(() => {
       void loadPastes();
     }, pasteFilters.search ? 300 : 0);
     return () => window.clearTimeout(timeout);
-  }, [pasteFilters.search, pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.sort]);
+  }, [tab, pasteFilters.search, pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.sort]);
 
   useEffect(() => {
+    if (tab !== "users") return;
     const timeout = window.setTimeout(() => {
       void loadUsers();
     }, userFilters.search ? 300 : 0);
     return () => window.clearTimeout(timeout);
-  }, [userFilters.search, userFilters.role]);
+  }, [tab, userFilters.search, userFilters.role]);
 
   async function loadStats() {
     try {
