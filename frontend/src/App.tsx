@@ -761,6 +761,7 @@ export function App() {
           <CreateStudio
             authed={Boolean(user)}
             settings={settings}
+            onAuth={setUser}
             onCreated={(paste) => {
               const nextView = user ? "mine" : "explore";
               setSelected(paste);
@@ -1715,10 +1716,12 @@ function AccountPanel({
 function CreateStudio({
   settings,
   authed,
+  onAuth,
   onCreated,
 }: {
   settings: SiteSettings;
   authed: boolean;
+  onAuth: (u: User) => void;
   onCreated: (p: Paste) => void;
 }) {
   const [form, setForm] = useState<CreateFormState>(() => loadCreateDraft());
@@ -1748,6 +1751,7 @@ function CreateStudio({
   const settingsPanelId = "create-paste-settings-panel";
   const emptyContentError = "请输入内容后再发布。";
   const expiryError = "自动销毁时间需要填写大于等于 1 的整数分钟。";
+  const anonymousBlockedError = "管理员已关闭匿名发布，请登录后再发布。";
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
@@ -1791,6 +1795,10 @@ function CreateStudio({
     { label: protectionSummary.length ? protectionSummary.join("、") : "无额外保护", tone: protectionSummary.length ? "amber" : "neutral" },
     { label: lifecycleSummary, tone: invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral" },
   ];
+
+  useEffect(() => {
+    if (canPost && error === anonymousBlockedError) setError("");
+  }, [anonymousBlockedError, canPost, error]);
 
   useEffect(() => {
     formRef.current = form;
@@ -1902,7 +1910,7 @@ function CreateStudio({
   async function submit() {
     if (busy || submitInFlightRef.current) return;
     if (!canPost) {
-      setError("管理员已关闭匿名发布，请登录后再发布。");
+      setError(anonymousBlockedError);
       return;
     }
     if (!form.content.trim()) {
@@ -1985,9 +1993,12 @@ function CreateStudio({
           {error && <span className="shrink-0 text-xs font-medium text-red-600" role="alert">{error}</span>}
         </div>
         {!canPost && (
-          <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
-            <AlertTriangle className="mt-0.5 shrink-0" size={16} />
-            <span>管理员已关闭匿名发布。你可以先编辑草稿，使用右上角助记码登录后再发布。</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
+            <span className="inline-flex min-w-0 items-start gap-2">
+              <AlertTriangle className="mt-0.5 shrink-0" size={16} />
+              <span className="min-w-0">管理员已关闭匿名发布。你可以先编辑草稿，登录后继续发布。</span>
+            </span>
+            <AuthDialog onAuth={onAuth} />
           </div>
         )}
         <div className="flex min-h-0 flex-1 flex-col p-4">
