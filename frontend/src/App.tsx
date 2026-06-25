@@ -2321,6 +2321,7 @@ function PasteWorkspace({
       : "lg:grid-cols-[280px_minmax(0,1fr)]"
     : "lg:grid-cols-[320px_minmax(0,1fr)]";
   const selectedIndex = selected ? filtered.findIndex((paste) => paste.id === selected.id) : -1;
+  const selectedFilteredOut = Boolean(selected && deferredSearch && selectedIndex === -1 && !searchPending);
   const previousPaste = selectedIndex > 0 ? filtered[selectedIndex - 1] : null;
   const nextPaste = selectedIndex >= 0 && selectedIndex < filtered.length - 1 ? filtered[selectedIndex + 1] : null;
 
@@ -2412,6 +2413,23 @@ function PasteWorkspace({
                 </button>
               )}
             </div>
+            {selectedFilteredOut && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs leading-5 text-amber-900" role="status">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 shrink-0" size={14} />
+                  <div className="min-w-0">
+                    <div>当前打开的 Paste 不在筛选结果中。</div>
+                    <button
+                      type="button"
+                      className="mt-1 rounded-sm font-medium text-amber-950 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-900/30"
+                      onClick={() => setSearch("")}
+                    >
+                      清空搜索并回到当前列表
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <PasteIndex
             pastes={filtered}
