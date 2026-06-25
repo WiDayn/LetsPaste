@@ -148,6 +148,7 @@ export function App() {
   const [selected, setSelected] = useState<Paste | null>(null);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
+  const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -222,7 +223,6 @@ export function App() {
   }
 
   async function deleteMyPaste(paste: Paste) {
-    if (!window.confirm(`删除「${paste.title}」？此操作不可恢复。`)) return;
     try {
       await api<void>(`/api/my/pastes/${paste.id}`, { method: "DELETE" });
       setPastes((current) => current.filter((item) => item.id !== paste.id));
@@ -354,7 +354,7 @@ export function App() {
               setSelected(null);
               window.history.replaceState(null, "", "/");
             }}
-            onDelete={deleteMyPaste}
+            onDelete={setDeleteTarget}
             privateMode
           />
         )}
@@ -363,6 +363,19 @@ export function App() {
         {view === "admin" && isAdmin && user && <AdminConsole settings={settings} setSettings={setSettings} onOpen={openPaste} currentUser={user} />}
         {view === "admin" && !isAdmin && <AdminGate onAuth={setUser} />}
       </main>
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="删除 Paste"
+        description={`确定删除「${deleteTarget?.title ?? ""}」？此操作不可恢复。`}
+        confirmLabel="删除"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          const target = deleteTarget;
+          await deleteMyPaste(target);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }
@@ -472,6 +485,77 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
         </div>
       )}
     </>
+  );
+}
+
+function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmLabel = "确认",
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel?: string;
+  onCancel: () => void;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) setBusy(false);
+  }, [open]);
+
+  async function confirm() {
+    setBusy(true);
+    try {
+      await onConfirm();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy) onCancel();
+      }}
+    >
+      <div
+        className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-description"
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && !busy) onCancel();
+        }}
+      >
+        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-600">
+          <Trash2 size={18} />
+        </div>
+        <h2 id="confirm-dialog-title" className="text-base font-semibold">
+          {title}
+        </h2>
+        <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-zinc-500">
+          {description}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={busy} autoFocus>
+            取消
+          </Button>
+          <Button variant="danger" onClick={confirm} disabled={busy}>
+            {busy ? "处理中" : confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1176,6 +1260,8 @@ function AdminConsole({
   const [userFilters, setUserFilters] = useState({ search: "", role: "" });
   const [draft, setDraft] = useState(settings);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+  const [pasteToDelete, setPasteToDelete] = useState<Paste | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -1222,7 +1308,6 @@ function AdminConsole({
   }
 
   async function removePaste(paste: Paste) {
-    if (!window.confirm(`删除「${paste.title}」？此操作不可恢复。`)) return;
     try {
       await api<void>(`/api/admin/pastes/${paste.id}`, { method: "DELETE" });
       await loadPastes();
@@ -1234,7 +1319,6 @@ function AdminConsole({
   }
 
   async function removeUser(user: User) {
-    if (!window.confirm(`删除用户「${user.username}」？该用户的 Paste 会保留为匿名。`)) return;
     try {
       await api<void>(`/api/admin/users/${user.id}`, { method: "DELETE" });
       await loadUsers();
@@ -1338,7 +1422,7 @@ function AdminConsole({
             </Select>
             <Button variant="outline" onClick={loadPastes}>搜索</Button>
           </div>
-          <AdminPasteTable pastes={pastes} onOpen={onOpen} onDelete={removePaste} />
+          <AdminPasteTable pastes={pastes} onOpen={onOpen} onDelete={setPasteToDelete} />
         </div>
       )}
 
@@ -1364,7 +1448,7 @@ function AdminConsole({
             </Select>
             <Button variant="outline" onClick={loadUsers}>搜索</Button>
           </div>
-          <AdminUserTable users={users} currentUserId={currentUser.id} onDelete={removeUser} onRoleChange={updateRole} />
+          <AdminUserTable users={users} currentUserId={currentUser.id} onDelete={setUserToDelete} onRoleChange={updateRole} />
         </div>
       )}
 
@@ -1384,6 +1468,32 @@ function AdminConsole({
           </aside>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(pasteToDelete)}
+        title="删除 Paste"
+        description={`确定删除「${pasteToDelete?.title ?? ""}」？此操作不可恢复。`}
+        confirmLabel="删除"
+        onCancel={() => setPasteToDelete(null)}
+        onConfirm={async () => {
+          if (!pasteToDelete) return;
+          const target = pasteToDelete;
+          await removePaste(target);
+          setPasteToDelete(null);
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(userToDelete)}
+        title="删除用户"
+        description={`确定删除用户「${userToDelete?.username ?? ""}」？该用户的 Paste 会保留为匿名。`}
+        confirmLabel="删除用户"
+        onCancel={() => setUserToDelete(null)}
+        onConfirm={async () => {
+          if (!userToDelete) return;
+          const target = userToDelete;
+          await removeUser(target);
+          setUserToDelete(null);
+        }}
+      />
     </section>
   );
 }
