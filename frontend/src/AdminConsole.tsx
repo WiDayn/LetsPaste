@@ -54,6 +54,8 @@ export default function AdminConsole({
   const [loadingUsers, setLoadingUsers] = useState(false);
   const pasteRequestId = useRef(0);
   const userRequestId = useRef(0);
+  const pasteAbortRef = useRef<AbortController | null>(null);
+  const userAbortRef = useRef<AbortController | null>(null);
   const hasPasteFilters =
     pasteFilters.search.trim().length > 0 ||
     Boolean(pasteFilters.visibility) ||
@@ -102,6 +104,9 @@ export default function AdminConsole({
 
   async function loadPastes() {
     const requestId = ++pasteRequestId.current;
+    pasteAbortRef.current?.abort();
+    const controller = new AbortController();
+    pasteAbortRef.current = controller;
     setLoadingPastes(true);
     setNotice((current) => (current?.tone === "error" ? null : current));
     try {
@@ -110,17 +115,24 @@ export default function AdminConsole({
         const normalized = key === "search" ? value.trim() : value;
         if (normalized && normalized !== "newest") params.set(key, normalized);
       });
-      const next = (await api<Paste[]>(`/api/admin/pastes?${params.toString()}`)) ?? [];
+      const next = (await api<Paste[]>(`/api/admin/pastes?${params.toString()}`, { signal: controller.signal })) ?? [];
       if (requestId === pasteRequestId.current) setPastes(next);
     } catch (e) {
+      if (controller.signal.aborted) return;
       if (requestId === pasteRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
     } finally {
-      if (requestId === pasteRequestId.current) setLoadingPastes(false);
+      if (requestId === pasteRequestId.current) {
+        pasteAbortRef.current = null;
+        setLoadingPastes(false);
+      }
     }
   }
 
   async function loadUsers() {
     const requestId = ++userRequestId.current;
+    userAbortRef.current?.abort();
+    const controller = new AbortController();
+    userAbortRef.current = controller;
     setLoadingUsers(true);
     setNotice((current) => (current?.tone === "error" ? null : current));
     try {
@@ -129,12 +141,16 @@ export default function AdminConsole({
         const normalized = key === "search" ? value.trim() : value;
         if (normalized) params.set(key, normalized);
       });
-      const next = (await api<User[]>(`/api/admin/users?${params.toString()}`)) ?? [];
+      const next = (await api<User[]>(`/api/admin/users?${params.toString()}`, { signal: controller.signal })) ?? [];
       if (requestId === userRequestId.current) setUsers(next);
     } catch (e) {
+      if (controller.signal.aborted) return;
       if (requestId === userRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
     } finally {
-      if (requestId === userRequestId.current) setLoadingUsers(false);
+      if (requestId === userRequestId.current) {
+        userAbortRef.current = null;
+        setLoadingUsers(false);
+      }
     }
   }
 
