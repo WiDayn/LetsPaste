@@ -2956,6 +2956,12 @@ function PasteViewer({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+            {paste.format === "markdown" && (
+              <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="Markdown 显示模式">
+                <ComposeModeButton active={markdownMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => setMarkdownMode("preview")} />
+                <ComposeModeButton active={markdownMode === "source"} icon={<Code2 size={14} />} label="源格式" onClick={() => setMarkdownMode("source")} />
+              </div>
+            )}
             <Button variant="ghost" size="sm" onClick={onClose}>
               <PanelLeftClose size={14} />
               返回列表
@@ -2988,43 +2994,6 @@ function PasteViewer({
                   role="menu"
                   onKeyDown={handleActionsMenuKeyDown}
                 >
-                  {paste.format === "markdown" && (
-                    <>
-                      <div className="px-3 py-1.5 text-[11px] font-medium uppercase text-zinc-400">Markdown</div>
-                      <button
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={markdownMode === "preview"}
-                        className={cn(
-                          "flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25",
-                          markdownMode === "preview" && "font-medium",
-                        )}
-                        onClick={() => {
-                          setMarkdownMode("preview");
-                          setActionsOpen(false);
-                        }}
-                      >
-                        预览
-                        {markdownMode === "preview" && <Check size={14} />}
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={markdownMode === "source"}
-                        className={cn(
-                          "flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25",
-                          markdownMode === "source" && "font-medium",
-                        )}
-                        onClick={() => {
-                          setMarkdownMode("source");
-                          setActionsOpen(false);
-                        }}
-                      >
-                        源格式
-                        {markdownMode === "source" && <Check size={14} />}
-                      </button>
-                    </>
-                  )}
                   {canToggleWrap && (
                     <button
                       type="button"
