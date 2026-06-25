@@ -3,6 +3,7 @@ import {
   Check,
   Clock,
   Code2,
+  Columns2,
   Copy,
   Database,
   Eye,
@@ -30,6 +31,7 @@ import { cn } from "./lib";
 
 type View = "explore" | "create" | "mine" | "account" | "admin";
 type AdminTab = "overview" | "pastes" | "users" | "settings";
+type ComposeMode = "write" | "split" | "preview";
 type AdminStats = Record<string, number>;
 
 const languages = [
@@ -623,7 +625,10 @@ function CreateStudio({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [composeMode, setComposeMode] = useState<ComposeMode>("write");
   const canPost = authed || settings.allowAnonymousPaste;
+  const showEditor = composeMode !== "preview";
+  const showPreview = composeMode !== "write";
 
   function updateFormat(format: Paste["format"]) {
     setForm({
@@ -655,31 +660,44 @@ function CreateStudio({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
           <div>
             <h1 className="text-lg font-semibold">创建 Paste</h1>
-            <p className="text-sm text-zinc-500">编辑器占据主画布，预览和设置不再挤压输入空间。</p>
+            <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开预览或并排查看。</p>
           </div>
           <Button disabled={!canPost || !form.content.trim() || busy} onClick={submit}>
             <Plus size={16} />
             {busy ? "发布中" : "发布 Paste"}
           </Button>
         </div>
-        <div className="space-y-4 p-4">
-          <Input placeholder="标题，例如：nginx 502 调试日志" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <Textarea
-            className="min-h-[58vh]"
-            placeholder="粘贴代码、日志或 Markdown..."
-            value={form.content}
-            onChange={(e) => setForm({ ...form, content: e.target.value })}
-          />
-          <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-950">
-            <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-xs text-zinc-300">
-              <span>预览</span>
-              <span>{form.format === "markdown" ? "Markdown" : form.language}</span>
+        <div className="p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Input
+              className="min-w-64 flex-1"
+              placeholder="标题，例如：nginx 502 调试日志"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+            <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="编辑模式">
+              <ComposeModeButton active={composeMode === "write"} icon={<Code2 size={14} />} label="编辑" onClick={() => setComposeMode("write")} />
+              <ComposeModeButton active={composeMode === "split"} icon={<Columns2 size={14} />} label="并排" onClick={() => setComposeMode("split")} />
+              <ComposeModeButton active={composeMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => setComposeMode("preview")} />
             </div>
-            <div className="max-h-80 overflow-auto">
-              <Suspense fallback={<ContentLoading dark />}>
-                <PasteContent content={form.content || "预览会显示在这里。"} language={form.language} format={form.format as Paste["format"]} />
-              </Suspense>
-            </div>
+          </div>
+
+          <div className={cn("grid gap-3", composeMode === "split" && "xl:grid-cols-2")}>
+            {showEditor && (
+              <div className="min-w-0">
+                <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                  <span>正文</span>
+                  <span>{form.content.length} 字符</span>
+                </div>
+                <Textarea
+                  className="h-[calc(100vh-17rem)] min-h-[30rem] resize-none"
+                  placeholder="粘贴代码、日志或 Markdown..."
+                  value={form.content}
+                  onChange={(e) => setForm({ ...form, content: e.target.value })}
+                />
+              </div>
+            )}
+            {showPreview && <DraftPreview content={form.content} language={form.language} format={form.format as Paste["format"]} />}
           </div>
         </div>
       </section>
@@ -721,6 +739,61 @@ function CreateStudio({
           </div>
         </section>
       </aside>
+    </div>
+  );
+}
+
+function ComposeModeButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex h-8 items-center gap-1.5 rounded px-2.5 text-xs font-medium text-zinc-600 transition hover:text-zinc-950",
+        active && "bg-white text-zinc-950 shadow-sm",
+      )}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function DraftPreview({ content, language, format }: { content: string; language: string; format: Paste["format"] }) {
+  const hasContent = content.trim().length > 0;
+
+  return (
+    <div className="min-w-0 overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
+        <span>预览</span>
+        <span>{format === "markdown" ? "Markdown" : language}</span>
+      </div>
+      <div className="h-[calc(100vh-17rem)] min-h-[30rem] overflow-auto">
+        {hasContent ? (
+          <Suspense fallback={<ContentLoading />}>
+            <PasteContent content={content} language={language} format={format} light />
+          </Suspense>
+        ) : (
+          <div className="grid h-full place-items-center p-6 text-center text-sm text-zinc-500">
+            <div>
+              <Eye className="mx-auto mb-3 text-zinc-400" size={24} />
+              <div className="font-medium text-zinc-700">预览会显示在这里</div>
+              <div className="mt-1">输入内容后再切换预览，不会提前加载渲染器。</div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
