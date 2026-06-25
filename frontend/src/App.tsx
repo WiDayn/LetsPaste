@@ -396,8 +396,11 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const [generatedMnemonic, setGeneratedMnemonic] = useState("");
   const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function submit() {
+    if (busy || generatedMnemonic) return;
+    setBusy(true);
     try {
       const data = await api<{ token: string; user: User; mnemonic?: string }>(`/api/auth/${mode}`, {
         method: "POST",
@@ -415,10 +418,13 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       setError("");
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
   function closeDialog() {
+    if (busy) return;
     setOpen(false);
     setError("");
     setGeneratedMnemonic("");
@@ -440,24 +446,63 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
         </Button>
       )}
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl">
-            <div className="mb-4 flex rounded-md bg-zinc-100 p-1">
-              <button className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "login" && "bg-white shadow")} onClick={() => setMode("login")}>
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeDialog();
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-dialog-title"
+            aria-describedby="auth-dialog-description"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") closeDialog();
+            }}
+          >
+            <div className="mb-4 flex rounded-md bg-zinc-100 p-1" role="group" aria-label="登录方式">
+              <button
+                type="button"
+                className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "login" && "bg-white shadow")}
+                aria-pressed={mode === "login"}
+                disabled={busy || Boolean(generatedMnemonic)}
+                onClick={() => setMode("login")}
+              >
                 登录
               </button>
-              <button className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "register" && "bg-white shadow")} onClick={() => setMode("register")}>
+              <button
+                type="button"
+                className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "register" && "bg-white shadow")}
+                aria-pressed={mode === "register"}
+                disabled={busy || Boolean(generatedMnemonic)}
+                onClick={() => setMode("register")}
+              >
                 生成助记码
               </button>
             </div>
-            <div className="space-y-3">
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (generatedMnemonic) {
+                  closeDialog();
+                } else {
+                  void submit();
+                }
+              }}
+            >
+              <h2 id="auth-dialog-title" className="sr-only">
+                助记码登录
+              </h2>
               {mode === "login" ? (
                 <>
-                  <Input placeholder="输入你的助记码" value={mnemonic} onChange={(e) => setMnemonic(e.target.value)} />
-                  <p className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
+                  <Input placeholder="输入你的助记码" value={mnemonic} disabled={busy} autoFocus onChange={(e) => setMnemonic(e.target.value)} />
+                  <p id="auth-dialog-description" className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
                 </>
               ) : (
-                <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
+                <div id="auth-dialog-description" className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-600">
                   点击生成后会创建新用户，并只显示一次助记码。
                 </div>
               )}
@@ -475,12 +520,14 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
               )}
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={closeDialog}>
+                <Button type="button" variant="ghost" onClick={closeDialog} disabled={busy}>
                   {generatedMnemonic ? "关闭" : "取消"}
                 </Button>
-                <Button onClick={generatedMnemonic ? closeDialog : submit}>{generatedMnemonic ? "我已保存" : mode === "login" ? "登录" : "生成并登录"}</Button>
+                <Button type="submit" disabled={busy || (mode === "login" && !mnemonic.trim())}>
+                  {busy ? "处理中" : generatedMnemonic ? "我已保存" : mode === "login" ? "登录" : "生成并登录"}
+                </Button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
