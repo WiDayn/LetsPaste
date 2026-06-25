@@ -210,6 +210,7 @@ export function App() {
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
+  const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -255,34 +256,57 @@ export function App() {
     }
   }
 
-  async function openPaste(id: string, updateUrl = true, targetView: View = "explore") {
+  async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste) {
     try {
       const next = await api<Paste>(`/api/pastes/${id}`);
       setSelected(next);
       setView(targetView);
       clearMessage();
+      if (next.burnAfterReading) {
+        setPastes((current) => current.filter((item) => item.id !== next.id));
+        showInfo("这条阅后即焚 Paste 已在本次查看后销毁。");
+      }
       if (updateUrl) writeRoute(pasteRoute(id, targetView));
+      return true;
     } catch (e) {
       if (e instanceof ApiError && e.status === 423) {
         setSelected({
           id,
-          title: "需要密码",
-          language: "plaintext",
-          format: "code",
-          isPrivate: false,
+          title: knownPaste?.title ?? "需要密码",
+          language: knownPaste?.language ?? "plaintext",
+          format: knownPaste?.format ?? "code",
+          isPrivate: knownPaste?.isPrivate ?? false,
           hasPassword: true,
-          burnAfterReading: false,
-          views: 0,
-          createdAt: "",
+          burnAfterReading: knownPaste?.burnAfterReading ?? false,
+          expiresAt: knownPaste?.expiresAt,
+          views: knownPaste?.views ?? 0,
+          ownerUsername: knownPaste?.ownerUsername,
+          createdAt: knownPaste?.createdAt ?? "",
         });
         setView(targetView);
         if (updateUrl) writeRoute(pasteRoute(id, targetView));
         showError(e);
-        return;
+        return false;
       }
       setSelected(null);
       showError(e);
+      return false;
     }
+  }
+
+  async function confirmBurnOpen() {
+    if (!burnOpenTarget) return;
+    const target = burnOpenTarget;
+    setBurnOpenTarget(null);
+    await openPaste(target.paste.id, true, target.targetView, target.paste);
+  }
+
+  function requestOpenPaste(paste: Paste, targetView: View = "explore") {
+    if (paste.burnAfterReading) {
+      setBurnOpenTarget({ paste, targetView });
+      return;
+    }
+    void openPaste(paste.id, true, targetView, paste);
   }
 
   async function applyRoute(route: AppRoute) {
@@ -407,8 +431,11 @@ export function App() {
             title="公开 Paste"
             pastes={pastes}
             selected={selected}
-            onOpen={openPaste}
-            onUnlocked={setSelected}
+            onOpen={(paste) => requestOpenPaste(paste, "explore")}
+            onUnlocked={(paste) => {
+              setSelected(paste);
+              if (paste.burnAfterReading) setPastes((current) => current.filter((item) => item.id !== paste.id));
+            }}
             onCreate={() => changeView("create")}
             onClose={() => {
               setSelected(null);
@@ -422,8 +449,11 @@ export function App() {
             title="我的 Paste"
             pastes={pastes}
             selected={selected}
-            onOpen={(id) => openPaste(id, true, "mine")}
-            onUnlocked={setSelected}
+            onOpen={(paste) => requestOpenPaste(paste, "mine")}
+            onUnlocked={(paste) => {
+              setSelected(paste);
+              if (paste.burnAfterReading) setPastes((current) => current.filter((item) => item.id !== paste.id));
+            }}
             onCreate={() => changeView("create")}
             onClose={() => {
               setSelected(null);
@@ -437,7 +467,7 @@ export function App() {
         {view === "account" && user && <AccountPanel user={user} onLogout={logout} />}
         {view === "admin" && isAdmin && user && (
           <Suspense fallback={<ContentLoading />}>
-            <AdminConsole settings={settings} setSettings={setSettings} onOpen={openPaste} currentUser={user} />
+            <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} currentUser={user} />
           </Suspense>
         )}
         {view === "admin" && !isAdmin && <AdminGate onAuth={setUser} />}
@@ -454,6 +484,14 @@ export function App() {
           await deleteMyPaste(target);
           setDeleteTarget(null);
         }}
+      />
+      <ConfirmDialog
+        open={Boolean(burnOpenTarget)}
+        title="查看阅后即焚 Paste"
+        description={`打开「${burnOpenTarget?.paste.title ?? ""}」会在首次成功查看内容后销毁。确认现在查看吗？`}
+        confirmLabel="查看并销毁"
+        onCancel={() => setBurnOpenTarget(null)}
+        onConfirm={confirmBurnOpen}
       />
     </div>
   );
@@ -1111,7 +1149,7 @@ function PasteWorkspace({
   title: string;
   pastes: Paste[];
   selected: Paste | null;
-  onOpen: (id: string) => void;
+  onOpen: (paste: Paste) => void;
   onUnlocked: (paste: Paste) => void;
   onCreate: () => void;
   onClose: () => void;
@@ -1247,7 +1285,7 @@ function PasteIndex({
 }: {
   pastes: Paste[];
   selectedId?: string;
-  onOpen: (id: string) => void;
+  onOpen: (paste: Paste) => void;
   onDelete?: (paste: Paste) => void;
   totalCount: number;
   search: string;
@@ -1287,7 +1325,7 @@ function PasteIndex({
             )}
           >
             <div className="flex items-start gap-2">
-              <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(paste.id)}>
+              <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(paste)}>
                 <div className="line-clamp-2 text-sm font-medium leading-5">{paste.title}</div>
                 <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{paste.id}</div>
               </button>
@@ -1315,7 +1353,7 @@ function PasteIndex({
   );
 }
 
-function WorkspaceInsight({ pastes, onCreate, onOpen }: { pastes: Paste[]; onCreate: () => void; onOpen: (id: string) => void }) {
+function WorkspaceInsight({ pastes, onCreate, onOpen }: { pastes: Paste[]; onCreate: () => void; onOpen: (paste: Paste) => void }) {
   const latest = pastes[0];
   const popular = [...pastes].sort((a, b) => b.views - a.views)[0];
   return (
@@ -1336,9 +1374,9 @@ function WorkspaceInsight({ pastes, onCreate, onOpen }: { pastes: Paste[]; onCre
   );
 }
 
-function InsightRow({ title, paste, onOpen }: { title: string; paste: Paste; onOpen: (id: string) => void }) {
+function InsightRow({ title, paste, onOpen }: { title: string; paste: Paste; onOpen: (paste: Paste) => void }) {
   return (
-    <button className="w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50" onClick={() => onOpen(paste.id)}>
+    <button className="w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50" onClick={() => onOpen(paste)}>
       <div className="mb-2 text-xs font-medium uppercase text-zinc-500">{title}</div>
       <div className="font-medium">{paste.title}</div>
       <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
@@ -1411,6 +1449,15 @@ function PasteViewer({
         <Lock className="text-zinc-500" />
         <h2 className="font-semibold">此 Paste 需要密码</h2>
         <p className="text-sm text-zinc-500">输入访问密码后才能查看内容。</p>
+        {paste.burnAfterReading && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
+            <div className="mb-1 flex items-center gap-2 font-medium">
+              <Flame size={14} />
+              解锁后会触发阅后即焚
+            </div>
+            首次成功查看内容后，这条 Paste 会立即销毁。
+          </div>
+        )}
         <Input type="password" value={password} disabled={unlocking} autoFocus onChange={(e) => setPassword(e.target.value)} />
         <Button type="submit" disabled={unlocking || !password}>{unlocking ? "解锁中" : "解锁"}</Button>
         {error && <p className="text-sm text-red-600">{error}</p>}

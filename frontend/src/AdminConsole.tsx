@@ -30,7 +30,7 @@ export default function AdminConsole({
 }: {
   settings: SiteSettings;
   setSettings: (s: SiteSettings) => void;
-  onOpen: (id: string) => void;
+  onOpen: (paste: Paste) => void;
   currentUser: User;
 }) {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -573,7 +573,7 @@ function AdminPasteTable({
   loading: boolean;
   filtersActive: boolean;
   onClearFilters: () => void;
-  onOpen: (id: string) => void;
+  onOpen: (paste: Paste) => void;
   onDelete: (paste: Paste) => void;
 }) {
   const emptyTitle = loading ? "正在加载 Paste..." : filtersActive ? "没有符合筛选的 Paste" : "还没有 Paste";
@@ -611,7 +611,7 @@ function AdminPasteTable({
             pastes.map((paste) => (
             <tr key={paste.id} className="hover:bg-zinc-50">
               <td className="px-4 py-3">
-                <button className="max-w-[300px] truncate font-medium hover:underline" onClick={() => onOpen(paste.id)}>
+                <button className="max-w-[300px] truncate font-medium hover:underline" onClick={() => onOpen(paste)}>
                   {paste.title}
                 </button>
                 <div className="text-xs text-zinc-500">{paste.id}</div>
