@@ -655,7 +655,7 @@ export default function AdminConsole({
           </form>
           <aside className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-600">
             <h2 className="mb-2 font-semibold text-zinc-900">策略说明</h2>
-            关闭匿名发布后，未登录用户仍可浏览公开 Paste，但创建时必须登录。密码、私密、过期和阅后即焚仍由每条 Paste 自己控制。
+            关闭匿名发布后，未登录用户仍可浏览公开 Paste，但创建时必须登录。密码、私密、限时和阅后即焚仍由每条 Paste 自己控制。
           </aside>
         </div>
       )}
@@ -1384,7 +1384,7 @@ function PasteBadges({ paste }: { paste: Paste }) {
     <>
       {paste.hasPassword && <Badge tone="amber"><Lock size={12} />密码</Badge>}
       {paste.burnAfterReading && <Badge tone="red"><Flame size={12} />阅后即焚</Badge>}
-      {paste.expiresAt && <Badge tone={isExpired(paste.expiresAt) ? "red" : "blue"}><Clock size={12} />{isExpired(paste.expiresAt) ? "已过期" : "会过期"}</Badge>}
+      {paste.expiresAt && <Badge tone={isExpired(paste.expiresAt) ? "red" : "blue"}><Clock size={12} />{isExpired(paste.expiresAt) ? "已过期" : "限时"}</Badge>}
     </>
   );
 }

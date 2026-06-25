@@ -2354,7 +2354,7 @@ function PasteWorkspace({
               </div>
               <div className="rounded-md border border-zinc-200 bg-white p-2">
                 <div className="font-semibold">{expiringCount}</div>
-                <div className="text-zinc-500">过期</div>
+                <div className="text-zinc-500">限时</div>
               </div>
             </div>
             <Select className="w-full" aria-label="排序 Paste" value={sort} onChange={(e) => setSort(e.target.value)}>
@@ -3089,7 +3089,7 @@ function PasteBadges({ paste }: { paste: Paste }) {
     <>
       {paste.hasPassword && <Badge tone="amber"><Lock size={12} />密码</Badge>}
       {paste.burnAfterReading && <Badge tone="red"><Flame size={12} />阅后即焚</Badge>}
-      {paste.expiresAt && <Badge tone={isExpired(paste.expiresAt) ? "red" : "blue"}><Clock size={12} />{isExpired(paste.expiresAt) ? "已过期" : "会过期"}</Badge>}
+      {paste.expiresAt && <Badge tone={isExpired(paste.expiresAt) ? "red" : "blue"}><Clock size={12} />{isExpired(paste.expiresAt) ? "已过期" : "限时"}</Badge>}
     </>
   );
 }
