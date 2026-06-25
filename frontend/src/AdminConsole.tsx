@@ -408,7 +408,13 @@ export default function AdminConsole({
 
       {tab === "settings" && (
         <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="space-y-4">
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveSettings();
+            }}
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="font-semibold">发布策略</h2>
@@ -441,7 +447,7 @@ export default function AdminConsole({
               description="关闭后，访客仍可浏览公开内容，但创建 Paste 前需要登录。"
             />
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={saveSettings} disabled={!canAttemptSaveSettings}>
+              <Button type="submit" disabled={!canAttemptSaveSettings}>
                 <Save size={16} />
                 {saveSettingsLabel}
               </Button>
@@ -453,7 +459,7 @@ export default function AdminConsole({
             <p className="text-xs text-zinc-500" role="status">
               {savingSettings ? "正在写入后台设置..." : settingsDirty ? "修改尚未保存，离开设置页前请保存或还原。" : "当前设置已和服务器同步。"}
             </p>
-          </section>
+          </form>
           <aside className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-600">
             <h2 className="mb-2 font-semibold text-zinc-900">策略说明</h2>
             关闭匿名发布后，未登录用户仍可浏览公开 Paste，但创建时必须登录。密码、私密、过期和阅后即焚仍由每条 Paste 自己控制。
