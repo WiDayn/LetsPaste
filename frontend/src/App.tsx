@@ -2200,7 +2200,7 @@ function PasteIndex({
                 aria-label={`打开 ${paste.title}`}
                 onClick={() => onOpen(paste)}
               >
-                <div className="line-clamp-2 text-sm font-medium leading-5">{paste.title}</div>
+                <div className="line-clamp-2 break-words text-sm font-medium leading-5">{paste.title}</div>
                 <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{paste.id}</div>
                 {openingPasteId === paste.id && <div className="mt-2 text-xs font-medium text-sky-700">正在打开...</div>}
               </button>
@@ -2288,13 +2288,13 @@ function WorkspaceInsight({
 function InsightRow({ title, paste, opening, onOpen }: { title: string; paste: Paste; opening: boolean; onOpen: (paste: Paste) => void }) {
   return (
     <button
-      className="w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-wait disabled:opacity-70"
+      className="min-w-0 w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-wait disabled:opacity-70"
       disabled={opening}
       aria-busy={opening || undefined}
       onClick={() => onOpen(paste)}
     >
       <div className="mb-2 text-xs font-medium uppercase text-zinc-500">{title}</div>
-      <div className="font-medium">{paste.title}</div>
+      <div className="break-words font-medium">{paste.title}</div>
       <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
         <Badge>{paste.language}</Badge>
         <span>{formatViews(paste.views)}</span>
