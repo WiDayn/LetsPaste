@@ -591,30 +591,30 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#f4f5f2] text-zinc-950">
       <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:py-4">
           <button
             type="button"
-            className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="flex min-w-0 max-w-full items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             onClick={() => changeView("explore")}
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-zinc-950 text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-zinc-950 text-white">
               <Code2 size={20} />
             </div>
-            <div className="text-left">
-              <div className="text-lg font-semibold tracking-normal">{settings.siteName}</div>
-              <div className="text-xs text-zinc-500">代码、日志与 Markdown 分享工作台</div>
+            <div className="min-w-0 text-left">
+              <div className="truncate text-lg font-semibold tracking-normal">{settings.siteName}</div>
+              <div className="truncate text-xs text-zinc-500">代码、日志与 Markdown 分享工作台</div>
             </div>
           </button>
 
-          <nav className="flex flex-wrap items-center gap-2" aria-label="主导航">
+          <nav className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end" aria-label="主导航">
             <NavButton active={view === "explore"} onClick={() => changeView("explore")} icon={<Globe2 size={16} />} label="公开库" />
             <NavButton active={view === "create"} onClick={() => changeView("create")} icon={<Plus size={16} />} label="创建" />
             {user && <NavButton active={view === "mine"} onClick={() => changeView("mine")} icon={<UserRound size={16} />} label="我的" />}
             <AuthDialog onAuth={setUser} showTrigger={!user} />
             {user && (
-              <Button variant={view === "account" ? "default" : "outline"} aria-current={view === "account" ? "page" : undefined} onClick={() => changeView("account")}>
-                <UserRound size={16} />
-                {user.username}
+              <Button className="max-w-full sm:max-w-[14rem]" variant={view === "account" ? "default" : "outline"} aria-current={view === "account" ? "page" : undefined} onClick={() => changeView("account")}>
+                <UserRound className="shrink-0" size={16} />
+                <span className="truncate">{user.username}</span>
               </Button>
             )}
           </nav>
