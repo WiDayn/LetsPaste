@@ -24,6 +24,7 @@ import { cn, copyText, pastePermalink } from "./lib";
 
 type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
+type RoleChangeTarget = { user: User; role: User["role"] };
 const defaultPasteFilters = { search: "", visibility: "", security: "", format: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
@@ -61,6 +62,7 @@ export default function AdminConsole({
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [pasteToDelete, setPasteToDelete] = useState<Paste | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [roleChangeTarget, setRoleChangeTarget] = useState<RoleChangeTarget | null>(null);
   const [loadingPastes, setLoadingPastes] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [roleUpdatingUserIds, setRoleUpdatingUserIds] = useState<Set<number>>(() => new Set());
@@ -508,7 +510,7 @@ export default function AdminConsole({
             currentUserId={currentUser.id}
             roleUpdatingUserIds={roleUpdatingUserIds}
             onDelete={setUserToDelete}
-            onRoleChange={updateRole}
+            onRoleChange={(user, role) => setRoleChangeTarget({ user, role })}
           />
         </div>
       )}
@@ -598,6 +600,24 @@ export default function AdminConsole({
           const target = userToDelete;
           await removeUser(target);
           setUserToDelete(null);
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(roleChangeTarget)}
+        intent="role"
+        title={roleChangeTarget?.role === "admin" ? "提升为管理员" : "改为普通用户"}
+        description={
+          roleChangeTarget?.role === "admin"
+            ? `确定把「${roleChangeTarget?.user.username ?? ""}」提升为管理员？管理员可以进入后台并管理用户、Paste 和站点设置。`
+            : `确定把「${roleChangeTarget?.user.username ?? ""}」改为普通用户？该用户将无法继续进入后台。`
+        }
+        confirmLabel={roleChangeTarget?.role === "admin" ? "提升为管理员" : "确认修改"}
+        onCancel={() => setRoleChangeTarget(null)}
+        onConfirm={async () => {
+          if (!roleChangeTarget) return;
+          const target = roleChangeTarget;
+          await updateRole(target.user.id, target.role);
+          setRoleChangeTarget(null);
         }}
       />
     </section>
@@ -707,6 +727,7 @@ function Toggle({
 
 function ConfirmDialog({
   open,
+  intent = "danger",
   title,
   description,
   confirmLabel = "确认",
@@ -714,6 +735,7 @@ function ConfirmDialog({
   onConfirm,
 }: {
   open: boolean;
+  intent?: "danger" | "role";
   title: string;
   description: string;
   confirmLabel?: string;
@@ -741,6 +763,7 @@ function ConfirmDialog({
   }
 
   if (!open) return null;
+  const Icon = intent === "role" ? Users : Trash2;
 
   return (
     <div
@@ -762,8 +785,8 @@ function ConfirmDialog({
           trapDialogTab(e, dialogRef.current);
         }}
       >
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-600">
-          <Trash2 size={18} />
+        <div className={cn("mb-4 flex h-10 w-10 items-center justify-center rounded-md", intent === "role" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600")}>
+          <Icon size={18} />
         </div>
         <h2 id="admin-confirm-dialog-title" className="text-base font-semibold">
           {title}
@@ -775,7 +798,7 @@ function ConfirmDialog({
           <Button variant="ghost" onClick={onCancel} disabled={busy} autoFocus>
             取消
           </Button>
-          <Button variant="danger" onClick={confirm} disabled={busy} aria-busy={busy || undefined}>
+          <Button variant={intent === "role" ? "default" : "danger"} onClick={confirm} disabled={busy} aria-busy={busy || undefined}>
             {busy ? "处理中" : confirmLabel}
           </Button>
         </div>
@@ -1088,7 +1111,7 @@ function AdminUserTable({
   currentUserId: number;
   roleUpdatingUserIds: Set<number>;
   onDelete: (user: User) => void;
-  onRoleChange: (id: number, role: User["role"]) => void;
+  onRoleChange: (user: User, role: User["role"]) => void;
 }) {
   const emptyTitle = loading ? "正在加载用户..." : filtersActive ? "没有符合筛选的用户" : "还没有用户";
   const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部用户列表。" : "新用户注册后会出现在这里。";
@@ -1111,7 +1134,11 @@ function AdminUserTable({
           disabled={selfRow || roleUpdating}
           aria-busy={roleUpdating || undefined}
           title={selfRow ? "不能在这里修改自己的角色" : roleUpdating ? "正在更新角色" : undefined}
-          onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
+          onChange={(e) => {
+            const nextRole = e.target.value as User["role"];
+            if (nextRole === user.role) return;
+            onRoleChange(user, nextRole);
+          }}
         >
           <option value="user">用户</option>
           <option value="admin">管理员</option>
