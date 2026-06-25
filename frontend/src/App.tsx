@@ -139,6 +139,7 @@ const languages = [
 
 const createDraftKey = "letspaste_create_draft_v1";
 const createDraftSaveDelayMs = 500;
+const pasteIndexBatchSize = 80;
 const defaultCreateForm = {
   title: "",
   content: "",
@@ -1642,6 +1643,13 @@ function PasteIndex({
   onCreate: () => void;
   privateMode?: boolean;
 }) {
+  const [visibleCount, setVisibleCount] = useState(pasteIndexBatchSize);
+
+  useEffect(() => {
+    const selectedIndex = selectedId ? pastes.findIndex((paste) => paste.id === selectedId) : -1;
+    setVisibleCount(selectedIndex >= pasteIndexBatchSize ? selectedIndex + 1 : pasteIndexBatchSize);
+  }, [pastes, search, selectedId]);
+
   if (pastes.length === 0) {
     const isFiltered = search.length > 0 && totalCount > 0;
     return (
@@ -1664,6 +1672,9 @@ function PasteIndex({
       </div>
     );
   }
+  const visiblePastes = pastes.slice(0, visibleCount);
+  const hiddenCount = pastes.length - visiblePastes.length;
+
   return (
     <div className="max-h-[calc(100vh-19rem)] overflow-y-auto p-2">
       {loading && (
@@ -1672,7 +1683,7 @@ function PasteIndex({
         </div>
       )}
       <div className="space-y-2">
-        {pastes.map((paste) => (
+        {visiblePastes.map((paste) => (
           <div
             key={paste.id}
             className={cn(
@@ -1711,6 +1722,16 @@ function PasteIndex({
           </div>
         ))}
       </div>
+      {hiddenCount > 0 && (
+        <div className="mt-2 rounded-md border border-dashed border-zinc-300 bg-white p-3 text-center">
+          <div className="text-xs text-zinc-500">
+            已显示 {visiblePastes.length} / {pastes.length} 条
+          </div>
+          <Button className="mt-2" variant="outline" size="sm" onClick={() => setVisibleCount((count) => Math.min(count + pasteIndexBatchSize, pastes.length))}>
+            再显示 {Math.min(pasteIndexBatchSize, hiddenCount)} 条
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
