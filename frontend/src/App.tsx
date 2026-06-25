@@ -2678,6 +2678,7 @@ function PasteViewer({
   const lockedWithoutContent = paste.hasPassword && !paste.content;
   const permalink = pastePermalink(paste.id);
   const canToggleWrap = paste.format !== "markdown" || markdownMode === "source";
+  const hasSecondaryActions = canToggleWrap;
 
   function focusActionsButton() {
     actionsRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
@@ -2770,6 +2771,10 @@ function PasteViewer({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [actionsOpen]);
+
+  useEffect(() => {
+    if (!hasSecondaryActions) setActionsOpen(false);
+  }, [hasSecondaryActions]);
 
   useEffect(() => {
     if (!actionsOpen) return;
@@ -2970,31 +2975,35 @@ function PasteViewer({
               {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
               {copying === "link" ? "复制中" : linkCopied.active ? "已复制" : "复制链接"}
             </Button>
-            <div ref={actionsRef} className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-haspopup="menu"
-                aria-expanded={actionsOpen}
-                aria-controls={actionsMenuId}
-                onClick={() => {
-                  actionsInitialFocusRef.current = "first";
-                  setActionsOpen((open) => !open);
-                }}
-                onKeyDown={handleActionsButtonKeyDown}
-              >
-                <MoreHorizontal size={14} />
-                更多
-              </Button>
-              {actionsOpen && (
-                <div
-                  id={actionsMenuId}
-                  ref={actionsMenuRef}
-                  className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg"
-                  role="menu"
-                  onKeyDown={handleActionsMenuKeyDown}
+            <Button variant="outline" size="sm" onClick={copyContent} disabled={!paste.content || Boolean(copying)} aria-busy={copying === "content" || undefined}>
+              {contentCopied.active ? <Check size={14} /> : <Copy size={14} />}
+              {copying === "content" ? "复制中" : contentCopied.active ? "已复制" : "复制内容"}
+            </Button>
+            {hasSecondaryActions && (
+              <div ref={actionsRef} className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-haspopup="menu"
+                  aria-expanded={actionsOpen}
+                  aria-controls={actionsMenuId}
+                  onClick={() => {
+                    actionsInitialFocusRef.current = "first";
+                    setActionsOpen((open) => !open);
+                  }}
+                  onKeyDown={handleActionsButtonKeyDown}
                 >
-                  {canToggleWrap && (
+                  <MoreHorizontal size={14} />
+                  更多
+                </Button>
+                {actionsOpen && (
+                  <div
+                    id={actionsMenuId}
+                    ref={actionsMenuRef}
+                    className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg"
+                    role="menu"
+                    onKeyDown={handleActionsMenuKeyDown}
+                  >
                     <button
                       type="button"
                       role="menuitemcheckbox"
@@ -3011,22 +3020,10 @@ function PasteViewer({
                       </span>
                       {wrapLongLines && <Check size={14} />}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={!paste.content || Boolean(copying)}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => {
-                      void copyContent();
-                    }}
-                  >
-                    {contentCopied.active ? <Check size={14} /> : <Copy size={14} />}
-                    {copying === "content" ? "复制中" : contentCopied.active ? "已复制内容" : "复制内容"}
-                  </button>
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
             <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
               {copyStatus.status}
             </span>
