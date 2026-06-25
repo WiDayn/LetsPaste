@@ -1058,80 +1058,135 @@ function AdminUserTable({
   const visibleUsers = users.slice(0, visibleCount);
   const hiddenCount = users.length - visibleUsers.length;
 
+  function renderRoleSelect(user: User, roleUpdating: boolean, selfRow: boolean) {
+    return (
+      <>
+        <Select
+          className="w-full"
+          aria-label={`修改 ${user.username} 的角色`}
+          value={user.role}
+          disabled={selfRow || roleUpdating}
+          aria-busy={roleUpdating || undefined}
+          title={selfRow ? "不能在这里修改自己的角色" : roleUpdating ? "正在更新角色" : undefined}
+          onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
+        >
+          <option value="user">用户</option>
+          <option value="admin">管理员</option>
+        </Select>
+        {selfRow && <div className="mt-1 text-xs text-zinc-500">当前登录用户</div>}
+        {roleUpdating && <div className="mt-1 text-xs text-sky-700" role="status">正在更新角色...</div>}
+      </>
+    );
+  }
+
+  function renderUserActions(user: User) {
+    if (user.role === "admin") return null;
+    return (
+      <Button variant="danger" size="sm" aria-label={`删除用户 ${user.username}`} onClick={() => onDelete(user)}>
+        <Trash2 size={14} />
+        删除
+      </Button>
+    );
+  }
+
+  function renderEmptyState() {
+    return (
+      <div className="px-4 py-12 text-center">
+        <Users className="mx-auto mb-3 text-zinc-400" size={24} />
+        <div className="font-medium text-zinc-800">{emptyTitle}</div>
+        <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
+        {!loading && filtersActive && (
+          <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
+            <X size={14} />
+            清空筛选
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  function renderMoreButton() {
+    if (hiddenCount <= 0) return null;
+    return (
+      <div className="px-4 py-4 text-center">
+        <div className="text-xs text-zinc-500">已显示 {visibleUsers.length} / {users.length} 个用户</div>
+        <Button className="mt-2" variant="outline" size="sm" onClick={() => setVisibleCount((count) => Math.min(count + adminTableBatchSize, users.length))}>
+          再显示 {Math.min(adminTableBatchSize, hiddenCount)} 个
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[680px] text-left text-sm">
-        <caption className="sr-only">后台用户列表</caption>
-        <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
-          <tr>
-            <th className="px-4 py-3 font-medium">用户</th>
-            <th className="px-4 py-3 font-medium">角色</th>
-            <th className="px-4 py-3 font-medium">创建时间</th>
-            <th className="px-4 py-3 font-medium">操作</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-200">
-          {users.length === 0 ? (
-            <tr>
-              <td className="px-4 py-12 text-center" colSpan={4}>
-                <Users className="mx-auto mb-3 text-zinc-400" size={24} />
-                <div className="font-medium text-zinc-800">{emptyTitle}</div>
-                <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
-                {!loading && filtersActive && (
-                  <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
-                    <X size={14} />
-                    清空筛选
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ) : (
-            visibleUsers.map((user) => {
+    <div>
+      <div className="md:hidden">
+        {users.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <div className="space-y-3 p-3">
+            {visibleUsers.map((user) => {
               const roleUpdating = roleUpdatingUserIds.has(user.id);
               const selfRow = user.id === currentUserId;
+              const userActions = renderUserActions(user);
               return (
-                <tr key={user.id} className="hover:bg-zinc-50">
-                  <td className="px-4 py-3 font-medium">{user.username}</td>
-                  <td className="px-4 py-3">
-                    <Select
-                      aria-label={`修改 ${user.username} 的角色`}
-                      value={user.role}
-                      disabled={selfRow || roleUpdating}
-                      aria-busy={roleUpdating || undefined}
-                      title={selfRow ? "不能在这里修改自己的角色" : roleUpdating ? "正在更新角色" : undefined}
-                      onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
-                    >
-                      <option value="user">用户</option>
-                      <option value="admin">管理员</option>
-                    </Select>
-                    {selfRow && <div className="mt-1 text-xs text-zinc-500">当前登录用户</div>}
-                    {roleUpdating && <div className="mt-1 text-xs text-sky-700" role="status">正在更新角色...</div>}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    {user.role !== "admin" && (
-                      <Button variant="danger" size="sm" aria-label={`删除用户 ${user.username}`} onClick={() => onDelete(user)}>
-                        <Trash2 size={14} />
-                        删除
-                      </Button>
-                    )}
-                  </td>
-                </tr>
+                <article key={user.id} className="rounded-md border border-zinc-200 bg-white p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-zinc-900">{user.username}</div>
+                      <div className="mt-1 text-xs text-zinc-500">创建时间：{formatDate(user.createdAt)}</div>
+                    </div>
+                    <Badge tone={user.role === "admin" ? "amber" : "neutral"}>{user.role === "admin" ? "管理员" : "用户"}</Badge>
+                  </div>
+                  <div className="mt-3">
+                    <label className="mb-1 block text-xs font-medium text-zinc-600">角色</label>
+                    {renderRoleSelect(user, roleUpdating, selfRow)}
+                  </div>
+                  {userActions && <div className="mt-3">{userActions}</div>}
+                </article>
               );
-            })
-          )}
-          {hiddenCount > 0 && (
+            })}
+          </div>
+        )}
+        {renderMoreButton()}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[680px] text-left text-sm">
+          <caption className="sr-only">后台用户列表</caption>
+          <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
             <tr>
-              <td className="px-4 py-4 text-center" colSpan={4}>
-                <div className="text-xs text-zinc-500">已显示 {visibleUsers.length} / {users.length} 个用户</div>
-                <Button className="mt-2" variant="outline" size="sm" onClick={() => setVisibleCount((count) => Math.min(count + adminTableBatchSize, users.length))}>
-                  再显示 {Math.min(adminTableBatchSize, hiddenCount)} 个
-                </Button>
-              </td>
+              <th className="px-4 py-3 font-medium">用户</th>
+              <th className="px-4 py-3 font-medium">角色</th>
+              <th className="px-4 py-3 font-medium">创建时间</th>
+              <th className="px-4 py-3 font-medium">操作</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-zinc-200">
+            {users.length === 0 ? (
+              <tr>
+                <td colSpan={4}>{renderEmptyState()}</td>
+              </tr>
+            ) : (
+              visibleUsers.map((user) => {
+                const roleUpdating = roleUpdatingUserIds.has(user.id);
+                const selfRow = user.id === currentUserId;
+                return (
+                  <tr key={user.id} className="hover:bg-zinc-50">
+                    <td className="px-4 py-3 font-medium">{user.username}</td>
+                    <td className="px-4 py-3">{renderRoleSelect(user, roleUpdating, selfRow)}</td>
+                    <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
+                    <td className="px-4 py-3">{renderUserActions(user)}</td>
+                  </tr>
+                );
+              })
+            )}
+            {hiddenCount > 0 && (
+              <tr>
+                <td colSpan={4}>{renderMoreButton()}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
