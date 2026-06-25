@@ -13,6 +13,8 @@ import {
   LayoutDashboard,
   Lock,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
   Settings,
@@ -323,7 +325,20 @@ export function App() {
           />
         )}
 
-        {view === "explore" && <PasteWorkspace title="公开 Paste" pastes={pastes} selected={selected} onOpen={openPaste} onUnlocked={setSelected} onCreate={() => changeView("create")} />}
+        {view === "explore" && (
+          <PasteWorkspace
+            title="公开 Paste"
+            pastes={pastes}
+            selected={selected}
+            onOpen={openPaste}
+            onUnlocked={setSelected}
+            onCreate={() => changeView("create")}
+            onClose={() => {
+              setSelected(null);
+              window.history.replaceState(null, "", "/");
+            }}
+          />
+        )}
 
         {view === "mine" && (
           <PasteWorkspace
@@ -333,6 +348,10 @@ export function App() {
             onOpen={(id) => openPaste(id, true, "mine")}
             onUnlocked={setSelected}
             onCreate={() => changeView("create")}
+            onClose={() => {
+              setSelected(null);
+              window.history.replaceState(null, "", "/");
+            }}
             onDelete={deleteMyPaste}
             privateMode
           />
@@ -722,6 +741,7 @@ function PasteWorkspace({
   onOpen,
   onUnlocked,
   onCreate,
+  onClose,
   onDelete,
   privateMode = false,
 }: {
@@ -731,11 +751,13 @@ function PasteWorkspace({
   onOpen: (id: string) => void;
   onUnlocked: (paste: Paste) => void;
   onCreate: () => void;
+  onClose: () => void;
   onDelete?: (paste: Paste) => void;
   privateMode?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  const [indexCollapsed, setIndexCollapsed] = useState(false);
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     const data = pastes.filter((paste) => {
@@ -748,20 +770,32 @@ function PasteWorkspace({
   const protectedCount = pastes.filter((paste) => paste.hasPassword || paste.burnAfterReading).length;
   const expiringCount = pastes.filter((paste) => paste.expiresAt).length;
 
+  useEffect(() => {
+    setIndexCollapsed(Boolean(selected));
+  }, [selected?.id]);
+
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
         <div>
           <h1 className="text-lg font-semibold">{title}</h1>
-          <p className="text-sm text-zinc-500">左侧是轻量索引，主要空间留给 Paste 内容本身。</p>
+          <p className="text-sm text-zinc-500">索引只负责定位，选中后默认把主空间留给 Paste 内容。</p>
         </div>
-        <Button onClick={onCreate}>
-          <Plus size={16} />
-          新建 Paste
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {selected && (
+            <Button variant="outline" onClick={() => setIndexCollapsed((current) => !current)}>
+              {indexCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              {indexCollapsed ? "显示索引" : "隐藏索引"}
+            </Button>
+          )}
+          <Button onClick={onCreate}>
+            <Plus size={16} />
+            新建 Paste
+          </Button>
+        </div>
       </div>
-      <div className="grid min-h-[calc(100vh-9.5rem)] lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="border-b border-zinc-200 bg-zinc-50 lg:border-b-0 lg:border-r">
+      <div className={cn("grid min-h-[calc(100vh-9.5rem)]", selected && indexCollapsed ? "lg:grid-cols-[minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)]")}>
+        <aside className={cn("border-b border-zinc-200 bg-zinc-50 lg:border-b-0 lg:border-r", selected && indexCollapsed && "hidden")}>
           <div className="space-y-3 border-b border-zinc-200 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
@@ -790,7 +824,17 @@ function PasteWorkspace({
           <PasteIndex pastes={filtered} selectedId={selected?.id} onOpen={onOpen} onDelete={onDelete} />
         </aside>
         <section className="min-w-0 bg-white">
-          {selected ? <PasteViewer paste={selected} onUnlocked={onUnlocked} /> : <WorkspaceInsight pastes={pastes} onCreate={onCreate} onOpen={onOpen} />}
+          {selected ? (
+            <PasteViewer
+              paste={selected}
+              onUnlocked={onUnlocked}
+              onClose={onClose}
+              indexCollapsed={indexCollapsed}
+              onRevealIndex={() => setIndexCollapsed(false)}
+            />
+          ) : (
+            <WorkspaceInsight pastes={pastes} onCreate={onCreate} onOpen={onOpen} />
+          )}
         </section>
       </div>
     </section>
@@ -904,7 +948,19 @@ function InsightRow({ title, paste, onOpen }: { title: string; paste: Paste; onO
   );
 }
 
-function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Paste) => void }) {
+function PasteViewer({
+  paste,
+  onUnlocked,
+  onClose,
+  indexCollapsed,
+  onRevealIndex,
+}: {
+  paste: Paste;
+  onUnlocked: (p: Paste) => void;
+  onClose: () => void;
+  indexCollapsed: boolean;
+  onRevealIndex: () => void;
+}) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -963,6 +1019,16 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            {indexCollapsed && (
+              <Button variant="outline" size="sm" onClick={onRevealIndex}>
+                <PanelLeftOpen size={14} />
+                显示索引
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <PanelLeftClose size={14} />
+              返回列表
+            </Button>
             <Button variant="outline" size="sm" onClick={copyContent} disabled={!paste.content}>
               {copiedContent ? <Check size={14} /> : <Copy size={14} />}
               {copiedContent ? "已复制" : "复制内容"}
