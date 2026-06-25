@@ -1144,7 +1144,7 @@ function ConfirmDialog({
   onConfirm,
 }: {
   open: boolean;
-  intent?: "danger" | "burn";
+  intent?: "danger" | "burn" | "reset";
   title: string;
   description: string;
   confirmLabel?: string;
@@ -1176,7 +1176,7 @@ function ConfirmDialog({
 
   if (!open) return null;
 
-  const Icon = intent === "burn" ? Flame : Trash2;
+  const Icon = intent === "burn" ? Flame : intent === "reset" ? RotateCcw : Trash2;
 
   return (
     <div
@@ -1198,7 +1198,14 @@ function ConfirmDialog({
           trapDialogTab(e, dialogRef.current);
         }}
       >
-        <div className={cn("mb-4 flex h-10 w-10 items-center justify-center rounded-md", intent === "burn" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600")}>
+        <div
+          className={cn(
+            "mb-4 flex h-10 w-10 items-center justify-center rounded-md",
+            intent === "burn" && "bg-amber-50 text-amber-700",
+            intent === "reset" && "bg-zinc-100 text-zinc-700",
+            intent === "danger" && "bg-red-50 text-red-600",
+          )}
+        >
           <Icon size={18} />
         </div>
         <h2 id="confirm-dialog-title" className="text-base font-semibold">
@@ -1631,6 +1638,7 @@ function CreateStudio({
   const [error, setError] = useState("");
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [settingsRevealNonce, setSettingsRevealNonce] = useState(0);
   const formRef = useRef(form);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
@@ -1755,6 +1763,12 @@ function CreateStudio({
     setError("");
     setComposeMode("write");
     setSettingsOpen(false);
+    setResetConfirmOpen(false);
+  }
+
+  function requestResetDraft() {
+    if (!hasFormInput) return;
+    setResetConfirmOpen(true);
   }
 
   function openSettingsPanel(focusTargetId?: string) {
@@ -1835,7 +1849,7 @@ function CreateStudio({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {hasFormInput && (
-                <Button variant="ghost" onClick={resetDraft}>
+                <Button variant="ghost" onClick={requestResetDraft} disabled={busy}>
                   <RotateCcw size={16} />
                   清空草稿
                 </Button>
@@ -2010,6 +2024,15 @@ function CreateStudio({
           </section>
         </aside>
       )}
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        intent="reset"
+        title="清空草稿"
+        description="标题、正文、设置和未发布的访问密码都会被清空。此操作不会删除已经发布的 Paste。"
+        confirmLabel="清空"
+        onCancel={() => setResetConfirmOpen(false)}
+        onConfirm={resetDraft}
+      />
     </div>
   );
 }
