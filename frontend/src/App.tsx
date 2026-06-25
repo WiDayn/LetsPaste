@@ -2256,6 +2256,7 @@ function PasteWorkspace({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [indexCollapsed, setIndexCollapsed] = useState(false);
+  const previousSelectedIdRef = useRef<string | null>(null);
   const normalizedSearch = search.trim();
   const deferredSearch = useDeferredValue(normalizedSearch);
   const hasSearch = normalizedSearch.length > 0;
@@ -2284,7 +2285,16 @@ function PasteWorkspace({
   );
 
   useEffect(() => {
-    setIndexCollapsed(Boolean(selected));
+    const nextSelectedId = selected?.id ?? null;
+    const previousSelectedId = previousSelectedIdRef.current;
+
+    if (!nextSelectedId) {
+      setIndexCollapsed(false);
+    } else if (!previousSelectedId) {
+      setIndexCollapsed(true);
+    }
+
+    previousSelectedIdRef.current = nextSelectedId;
   }, [selected?.id]);
 
   const hasSelectedPaste = Boolean(selected);
