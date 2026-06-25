@@ -21,7 +21,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { cn } from "./lib";
@@ -206,11 +206,14 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<View>("explore");
   const [pastes, setPastes] = useState<Paste[]>([]);
+  const [listLoading, setListLoading] = useState(false);
   const [selected, setSelected] = useState<Paste | null>(null);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
+  const listRequestId = useRef(0);
+  const listViewRef = useRef<View | null>(null);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -237,15 +240,24 @@ export function App() {
   }, [view]);
 
   async function refreshList() {
+    const requestId = ++listRequestId.current;
+    if (view === "admin" || view === "account" || view === "create") {
+      setListLoading(false);
+      return;
+    }
+    setListLoading(true);
+    if (listViewRef.current !== view) setPastes([]);
     try {
-      if (view === "admin" || view === "account" || view === "create") return;
       const data =
         view === "mine"
           ? ((await api<Paste[]>("/api/my/pastes")) ?? [])
           : ((await api<Paste[]>("/api/pastes")) ?? []);
+      if (requestId !== listRequestId.current) return;
+      listViewRef.current = view;
       setPastes(data);
       clearMessage();
     } catch (e) {
+      if (requestId !== listRequestId.current) return;
       if (e instanceof ApiError && e.status === 401) {
         localStorage.removeItem("letspaste_token");
         setUser(null);
@@ -253,6 +265,8 @@ export function App() {
       }
       showError(e);
       setPastes([]);
+    } finally {
+      if (requestId === listRequestId.current) setListLoading(false);
     }
   }
 
@@ -430,6 +444,7 @@ export function App() {
           <PasteWorkspace
             title="公开 Paste"
             pastes={pastes}
+            loading={listLoading}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "explore")}
             onUnlocked={(paste) => {
@@ -448,6 +463,7 @@ export function App() {
           <PasteWorkspace
             title="我的 Paste"
             pastes={pastes}
+            loading={listLoading}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "mine")}
             onUnlocked={(paste) => {
@@ -1146,6 +1162,7 @@ function Toggle({ checked, label, onChange }: { checked: boolean; label: string;
 function PasteWorkspace({
   title,
   pastes,
+  loading,
   selected,
   onOpen,
   onUnlocked,
@@ -1156,6 +1173,7 @@ function PasteWorkspace({
 }: {
   title: string;
   pastes: Paste[];
+  loading: boolean;
   selected: Paste | null;
   onOpen: (paste: Paste) => void;
   onUnlocked: (paste: Paste) => void;
@@ -1252,6 +1270,7 @@ function PasteWorkspace({
           </div>
           <PasteIndex
             pastes={filtered}
+            loading={loading}
             selectedId={selected?.id}
             onOpen={onOpen}
             onDelete={onDelete}
@@ -1272,7 +1291,7 @@ function PasteWorkspace({
               onRevealIndex={() => setIndexCollapsed(false)}
             />
           ) : (
-            <WorkspaceInsight pastes={pastes} onCreate={onCreate} onOpen={onOpen} />
+            <WorkspaceInsight pastes={pastes} loading={loading} onCreate={onCreate} onOpen={onOpen} />
           )}
         </section>
       </div>
@@ -1282,6 +1301,7 @@ function PasteWorkspace({
 
 function PasteIndex({
   pastes,
+  loading,
   selectedId,
   onOpen,
   onDelete,
@@ -1292,6 +1312,7 @@ function PasteIndex({
   privateMode = false,
 }: {
   pastes: Paste[];
+  loading: boolean;
   selectedId?: string;
   onOpen: (paste: Paste) => void;
   onDelete?: (paste: Paste) => void;
@@ -1306,23 +1327,30 @@ function PasteIndex({
     return (
       <div className="grid min-h-72 place-items-center p-6 text-center">
         <div>
-          <FileText className="mx-auto mb-3 text-zinc-400" />
+          {loading ? <Clock className="mx-auto mb-3 text-zinc-400" /> : <FileText className="mx-auto mb-3 text-zinc-400" />}
           <p className="font-medium">
-            {isFiltered ? "没有匹配的 Paste" : privateMode ? "还没有自己的 Paste" : "还没有公开 Paste"}
+            {loading ? "正在加载 Paste" : isFiltered ? "没有匹配的 Paste" : privateMode ? "还没有自己的 Paste" : "还没有公开 Paste"}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            {isFiltered ? `没有找到包含“${search}”的内容。` : "创建第一条分享后，它会出现在这里。"}
+            {loading ? "列表返回后会自动更新。" : isFiltered ? `没有找到包含“${search}”的内容。` : "创建第一条分享后，它会出现在这里。"}
           </p>
-          <Button className="mt-4" variant={isFiltered ? "outline" : "default"} size="sm" onClick={isFiltered ? onClearSearch : onCreate}>
-            {isFiltered ? <X size={14} /> : <Plus size={14} />}
-            {isFiltered ? "清空搜索" : "新建 Paste"}
-          </Button>
+          {!loading && (
+            <Button className="mt-4" variant={isFiltered ? "outline" : "default"} size="sm" onClick={isFiltered ? onClearSearch : onCreate}>
+              {isFiltered ? <X size={14} /> : <Plus size={14} />}
+              {isFiltered ? "清空搜索" : "新建 Paste"}
+            </Button>
+          )}
         </div>
       </div>
     );
   }
   return (
     <div className="max-h-[calc(100vh-19rem)] overflow-y-auto p-2">
+      {loading && (
+        <div className="mb-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-500" role="status">
+          正在刷新列表...
+        </div>
+      )}
       <div className="space-y-2">
         {pastes.map((paste) => (
           <div
@@ -1361,9 +1389,20 @@ function PasteIndex({
   );
 }
 
-function WorkspaceInsight({ pastes, onCreate, onOpen }: { pastes: Paste[]; onCreate: () => void; onOpen: (paste: Paste) => void }) {
+function WorkspaceInsight({ pastes, loading, onCreate, onOpen }: { pastes: Paste[]; loading: boolean; onCreate: () => void; onOpen: (paste: Paste) => void }) {
   const latest = pastes[0];
   const popular = [...pastes].sort((a, b) => b.views - a.views)[0];
+  if (loading && pastes.length === 0) {
+    return (
+      <div className="grid min-h-[calc(100vh-9.5rem)] place-items-center p-6 text-center">
+        <div>
+          <Clock className="mx-auto mb-3 text-zinc-400" size={24} />
+          <h2 className="font-semibold">正在加载工作台</h2>
+          <p className="mt-1 text-sm text-zinc-500">Paste 列表返回后会显示最近动态和快捷入口。</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-4 p-4">
       <div className="rounded-md border border-zinc-200 bg-white p-4">
