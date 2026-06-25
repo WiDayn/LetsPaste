@@ -2251,6 +2251,7 @@ function PasteViewer({
   const linkCopied = useTransientFlag();
   const contentCopied = useTransientFlag();
   const [copyError, setCopyError] = useState("");
+  const [copying, setCopying] = useState<"content" | "link" | null>(null);
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [unlocking, setUnlocking] = useState(false);
   const copyStatus = useTransientStatus();
@@ -2258,6 +2259,8 @@ function PasteViewer({
   const unlockRequestId = useRef(0);
   const unlockInFlightRef = useRef(false);
   const unlockAbortRef = useRef<AbortController | null>(null);
+  const copyRequestId = useRef(0);
+  const copyInFlightRef = useRef(false);
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
   const passwordErrorId = `paste-password-error-${paste.id}`;
@@ -2266,7 +2269,9 @@ function PasteViewer({
 
   useEffect(() => {
     unlockRequestId.current += 1;
+    copyRequestId.current += 1;
     unlockInFlightRef.current = false;
+    copyInFlightRef.current = false;
     unlockAbortRef.current?.abort();
     unlockAbortRef.current = null;
     setPassword("");
@@ -2274,6 +2279,7 @@ function PasteViewer({
     linkCopied.clear();
     contentCopied.clear();
     setCopyError("");
+    setCopying(null);
     copyStatus.clear();
     setMarkdownMode("preview");
     setUnlocking(false);
@@ -2282,7 +2288,9 @@ function PasteViewer({
   useEffect(() => {
     return () => {
       unlockRequestId.current += 1;
+      copyRequestId.current += 1;
       unlockInFlightRef.current = false;
+      copyInFlightRef.current = false;
       unlockAbortRef.current?.abort();
       unlockAbortRef.current = null;
     };
@@ -2328,26 +2336,40 @@ function PasteViewer({
     }
   }
 
-  async function copyLink() {
-    if (await copyText(pastePermalink(paste.id))) {
-      linkCopied.show();
-      setCopyError("");
-      copyStatus.announce("链接已复制到剪贴板。");
-      return;
+  async function copyPasteData(kind: "content" | "link", value: string, successMessage: string, failureMessage: string) {
+    if (copyInFlightRef.current) return;
+    copyInFlightRef.current = true;
+    const requestId = ++copyRequestId.current;
+    setCopying(kind);
+    try {
+      if (await copyText(value)) {
+        if (requestId !== copyRequestId.current) return;
+        if (kind === "content") {
+          contentCopied.show();
+        } else {
+          linkCopied.show();
+        }
+        setCopyError("");
+        copyStatus.announce(successMessage);
+        return;
+      }
+      if (requestId !== copyRequestId.current) return;
+      copyStatus.clear();
+      setCopyError(failureMessage);
+    } finally {
+      if (requestId === copyRequestId.current) {
+        copyInFlightRef.current = false;
+        setCopying(null);
+      }
     }
-    copyStatus.clear();
-    setCopyError("复制链接失败，请手动复制浏览器地址栏。");
+  }
+
+  async function copyLink() {
+    await copyPasteData("link", pastePermalink(paste.id), "链接已复制到剪贴板。", "复制链接失败，请手动复制浏览器地址栏。");
   }
 
   async function copyContent() {
-    if (await copyText(paste.content ?? "")) {
-      contentCopied.show();
-      setCopyError("");
-      copyStatus.announce("Paste 内容已复制到剪贴板。");
-      return;
-    }
-    copyStatus.clear();
-    setCopyError("复制内容失败，请手动选中内容复制。");
+    await copyPasteData("content", paste.content ?? "", "Paste 内容已复制到剪贴板。", "复制内容失败，请手动选中内容复制。");
   }
 
   if (lockedWithoutContent) {
@@ -2467,13 +2489,13 @@ function PasteViewer({
               <PanelLeftClose size={14} />
               返回列表
             </Button>
-            <Button variant="outline" size="sm" onClick={copyContent} disabled={!paste.content}>
+            <Button variant="outline" size="sm" onClick={copyContent} disabled={!paste.content || Boolean(copying)} aria-busy={copying === "content" || undefined}>
               {contentCopied.active ? <Check size={14} /> : <Copy size={14} />}
-              {contentCopied.active ? "已复制" : "复制内容"}
+              {copying === "content" ? "复制中" : contentCopied.active ? "已复制" : "复制内容"}
             </Button>
-            <Button variant="outline" size="sm" onClick={copyLink}>
+            <Button variant="outline" size="sm" onClick={copyLink} disabled={Boolean(copying)} aria-busy={copying === "link" || undefined}>
               {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
-              {linkCopied.active ? "已复制" : "复制链接"}
+              {copying === "link" ? "复制中" : linkCopied.active ? "已复制" : "复制链接"}
             </Button>
             <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
               {copyStatus.status}
