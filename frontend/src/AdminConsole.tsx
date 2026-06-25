@@ -435,10 +435,11 @@ export default function AdminConsole({
             <MetricCard icon={<Users size={18} />} label="注册用户" value={stats.totalUsers ?? 0} />
             <MetricCard icon={<Clock size={18} />} label="24h 新增" value={stats.createdToday ?? 0} />
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <AdminBreakdown title="可见性" rows={[["公开", stats.publicPastes ?? 0], ["私密", stats.privatePastes ?? 0], ["匿名", stats.anonymousPastes ?? 0]]} />
             <AdminBreakdown title="保护策略" rows={[["密码", stats.passwordPastes ?? 0], ["阅后即焚", stats.burnPastes ?? 0], ["已过期", stats.expiredPastes ?? 0]]} />
-            <AdminBreakdown title="内容类型" rows={[["Markdown", stats.markdownPastes ?? 0], ["限时有效", stats.activeExpiring ?? 0], ["管理员", stats.adminUsers ?? 0]]} />
+            <AdminBreakdown title="内容类型" rows={[["Markdown", stats.markdownPastes ?? 0], ["限时有效", stats.activeExpiring ?? 0]]} />
+            <AdminBreakdown title="用户角色" rows={[["管理员", stats.adminUsers ?? 0], ["普通用户", Math.max((stats.totalUsers ?? 0) - (stats.adminUsers ?? 0), 0)]]} />
           </div>
         </div>
       )}
