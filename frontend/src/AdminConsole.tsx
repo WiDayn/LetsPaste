@@ -950,7 +950,7 @@ function AdminPasteTable({
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <dt className="text-zinc-500">作者</dt>
-                    <dd className="mt-0.5 truncate font-medium text-zinc-800">{paste.ownerUsername ?? "匿名"}</dd>
+                    <dd className="mt-0.5 break-all font-medium text-zinc-800">{paste.ownerUsername ?? "匿名"}</dd>
                   </div>
                   <div>
                     <dt className="text-zinc-500">访问</dt>
@@ -1002,7 +1002,7 @@ function AdminPasteTable({
                     </button>
                     <div className="text-xs text-zinc-500">{paste.id}</div>
                   </td>
-                  <td className="px-4 py-3 text-zinc-600">{paste.ownerUsername ?? "匿名"}</td>
+                  <td className="max-w-[180px] break-all px-4 py-3 text-zinc-600">{paste.ownerUsername ?? "匿名"}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       <Badge>{paste.language}</Badge>
@@ -1132,7 +1132,7 @@ function AdminUserTable({
                 <article key={user.id} className="rounded-md border border-zinc-200 bg-white p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate font-medium text-zinc-900">{user.username}</div>
+                      <div className="break-all font-medium text-zinc-900">{user.username}</div>
                       <div className="mt-1 text-xs text-zinc-500">创建时间：{formatDate(user.createdAt)}</div>
                     </div>
                     <Badge tone={user.role === "admin" ? "amber" : "neutral"}>{user.role === "admin" ? "管理员" : "用户"}</Badge>
@@ -1171,7 +1171,7 @@ function AdminUserTable({
                 const selfRow = user.id === currentUserId;
                 return (
                   <tr key={user.id} className="hover:bg-zinc-50">
-                    <td className="px-4 py-3 font-medium">{user.username}</td>
+                    <td className="max-w-[240px] break-all px-4 py-3 font-medium">{user.username}</td>
                     <td className="px-4 py-3">{renderRoleSelect(user, roleUpdating, selfRow)}</td>
                     <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
                     <td className="px-4 py-3">{renderUserActions(user)}</td>
