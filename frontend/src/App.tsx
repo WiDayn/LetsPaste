@@ -2469,6 +2469,7 @@ function PasteWorkspace({
             onCreate={onCreate}
             onRetry={onRefresh}
             privateMode={privateMode}
+            searchScopeLabel={searchScopeLabel}
             compact={hasSelectedPaste}
           />
         </aside>
@@ -2508,6 +2509,7 @@ function PasteIndex({
   onCreate,
   onRetry,
   privateMode = false,
+  searchScopeLabel = "当前列表",
   compact = false,
 }: {
   pastes: Paste[];
@@ -2523,6 +2525,7 @@ function PasteIndex({
   onCreate: () => void;
   onRetry: () => void;
   privateMode?: boolean;
+  searchScopeLabel?: string;
   compact?: boolean;
 }) {
   const [visibleCount, setVisibleCount] = useState(pasteIndexBatchSize);
@@ -2549,7 +2552,7 @@ function PasteIndex({
               <span className="break-words">{error}</span>
             ) : isFiltered ? (
               <>
-                没有找到包含
+                在「{searchScopeLabel}」中没有找到包含
                 <span className="mx-1 break-all font-mono text-zinc-700">“{search}”</span>
                 的内容。
               </>
