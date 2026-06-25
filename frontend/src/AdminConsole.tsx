@@ -446,6 +446,7 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  type = "button",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "default" | "outline" | "ghost" | "danger" | "soft";
@@ -465,6 +466,7 @@ function Button({
         variant === "danger" && "bg-red-600 text-white hover:bg-red-700",
         className,
       )}
+      type={type}
       {...props}
     />
   );
