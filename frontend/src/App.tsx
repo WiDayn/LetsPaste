@@ -2804,6 +2804,7 @@ function PasteViewer({
     const controller = new AbortController();
     unlockAbortRef.current = controller;
     setUnlocking(true);
+    setError("");
     try {
       const unlocked = await api<Paste>(`/api/pastes/${paste.id}/unlock`, {
         method: "POST",
