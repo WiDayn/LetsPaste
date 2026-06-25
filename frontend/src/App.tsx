@@ -442,8 +442,9 @@ export function App() {
     }
     const controller = new AbortController();
     listAbortRef.current = controller;
+    const sameListView = listViewRef.current === view;
     setListLoading(true);
-    if (listViewRef.current !== view) setPastes([]);
+    if (!sameListView) setPastes([]);
     try {
       const data =
         view === "mine"
@@ -460,11 +461,15 @@ export function App() {
       if (e instanceof ApiError && e.status === 401) {
         localStorage.removeItem("letspaste_token");
         setUser(null);
-        if (view === "mine") setView("explore");
+        if (view === "mine") {
+          setView("explore");
+          setSelected(null);
+          setPastes([]);
+        }
       }
       showError(e);
       setListError((e as Error).message);
-      setPastes([]);
+      if (!sameListView) setPastes([]);
     } finally {
       if (requestId === listRequestId.current) {
         listAbortRef.current = null;
@@ -2234,6 +2239,7 @@ function PasteWorkspace({
   }, [selected?.id]);
 
   const hasSelectedPaste = Boolean(selected);
+  const staleListError = error.length > 0 && pastes.length > 0 && !loading;
 
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -2259,6 +2265,18 @@ function PasteWorkspace({
           </Button>
         </div>
       </div>
+      {staleListError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="alert">
+          <span className="inline-flex min-w-0 items-center gap-2">
+            <AlertTriangle className="shrink-0" size={16} />
+            <span className="break-words">刷新 {title} 列表失败，当前显示上一次结果：{error}</span>
+          </span>
+          <Button variant="outline" size="sm" onClick={onRefresh}>
+            <RotateCcw size={14} />
+            重试加载
+          </Button>
+        </div>
+      )}
       <div className={cn("grid lg:min-h-[calc(100vh-9.5rem)]", selected && indexCollapsed ? "lg:grid-cols-[minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)]")}>
         <aside className={cn("min-h-0 border-b border-zinc-200 bg-zinc-50 lg:flex lg:flex-col lg:border-b-0 lg:border-r", selected && indexCollapsed && "hidden")}>
           <div className="shrink-0 space-y-3 border-b border-zinc-200 p-3">
@@ -2381,7 +2399,7 @@ function PasteIndex({
 
   if (pastes.length === 0) {
     const isFiltered = search.length > 0 && totalCount > 0;
-    const hasError = error.length > 0;
+    const hasError = error.length > 0 && !isFiltered;
     return (
       <div className="grid min-h-72 place-items-center p-6 text-center">
         <div>
