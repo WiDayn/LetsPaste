@@ -23,6 +23,7 @@ type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
 const defaultPasteFilters = { search: "", visibility: "", security: "", format: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
+const adminTableBatchSize = 80;
 
 export default function AdminConsole({
   settings,
@@ -672,6 +673,14 @@ function AdminPasteTable({
 }) {
   const emptyTitle = loading ? "正在加载 Paste..." : filtersActive ? "没有符合筛选的 Paste" : "还没有 Paste";
   const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部 Paste 列表。" : "新建 Paste 后会出现在这里。";
+  const [visibleCount, setVisibleCount] = useState(adminTableBatchSize);
+
+  useEffect(() => {
+    setVisibleCount(adminTableBatchSize);
+  }, [pastes]);
+
+  const visiblePastes = pastes.slice(0, visibleCount);
+  const hiddenCount = pastes.length - visiblePastes.length;
 
   return (
     <div className="overflow-x-auto">
@@ -702,37 +711,47 @@ function AdminPasteTable({
               </td>
             </tr>
           ) : (
-            pastes.map((paste) => (
-            <tr key={paste.id} className="hover:bg-zinc-50">
-              <td className="px-4 py-3">
-                <button
-                  className="max-w-[300px] truncate font-medium hover:underline disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
-                  disabled={openingPasteId === paste.id}
-                  aria-busy={openingPasteId === paste.id || undefined}
-                  onClick={() => onOpen(paste)}
-                >
-                  {openingPasteId === paste.id ? "打开中..." : paste.title}
-                </button>
-                <div className="text-xs text-zinc-500">{paste.id}</div>
-              </td>
-              <td className="px-4 py-3 text-zinc-600">{paste.ownerUsername ?? "匿名"}</td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1">
-                  <Badge>{paste.language}</Badge>
-                  <Badge tone={paste.isPrivate ? "amber" : "green"}>{paste.isPrivate ? "私密" : "公开"}</Badge>
-                  <PasteBadges paste={paste} />
-                </div>
-              </td>
-              <td className="px-4 py-3">{paste.views}</td>
-              <td className="px-4 py-3 text-zinc-500">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</td>
-              <td className="px-4 py-3">
-                <Button variant="danger" size="sm" onClick={() => onDelete(paste)}>
-                  <Trash2 size={14} />
-                  删除
+            visiblePastes.map((paste) => (
+              <tr key={paste.id} className="hover:bg-zinc-50">
+                <td className="px-4 py-3">
+                  <button
+                    className="max-w-[300px] truncate font-medium hover:underline disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
+                    disabled={openingPasteId === paste.id}
+                    aria-busy={openingPasteId === paste.id || undefined}
+                    onClick={() => onOpen(paste)}
+                  >
+                    {openingPasteId === paste.id ? "打开中..." : paste.title}
+                  </button>
+                  <div className="text-xs text-zinc-500">{paste.id}</div>
+                </td>
+                <td className="px-4 py-3 text-zinc-600">{paste.ownerUsername ?? "匿名"}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    <Badge>{paste.language}</Badge>
+                    <Badge tone={paste.isPrivate ? "amber" : "green"}>{paste.isPrivate ? "私密" : "公开"}</Badge>
+                    <PasteBadges paste={paste} />
+                  </div>
+                </td>
+                <td className="px-4 py-3">{paste.views}</td>
+                <td className="px-4 py-3 text-zinc-500">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</td>
+                <td className="px-4 py-3">
+                  <Button variant="danger" size="sm" onClick={() => onDelete(paste)}>
+                    <Trash2 size={14} />
+                    删除
+                  </Button>
+                </td>
+              </tr>
+            ))
+          )}
+          {hiddenCount > 0 && (
+            <tr>
+              <td className="px-4 py-4 text-center" colSpan={6}>
+                <div className="text-xs text-zinc-500">已显示 {visiblePastes.length} / {pastes.length} 条 Paste</div>
+                <Button className="mt-2" variant="outline" size="sm" onClick={() => setVisibleCount((count) => Math.min(count + adminTableBatchSize, pastes.length))}>
+                  再显示 {Math.min(adminTableBatchSize, hiddenCount)} 条
                 </Button>
               </td>
             </tr>
-            ))
           )}
         </tbody>
       </table>
@@ -759,6 +778,14 @@ function AdminUserTable({
 }) {
   const emptyTitle = loading ? "正在加载用户..." : filtersActive ? "没有符合筛选的用户" : "还没有用户";
   const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部用户列表。" : "新用户注册后会出现在这里。";
+  const [visibleCount, setVisibleCount] = useState(adminTableBatchSize);
+
+  useEffect(() => {
+    setVisibleCount(adminTableBatchSize);
+  }, [users]);
+
+  const visibleUsers = users.slice(0, visibleCount);
+  const hiddenCount = users.length - visibleUsers.length;
 
   return (
     <div className="overflow-x-auto">
@@ -787,33 +814,43 @@ function AdminUserTable({
               </td>
             </tr>
           ) : (
-            users.map((user) => (
-            <tr key={user.id} className="hover:bg-zinc-50">
-              <td className="px-4 py-3 font-medium">{user.username}</td>
-              <td className="px-4 py-3">
-                <Select
-                  aria-label={`修改 ${user.username} 的角色`}
-                  value={user.role}
-                  disabled={user.id === currentUserId}
-                  title={user.id === currentUserId ? "不能在这里修改自己的角色" : undefined}
-                  onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
-                >
-                  <option value="user">用户</option>
-                  <option value="admin">管理员</option>
-                </Select>
-                {user.id === currentUserId && <div className="mt-1 text-xs text-zinc-500">当前登录用户</div>}
-              </td>
-              <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
-              <td className="px-4 py-3">
-                {user.role !== "admin" && (
-                  <Button variant="danger" size="sm" onClick={() => onDelete(user)}>
-                    <Trash2 size={14} />
-                    删除
-                  </Button>
-                )}
+            visibleUsers.map((user) => (
+              <tr key={user.id} className="hover:bg-zinc-50">
+                <td className="px-4 py-3 font-medium">{user.username}</td>
+                <td className="px-4 py-3">
+                  <Select
+                    aria-label={`修改 ${user.username} 的角色`}
+                    value={user.role}
+                    disabled={user.id === currentUserId}
+                    title={user.id === currentUserId ? "不能在这里修改自己的角色" : undefined}
+                    onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
+                  >
+                    <option value="user">用户</option>
+                    <option value="admin">管理员</option>
+                  </Select>
+                  {user.id === currentUserId && <div className="mt-1 text-xs text-zinc-500">当前登录用户</div>}
+                </td>
+                <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
+                <td className="px-4 py-3">
+                  {user.role !== "admin" && (
+                    <Button variant="danger" size="sm" onClick={() => onDelete(user)}>
+                      <Trash2 size={14} />
+                      删除
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
+          {hiddenCount > 0 && (
+            <tr>
+              <td className="px-4 py-4 text-center" colSpan={4}>
+                <div className="text-xs text-zinc-500">已显示 {visibleUsers.length} / {users.length} 个用户</div>
+                <Button className="mt-2" variant="outline" size="sm" onClick={() => setVisibleCount((count) => Math.min(count + adminTableBatchSize, users.length))}>
+                  再显示 {Math.min(adminTableBatchSize, hiddenCount)} 个
+                </Button>
               </td>
             </tr>
-            ))
           )}
         </tbody>
       </table>
