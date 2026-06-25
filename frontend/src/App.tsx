@@ -698,6 +698,44 @@ function NavButton({ active, icon, label, onClick }: { active: boolean; icon: Re
   );
 }
 
+function useTransientStatus(durationMs = 1800) {
+  const [status, setStatus] = useState("");
+  const pendingTimerRef = useRef<number | null>(null);
+  const clearTimerRef = useRef<number | null>(null);
+
+  function clearTimers() {
+    if (pendingTimerRef.current !== null) {
+      window.clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
+    if (clearTimerRef.current !== null) {
+      window.clearTimeout(clearTimerRef.current);
+      clearTimerRef.current = null;
+    }
+  }
+
+  function clear() {
+    clearTimers();
+    setStatus("");
+  }
+
+  function announce(message: string) {
+    clear();
+    pendingTimerRef.current = window.setTimeout(() => {
+      setStatus(message);
+      pendingTimerRef.current = null;
+    }, 0);
+    clearTimerRef.current = window.setTimeout(() => {
+      setStatus("");
+      clearTimerRef.current = null;
+    }, durationMs);
+  }
+
+  useEffect(() => clearTimers, []);
+
+  return { status, announce, clear };
+}
+
 function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void; showTrigger?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -707,6 +745,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const mnemonicCopyStatus = useTransientStatus();
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
   const authDescriptionId = "auth-dialog-description";
   const authErrorId = "auth-dialog-error";
@@ -741,6 +780,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
         setMnemonic(data.mnemonic);
         setMnemonicSaved(false);
         setCopiedMnemonic(false);
+        mnemonicCopyStatus.clear();
       } else {
         setOpen(false);
       }
@@ -763,6 +803,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
     setGeneratedMnemonic("");
     setMnemonicSaved(false);
     setCopiedMnemonic(false);
+    mnemonicCopyStatus.clear();
   }
 
   async function copyGeneratedMnemonic() {
@@ -770,9 +811,11 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       setCopiedMnemonic(true);
       setMnemonicSaved(true);
       setError("");
+      mnemonicCopyStatus.announce("助记码已复制到剪贴板。");
       window.setTimeout(() => setCopiedMnemonic(false), 1400);
       return;
     }
+    mnemonicCopyStatus.clear();
     setError("复制失败，请手动选中助记码复制。");
   }
 
@@ -878,6 +921,9 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                       {copiedMnemonic ? <Check size={14} /> : <Copy size={14} />}
                       {copiedMnemonic ? "已复制" : "复制"}
                     </Button>
+                    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                      {mnemonicCopyStatus.status}
+                    </span>
                   </div>
                   <div className="mt-2 break-all font-mono text-sm text-amber-950">{generatedMnemonic}</div>
                   <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
@@ -1095,6 +1141,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("info");
   const [busy, setBusy] = useState(false);
+  const secretCopyStatus = useTransientStatus();
   const isAdmin = user.role === "admin";
   const currentSecretInputId = "account-current-secret";
   const newSecretInputId = "account-new-secret";
@@ -1132,6 +1179,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
     setResultSecret("");
     setResultSecretSaved(false);
     setCopiedSecret(false);
+    secretCopyStatus.clear();
     try {
       const res = await api<{ mnemonic?: string }>("/api/me/secret", {
         method: "PUT",
@@ -1141,6 +1189,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
         setResultSecret(res.mnemonic);
         setResultSecretSaved(false);
         setCopiedSecret(false);
+        secretCopyStatus.clear();
       }
       setCurrentSecret("");
       setNewSecret("");
@@ -1157,9 +1206,11 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
       setCopiedSecret(true);
       setResultSecretSaved(true);
       clearAccountMessage();
+      secretCopyStatus.announce(isAdmin ? "新管理员密码已复制到剪贴板。" : "新助记码已复制到剪贴板。");
       window.setTimeout(() => setCopiedSecret(false), 1400);
       return;
     }
+    secretCopyStatus.clear();
     showErrorMessage("复制失败，请手动选中新密钥复制。");
   }
 
@@ -1259,6 +1310,9 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
                   {copiedSecret ? <Check size={14} /> : <Copy size={14} />}
                   {copiedSecret ? "已复制" : "复制"}
                 </Button>
+                <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                  {secretCopyStatus.status}
+                </span>
               </div>
               <div className="mt-2 break-all font-mono text-sm text-amber-950">{resultSecret}</div>
               <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
@@ -2066,12 +2120,11 @@ function PasteViewer({
   const [copied, setCopied] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [copyError, setCopyError] = useState("");
-  const [copyStatus, setCopyStatus] = useState("");
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [unlocking, setUnlocking] = useState(false);
+  const copyStatus = useTransientStatus();
   const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
   const unlockRequestId = useRef(0);
-  const copyStatusTimerRef = useRef<number | null>(null);
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
   const passwordErrorId = `paste-password-error-${paste.id}`;
@@ -2085,11 +2138,7 @@ function PasteViewer({
     setCopied(false);
     setCopiedContent(false);
     setCopyError("");
-    setCopyStatus("");
-    if (copyStatusTimerRef.current !== null) {
-      window.clearTimeout(copyStatusTimerRef.current);
-      copyStatusTimerRef.current = null;
-    }
+    copyStatus.clear();
     setMarkdownMode("preview");
     setUnlocking(false);
   }, [paste.id]);
@@ -2098,12 +2147,6 @@ function PasteViewer({
     if (lockedWithoutContent) return;
     window.setTimeout(() => viewerHeadingRef.current?.focus(), 0);
   }, [lockedWithoutContent, paste.id]);
-
-  useEffect(() => {
-    return () => {
-      if (copyStatusTimerRef.current !== null) window.clearTimeout(copyStatusTimerRef.current);
-    };
-  }, []);
 
   async function unlock() {
     if (unlocking) return;
@@ -2134,11 +2177,11 @@ function PasteViewer({
     if (await copyText(pastePermalink(paste.id))) {
       setCopied(true);
       setCopyError("");
-      announceCopyStatus("链接已复制到剪贴板。");
+      copyStatus.announce("链接已复制到剪贴板。");
       window.setTimeout(() => setCopied(false), 1400);
       return;
     }
-    setCopyStatus("");
+    copyStatus.clear();
     setCopyError("复制链接失败，请手动复制浏览器地址栏。");
   }
 
@@ -2146,22 +2189,12 @@ function PasteViewer({
     if (await copyText(paste.content ?? "")) {
       setCopiedContent(true);
       setCopyError("");
-      announceCopyStatus("Paste 内容已复制到剪贴板。");
+      copyStatus.announce("Paste 内容已复制到剪贴板。");
       window.setTimeout(() => setCopiedContent(false), 1400);
       return;
     }
-    setCopyStatus("");
+    copyStatus.clear();
     setCopyError("复制内容失败，请手动选中内容复制。");
-  }
-
-  function announceCopyStatus(message: string) {
-    if (copyStatusTimerRef.current !== null) window.clearTimeout(copyStatusTimerRef.current);
-    setCopyStatus("");
-    window.setTimeout(() => setCopyStatus(message), 0);
-    copyStatusTimerRef.current = window.setTimeout(() => {
-      setCopyStatus("");
-      copyStatusTimerRef.current = null;
-    }, 1800);
   }
 
   if (lockedWithoutContent) {
@@ -2271,7 +2304,7 @@ function PasteViewer({
               {copied ? "已复制" : "复制链接"}
             </Button>
             <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-              {copyStatus}
+              {copyStatus.status}
             </span>
           </div>
         </div>
