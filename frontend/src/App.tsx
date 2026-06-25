@@ -540,12 +540,17 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const [mode, setMode] = useState<"login" | "register">("login");
   const [mnemonic, setMnemonic] = useState("");
   const [generatedMnemonic, setGeneratedMnemonic] = useState("");
+  const [mnemonicSaved, setMnemonicSaved] = useState(false);
   const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (busy || generatedMnemonic) return;
+    if (busy) return;
+    if (generatedMnemonic) {
+      closeDialog();
+      return;
+    }
     setBusy(true);
     try {
       const data = await api<{ token: string; user: User; mnemonic?: string }>(`/api/auth/${mode}`, {
@@ -557,6 +562,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       if (data.mnemonic) {
         setGeneratedMnemonic(data.mnemonic);
         setMnemonic(data.mnemonic);
+        setMnemonicSaved(false);
         setCopiedMnemonic(false);
       } else {
         setOpen(false);
@@ -571,15 +577,21 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
 
   function closeDialog() {
     if (busy) return;
+    if (generatedMnemonic && !mnemonicSaved) {
+      setError("请先保存助记码，再点击“我已保存”。");
+      return;
+    }
     setOpen(false);
     setError("");
     setGeneratedMnemonic("");
+    setMnemonicSaved(false);
     setCopiedMnemonic(false);
   }
 
   async function copyGeneratedMnemonic() {
     if (await copyText(generatedMnemonic)) {
       setCopiedMnemonic(true);
+      setMnemonicSaved(true);
       setError("");
       window.setTimeout(() => setCopiedMnemonic(false), 1400);
       return;
@@ -636,11 +648,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (generatedMnemonic) {
-                  closeDialog();
-                } else {
-                  void submit();
-                }
+                void submit();
               }}
             >
               <h2 id="auth-dialog-title" className="sr-only">
@@ -660,12 +668,21 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-xs font-medium text-amber-800">请立即保存助记码</div>
-                    <Button variant="outline" size="sm" onClick={copyGeneratedMnemonic}>
+                    <Button type="button" variant="outline" size="sm" onClick={copyGeneratedMnemonic}>
                       {copiedMnemonic ? <Check size={14} /> : <Copy size={14} />}
                       {copiedMnemonic ? "已复制" : "复制"}
                     </Button>
                   </div>
                   <div className="mt-2 break-all font-mono text-sm text-amber-950">{generatedMnemonic}</div>
+                  <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
+                    <input
+                      className="mt-1 h-4 w-4 shrink-0"
+                      type="checkbox"
+                      checked={mnemonicSaved}
+                      onChange={(e) => setMnemonicSaved(e.target.checked)}
+                    />
+                    <span>我已经保存这组助记码，之后登录会用到它。</span>
+                  </label>
                 </div>
               )}
               {error && <p className="text-sm text-red-600">{error}</p>}
@@ -673,7 +690,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 <Button type="button" variant="ghost" onClick={closeDialog} disabled={busy}>
                   {generatedMnemonic ? "关闭" : "取消"}
                 </Button>
-                <Button type="submit" disabled={busy || (mode === "login" && !mnemonic.trim())}>
+                <Button type="submit" disabled={busy || (mode === "login" && !mnemonic.trim()) || (Boolean(generatedMnemonic) && !mnemonicSaved)}>
                   {busy ? "处理中" : generatedMnemonic ? "我已保存" : mode === "login" ? "登录" : "生成并登录"}
                 </Button>
               </div>
@@ -900,7 +917,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs font-medium text-amber-800">请保存新的登录凭据</div>
-                <Button variant="outline" size="sm" onClick={copyResultSecret}>
+                <Button type="button" variant="outline" size="sm" onClick={copyResultSecret}>
                   {copiedSecret ? <Check size={14} /> : <Copy size={14} />}
                   {copiedSecret ? "已复制" : "复制"}
                 </Button>
