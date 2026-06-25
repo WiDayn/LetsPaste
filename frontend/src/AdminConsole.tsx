@@ -1035,8 +1035,20 @@ function AdminPasteTable({
   }
 
   function renderPasteActions(paste: Paste) {
+    const opening = openingPasteId === paste.id;
     return (
       <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`打开 Paste ${paste.title}`}
+          aria-busy={opening || undefined}
+          disabled={opening}
+          onClick={() => onOpen(paste)}
+        >
+          <Eye size={14} />
+          {opening ? "打开中" : "打开"}
+        </Button>
         <Button
           variant="outline"
           size="sm"
