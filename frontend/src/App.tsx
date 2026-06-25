@@ -715,6 +715,7 @@ export function App() {
       />
       <ConfirmDialog
         open={Boolean(burnOpenTarget)}
+        intent="burn"
         title="查看阅后即焚 Paste"
         description={`打开「${burnOpenTarget?.paste.title ?? ""}」会在首次成功查看内容后销毁。确认现在查看吗？`}
         confirmLabel="查看并销毁"
@@ -1093,6 +1094,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
 
 function ConfirmDialog({
   open,
+  intent = "danger",
   title,
   description,
   confirmLabel = "确认",
@@ -1100,6 +1102,7 @@ function ConfirmDialog({
   onConfirm,
 }: {
   open: boolean;
+  intent?: "danger" | "burn";
   title: string;
   description: string;
   confirmLabel?: string;
@@ -1131,6 +1134,8 @@ function ConfirmDialog({
 
   if (!open) return null;
 
+  const Icon = intent === "burn" ? Flame : Trash2;
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4"
@@ -1151,8 +1156,8 @@ function ConfirmDialog({
           trapDialogTab(e, dialogRef.current);
         }}
       >
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-600">
-          <Trash2 size={18} />
+        <div className={cn("mb-4 flex h-10 w-10 items-center justify-center rounded-md", intent === "burn" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600")}>
+          <Icon size={18} />
         </div>
         <h2 id="confirm-dialog-title" className="text-base font-semibold">
           {title}
