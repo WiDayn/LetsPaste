@@ -314,7 +314,7 @@ export function App() {
         });
         setView(targetView);
         if (updateUrl) writeRoute(pasteRoute(id, targetView));
-        showError(e);
+        clearMessage();
         return false;
       }
       setSelected(null);
@@ -1597,6 +1597,9 @@ function PasteViewer({
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [unlocking, setUnlocking] = useState(false);
   const unlockRequestId = useRef(0);
+  const passwordInputId = `paste-password-${paste.id}`;
+  const passwordHelpId = `paste-password-help-${paste.id}`;
+  const passwordErrorId = `paste-password-error-${paste.id}`;
 
   useEffect(() => {
     unlockRequestId.current += 1;
@@ -1683,9 +1686,30 @@ function PasteViewer({
               首次成功查看内容后，这条 Paste 会立即销毁。
             </div>
           )}
-          <Input type="password" value={password} disabled={unlocking} autoFocus onChange={(e) => setPassword(e.target.value)} />
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor={passwordInputId}>
+              访问密码
+            </label>
+            <Input
+              id={passwordInputId}
+              type="password"
+              placeholder="输入这条 Paste 的访问密码"
+              value={password}
+              disabled={unlocking}
+              autoFocus
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? passwordErrorId : passwordHelpId}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError("");
+              }}
+            />
+            <p id={passwordHelpId} className="text-xs leading-5 text-zinc-500">
+              密码不会保存到浏览器，解锁后仅显示当前 Paste 内容。
+            </p>
+          </div>
           <Button type="submit" disabled={unlocking || !password}>{unlocking ? "解锁中" : "解锁"}</Button>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p id={passwordErrorId} className="text-sm text-red-600">{error}</p>}
         </div>
       </form>
     );
