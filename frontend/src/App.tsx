@@ -1440,6 +1440,7 @@ function CreateStudio({
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const formRef = useRef(form);
+  const submitInFlightRef = useRef(false);
   const titleInputId = "create-paste-title";
   const contentInputId = "create-paste-content";
   const contentErrorId = "create-paste-content-error";
@@ -1543,7 +1544,7 @@ function CreateStudio({
   }
 
   async function submit() {
-    if (busy) return;
+    if (busy || submitInFlightRef.current) return;
     if (!canPost) {
       setError("管理员已关闭匿名发布，请登录后再发布。");
       return;
@@ -1560,6 +1561,7 @@ function CreateStudio({
       window.setTimeout(() => document.getElementById(expiryInputId)?.focus(), 0);
       return;
     }
+    submitInFlightRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -1577,6 +1579,7 @@ function CreateStudio({
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      submitInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -1607,7 +1610,7 @@ function CreateStudio({
                 {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
                 {settingsOpen ? "收起设置" : "设置"}
               </Button>
-              <Button disabled={!canAttemptSubmit} onClick={submit}>
+              <Button disabled={!canAttemptSubmit} aria-busy={busy || undefined} onClick={submit}>
                 <Plus size={16} />
                 {publishLabel}
               </Button>
