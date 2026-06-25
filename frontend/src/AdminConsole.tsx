@@ -337,14 +337,20 @@ export default function AdminConsole({
             )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
-            <span>{hasPasteFilters ? `当前筛选返回 ${pastes.length} 条 Paste` : `共 ${stats.totalPastes ?? pastes.length} 条 Paste`}</span>
+            <span role="status" aria-live="polite" aria-atomic="true">
+              {hasPasteFilters ? `当前筛选返回 ${pastes.length} 条 Paste` : `共 ${stats.totalPastes ?? pastes.length} 条 Paste`}
+            </span>
             {hasPasteFilters && (
               <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={clearPasteFilters}>
                 恢复全部 Paste
               </button>
             )}
           </div>
-          {loadingPastes && <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status">正在筛选 Paste...</div>}
+          {loadingPastes && (
+            <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status" aria-live="polite">
+              正在筛选 Paste...
+            </div>
+          )}
           <AdminPasteTable
             pastes={pastes}
             loading={loadingPastes}
@@ -394,14 +400,20 @@ export default function AdminConsole({
             )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
-            <span>{hasUserFilters ? `当前筛选返回 ${users.length} 个用户` : `共 ${stats.totalUsers ?? users.length} 个用户`}</span>
+            <span role="status" aria-live="polite" aria-atomic="true">
+              {hasUserFilters ? `当前筛选返回 ${users.length} 个用户` : `共 ${stats.totalUsers ?? users.length} 个用户`}
+            </span>
             {hasUserFilters && (
               <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={clearUserFilters}>
                 恢复全部用户
               </button>
             )}
           </div>
-          {loadingUsers && <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status">正在筛选用户...</div>}
+          {loadingUsers && (
+            <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status" aria-live="polite">
+              正在筛选用户...
+            </div>
+          )}
           <AdminUserTable users={users} loading={loadingUsers} filtersActive={hasUserFilters} onClearFilters={clearUserFilters} currentUserId={currentUser.id} onDelete={setUserToDelete} onRoleChange={updateRole} />
         </div>
       )}

@@ -1777,7 +1777,9 @@ function PasteWorkspace({
               <option value="title">标题 A-Z</option>
             </Select>
             <div className="flex items-center justify-between text-xs text-zinc-500">
-              <span>{searchPending ? "正在更新结果..." : hasSearch ? `匹配 ${filtered.length} / ${pastes.length}` : `共 ${pastes.length} 条`}</span>
+              <span role="status" aria-live="polite" aria-atomic="true">
+                {searchPending ? "正在更新结果..." : hasSearch ? `匹配 ${filtered.length} / ${pastes.length}` : `共 ${pastes.length} 条`}
+              </span>
               {hasSearch && (
                 <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={() => setSearch("")}>
                   清除筛选
