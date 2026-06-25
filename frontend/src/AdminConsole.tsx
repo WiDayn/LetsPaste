@@ -16,7 +16,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { trapDialogTab, useDialogFocus } from "./dialogFocus";
@@ -27,6 +27,15 @@ type AdminStats = Record<string, number>;
 const defaultPasteFilters = { search: "", visibility: "", security: "", format: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
+const adminTabs: AdminTab[] = ["overview", "pastes", "users", "settings"];
+
+function adminTabId(tab: AdminTab) {
+  return `admin-tab-${tab}`;
+}
+
+function adminPanelId(tab: AdminTab) {
+  return `admin-panel-${tab}`;
+}
 
 export default function AdminConsole({
   settings,
@@ -258,6 +267,31 @@ export default function AdminConsole({
     clearSuccessNotice();
   }
 
+  function selectTab(nextTab: AdminTab, focus = false) {
+    changeTab(nextTab);
+    if (focus) window.requestAnimationFrame(() => document.getElementById(adminTabId(nextTab))?.focus());
+  }
+
+  function handleTabKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const currentIndex = adminTabs.indexOf(tab);
+    const lastIndex = adminTabs.length - 1;
+    let nextTab: AdminTab | null = null;
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextTab = adminTabs[(currentIndex + 1) % adminTabs.length];
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextTab = adminTabs[(currentIndex + adminTabs.length - 1) % adminTabs.length];
+    } else if (event.key === "Home") {
+      nextTab = adminTabs[0];
+    } else if (event.key === "End") {
+      nextTab = adminTabs[lastIndex];
+    }
+
+    if (!nextTab) return;
+    event.preventDefault();
+    selectTab(nextTab, true);
+  }
+
   function updatePasteFilters(patch: Partial<typeof defaultPasteFilters>) {
     setPasteFilters((current) => ({ ...current, ...patch }));
     clearSuccessNotice();
@@ -290,11 +324,11 @@ export default function AdminConsole({
           <h1 className="text-lg font-semibold">后台管理</h1>
           <p className="text-sm text-zinc-500">集中管理全站 Paste、用户、权限和发布策略。</p>
         </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="后台分区">
-          <AdminTabButton active={tab === "overview"} onClick={() => changeTab("overview")} icon={<LayoutDashboard size={15} />} label="概览" />
-          <AdminTabButton active={tab === "pastes"} onClick={() => changeTab("pastes")} icon={<FileText size={15} />} label="Paste" />
-          <AdminTabButton active={tab === "users"} onClick={() => changeTab("users")} icon={<Users size={15} />} label="用户" />
-          <AdminTabButton active={tab === "settings"} onClick={() => changeTab("settings")} icon={<Settings size={15} />} label="设置" />
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="后台分区" onKeyDown={handleTabKeyDown}>
+          <AdminTabButton tab="overview" active={tab === "overview"} onClick={() => selectTab("overview")} icon={<LayoutDashboard size={15} />} label="概览" />
+          <AdminTabButton tab="pastes" active={tab === "pastes"} onClick={() => selectTab("pastes")} icon={<FileText size={15} />} label="Paste" />
+          <AdminTabButton tab="users" active={tab === "users"} onClick={() => selectTab("users")} icon={<Users size={15} />} label="用户" />
+          <AdminTabButton tab="settings" active={tab === "settings"} onClick={() => selectTab("settings")} icon={<Settings size={15} />} label="设置" />
         </div>
       </div>
 
@@ -312,7 +346,7 @@ export default function AdminConsole({
       )}
 
       {tab === "overview" && (
-        <div className="space-y-4 p-4">
+        <div id={adminPanelId("overview")} className="space-y-4 p-4" role="tabpanel" tabIndex={0} aria-labelledby={adminTabId("overview")}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard icon={<Database size={18} />} label="Paste 总数" value={stats.totalPastes ?? 0} />
             <MetricCard icon={<Eye size={18} />} label="总访问量" value={stats.totalViews ?? 0} />
@@ -328,7 +362,7 @@ export default function AdminConsole({
       )}
 
       {tab === "pastes" && (
-        <div>
+        <div id={adminPanelId("pastes")} role="tabpanel" tabIndex={0} aria-labelledby={adminTabId("pastes")}>
           <div className="grid gap-2 border-b border-zinc-200 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap">
             <div className="relative min-w-0 sm:col-span-2 lg:min-w-64 lg:flex-1">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
@@ -412,7 +446,7 @@ export default function AdminConsole({
       )}
 
       {tab === "users" && (
-        <div>
+        <div id={adminPanelId("users")} role="tabpanel" tabIndex={0} aria-labelledby={adminTabId("users")}>
           <div className="grid gap-2 border-b border-zinc-200 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap">
             <div className="relative min-w-0 sm:col-span-2 lg:min-w-64 lg:flex-1">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
@@ -480,7 +514,7 @@ export default function AdminConsole({
       )}
 
       {tab === "settings" && (
-        <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_360px]">
+        <div id={adminPanelId("settings")} className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_360px]" role="tabpanel" tabIndex={0} aria-labelledby={adminTabId("settings")}>
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -760,9 +794,18 @@ function MetricCard({ icon, label, value }: { icon: ReactNode; label: string; va
   );
 }
 
-function AdminTabButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
+function AdminTabButton({ active, icon, label, onClick, tab }: { active: boolean; icon: ReactNode; label: string; onClick: () => void; tab: AdminTab }) {
   return (
-    <Button variant={active ? "default" : "outline"} size="sm" aria-pressed={active} onClick={onClick}>
+    <Button
+      id={adminTabId(tab)}
+      variant={active ? "default" : "outline"}
+      size="sm"
+      role="tab"
+      aria-selected={active}
+      aria-controls={adminPanelId(tab)}
+      tabIndex={active ? 0 : -1}
+      onClick={onClick}
+    >
       {icon}
       {label}
     </Button>
