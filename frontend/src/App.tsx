@@ -943,7 +943,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             disabled={busy}
             onChange={(e) => setNewSecret(e.target.value)}
           />
-          <p className="text-xs leading-5 text-zinc-500">新凭据不设最短长度；留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">留空时系统会自动生成一组新的登录凭据。</p>
           <Button type="submit" disabled={busy || !currentSecret.trim() || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
           {message && <p className="text-sm text-zinc-600">{message}</p>}
           {resultSecret && (
@@ -1011,9 +1011,11 @@ function CreateStudio({
     form.burnAfterReading ? "阅后即焚" : "",
   ].filter(Boolean);
   const lifecycleSummary = invalidExpiry ? "时间无效" : hasExpiry ? `${parsedExpiry} 分钟后销毁` : "永久保留";
+  const identitySummary = authed ? "归属账号" : settings.allowAnonymousPaste ? "匿名发布" : "需要登录";
+  const identityTone: "neutral" | "red" | "blue" = authed ? "blue" : settings.allowAnonymousPaste ? "neutral" : "red";
   const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
     { label: form.isPrivate ? "私密链接" : "公开库可见", tone: form.isPrivate ? "amber" : "green" },
-    { label: authed ? "归属账号" : "匿名发布", tone: authed ? "blue" : "neutral" },
+    { label: identitySummary, tone: identityTone },
     { label: form.format === "markdown" ? "Markdown" : form.language, tone: form.format === "markdown" ? "blue" : "neutral" },
     { label: protectionSummary.length ? protectionSummary.join("、") : "无额外保护", tone: protectionSummary.length ? "amber" : "neutral" },
     { label: lifecycleSummary, tone: invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral" },
@@ -1072,7 +1074,7 @@ function CreateStudio({
             </Button>
             <Button disabled={!canSubmit} onClick={submit}>
               <Plus size={16} />
-              {busy ? "发布中" : "发布 Paste"}
+              {busy ? "发布中" : canPost ? "发布 Paste" : "需要登录"}
             </Button>
           </div>
         </div>
@@ -1084,6 +1086,12 @@ function CreateStudio({
           ))}
           {error && <span className="text-xs font-medium text-red-600">{error}</span>}
         </div>
+        {!canPost && (
+          <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
+            <AlertTriangle className="mt-0.5 shrink-0" size={16} />
+            <span>管理员已关闭匿名发布。你可以先编辑草稿，使用右上角助记码登录后再发布。</span>
+          </div>
+        )}
         <div className="p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Input
