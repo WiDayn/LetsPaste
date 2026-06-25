@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Check,
   Clock,
   Copy,
@@ -68,6 +69,9 @@ export default function AdminConsole({
   const [loadingStats, setLoadingStats] = useState(false);
   const [loadingPastes, setLoadingPastes] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [statsError, setStatsError] = useState("");
+  const [pasteError, setPasteError] = useState("");
+  const [userError, setUserError] = useState("");
   const [roleUpdatingUserIds, setRoleUpdatingUserIds] = useState<Set<number>>(() => new Set());
   const roleUpdatingUserIdsRef = useRef<Set<number>>(new Set());
   const settingsSaveInFlightRef = useRef(false);
@@ -141,13 +145,20 @@ export default function AdminConsole({
     const controller = new AbortController();
     statsAbortRef.current = controller;
     setLoadingStats(true);
+    setStatsError("");
     setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const next = await api<AdminStats>("/api/admin/stats", { signal: controller.signal });
-      if (requestId === statsRequestId.current) setStats(next);
+      if (requestId === statsRequestId.current) {
+        setStats(next);
+        setStatsError("");
+      }
     } catch (e) {
       if (controller.signal.aborted) return;
-      if (requestId === statsRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
+      if (requestId === statsRequestId.current) {
+        setStatsError((e as Error).message);
+        setNotice({ message: (e as Error).message, tone: "error" });
+      }
     } finally {
       if (requestId === statsRequestId.current) {
         statsAbortRef.current = null;
@@ -162,6 +173,7 @@ export default function AdminConsole({
     const controller = new AbortController();
     pasteAbortRef.current = controller;
     setLoadingPastes(true);
+    setPasteError("");
     setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const params = new URLSearchParams();
@@ -170,10 +182,16 @@ export default function AdminConsole({
         if (normalized && normalized !== "newest") params.set(key, normalized);
       });
       const next = (await api<Paste[]>(`/api/admin/pastes?${params.toString()}`, { signal: controller.signal })) ?? [];
-      if (requestId === pasteRequestId.current) setPastes(next);
+      if (requestId === pasteRequestId.current) {
+        setPastes(next);
+        setPasteError("");
+      }
     } catch (e) {
       if (controller.signal.aborted) return;
-      if (requestId === pasteRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
+      if (requestId === pasteRequestId.current) {
+        setPasteError((e as Error).message);
+        setNotice({ message: (e as Error).message, tone: "error" });
+      }
     } finally {
       if (requestId === pasteRequestId.current) {
         pasteAbortRef.current = null;
@@ -188,6 +206,7 @@ export default function AdminConsole({
     const controller = new AbortController();
     userAbortRef.current = controller;
     setLoadingUsers(true);
+    setUserError("");
     setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const params = new URLSearchParams();
@@ -196,10 +215,16 @@ export default function AdminConsole({
         if (normalized) params.set(key, normalized);
       });
       const next = (await api<User[]>(`/api/admin/users?${params.toString()}`, { signal: controller.signal })) ?? [];
-      if (requestId === userRequestId.current) setUsers(next);
+      if (requestId === userRequestId.current) {
+        setUsers(next);
+        setUserError("");
+      }
     } catch (e) {
       if (controller.signal.aborted) return;
-      if (requestId === userRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
+      if (requestId === userRequestId.current) {
+        setUserError((e as Error).message);
+        setNotice({ message: (e as Error).message, tone: "error" });
+      }
     } finally {
       if (requestId === userRequestId.current) {
         userAbortRef.current = null;
@@ -398,6 +423,18 @@ export default function AdminConsole({
               正在同步概览数据...
             </div>
           )}
+          {statsError && !loadingStats && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <AlertTriangle className="shrink-0" size={16} />
+                <span className="break-words">概览加载失败：{statsError}</span>
+              </span>
+              <Button variant="outline" size="sm" onClick={loadStats}>
+                <RotateCcw size={14} />
+                重试概览
+              </Button>
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard icon={<Database size={18} />} label="Paste 总数" value={stats.totalPastes ?? 0} />
             <MetricCard icon={<Eye size={18} />} label="总访问量" value={stats.totalViews ?? 0} />
@@ -487,9 +524,11 @@ export default function AdminConsole({
           <AdminPasteTable
             pastes={pastes}
             loading={loadingPastes}
+            error={pasteError}
             openingPasteId={openingPasteId}
             filtersActive={hasPasteFilters}
             onClearFilters={clearPasteFilters}
+            onRetry={loadPastes}
             onOpen={onOpen}
             onDelete={setPasteToDelete}
           />
@@ -554,8 +593,10 @@ export default function AdminConsole({
           <AdminUserTable
             users={users}
             loading={loadingUsers}
+            error={userError}
             filtersActive={hasUserFilters}
             onClearFilters={clearUserFilters}
+            onRetry={loadUsers}
             currentUserId={currentUser.id}
             roleUpdatingUserIds={roleUpdatingUserIds}
             onDelete={setUserToDelete}
@@ -903,22 +944,27 @@ function AdminBreakdown({ title, rows }: { title: string; rows: [string, number]
 function AdminPasteTable({
   pastes,
   loading,
+  error,
   openingPasteId,
   filtersActive,
   onClearFilters,
+  onRetry,
   onOpen,
   onDelete,
 }: {
   pastes: Paste[];
   loading: boolean;
+  error: string;
   openingPasteId: string | null;
   filtersActive: boolean;
   onClearFilters: () => void;
+  onRetry: () => void;
   onOpen: (paste: Paste) => void;
   onDelete: (paste: Paste) => void;
 }) {
-  const emptyTitle = loading ? "正在加载 Paste..." : filtersActive ? "没有符合筛选的 Paste" : "还没有 Paste";
-  const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部 Paste 列表。" : "新建 Paste 后会出现在这里。";
+  const hasError = error.length > 0;
+  const emptyTitle = loading ? "正在加载 Paste..." : hasError ? "Paste 加载失败" : filtersActive ? "没有符合筛选的 Paste" : "还没有 Paste";
+  const emptyDescription = loading ? "数据返回后会自动更新列表。" : hasError ? error : filtersActive ? "清空筛选后可以回到全部 Paste 列表。" : "新建 Paste 后会出现在这里。";
   const [visibleCount, setVisibleCount] = useState(adminTableBatchSize);
   const [copyingPasteId, setCopyingPasteId] = useState<string | null>(null);
   const [copiedPasteId, setCopiedPasteId] = useState<string | null>(null);
@@ -1001,13 +1047,13 @@ function AdminPasteTable({
   function renderEmptyState() {
     return (
       <div className="px-4 py-12 text-center">
-        <FileText className="mx-auto mb-3 text-zinc-400" size={24} />
+        {hasError ? <AlertTriangle className="mx-auto mb-3 text-amber-500" size={24} /> : <FileText className="mx-auto mb-3 text-zinc-400" size={24} />}
         <div className="font-medium text-zinc-800">{emptyTitle}</div>
-        <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
-        {!loading && filtersActive && (
-          <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
-            <X size={14} />
-            清空筛选
+        <div className="mt-1 break-words text-sm text-zinc-500">{emptyDescription}</div>
+        {!loading && (hasError || filtersActive) && (
+          <Button className="mt-4" variant="outline" size="sm" onClick={hasError ? onRetry : onClearFilters}>
+            {hasError ? <RotateCcw size={14} /> : <X size={14} />}
+            {hasError ? "重试加载" : "清空筛选"}
           </Button>
         )}
       </div>
@@ -1146,8 +1192,10 @@ function AdminPasteTable({
 function AdminUserTable({
   users,
   loading,
+  error,
   filtersActive,
   onClearFilters,
+  onRetry,
   currentUserId,
   roleUpdatingUserIds,
   onDelete,
@@ -1155,15 +1203,18 @@ function AdminUserTable({
 }: {
   users: User[];
   loading: boolean;
+  error: string;
   filtersActive: boolean;
   onClearFilters: () => void;
+  onRetry: () => void;
   currentUserId: number;
   roleUpdatingUserIds: Set<number>;
   onDelete: (user: User) => void;
   onRoleChange: (user: User, role: User["role"]) => void;
 }) {
-  const emptyTitle = loading ? "正在加载用户..." : filtersActive ? "没有符合筛选的用户" : "还没有用户";
-  const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部用户列表。" : "新用户注册后会出现在这里。";
+  const hasError = error.length > 0;
+  const emptyTitle = loading ? "正在加载用户..." : hasError ? "用户加载失败" : filtersActive ? "没有符合筛选的用户" : "还没有用户";
+  const emptyDescription = loading ? "数据返回后会自动更新列表。" : hasError ? error : filtersActive ? "清空筛选后可以回到全部用户列表。" : "新用户注册后会出现在这里。";
   const [visibleCount, setVisibleCount] = useState(adminTableBatchSize);
 
   useEffect(() => {
@@ -1211,13 +1262,13 @@ function AdminUserTable({
   function renderEmptyState() {
     return (
       <div className="px-4 py-12 text-center">
-        <Users className="mx-auto mb-3 text-zinc-400" size={24} />
+        {hasError ? <AlertTriangle className="mx-auto mb-3 text-amber-500" size={24} /> : <Users className="mx-auto mb-3 text-zinc-400" size={24} />}
         <div className="font-medium text-zinc-800">{emptyTitle}</div>
-        <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
-        {!loading && filtersActive && (
-          <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
-            <X size={14} />
-            清空筛选
+        <div className="mt-1 break-words text-sm text-zinc-500">{emptyDescription}</div>
+        {!loading && (hasError || filtersActive) && (
+          <Button className="mt-4" variant="outline" size="sm" onClick={hasError ? onRetry : onClearFilters}>
+            {hasError ? <RotateCcw size={14} /> : <X size={14} />}
+            {hasError ? "重试加载" : "清空筛选"}
           </Button>
         )}
       </div>
