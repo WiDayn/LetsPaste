@@ -1935,21 +1935,23 @@ function PasteWorkspace({
     setIndexCollapsed(Boolean(selected));
   }, [selected?.id]);
 
+  const hasSelectedPaste = Boolean(selected);
+
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
+      <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200", hasSelectedPaste ? "px-3 py-2 sm:px-4 sm:py-3" : "px-4 py-3")}>
         <div>
-          <h1 className="text-lg font-semibold">{title}</h1>
-          <p className="text-sm text-zinc-500">索引只负责定位，选中后默认把主空间留给 Paste 内容。</p>
+          <h1 className={cn("font-semibold", hasSelectedPaste ? "text-base sm:text-lg" : "text-lg")}>{title}</h1>
+          <p className={cn("text-sm text-zinc-500", hasSelectedPaste && "hidden sm:block")}>索引只负责定位，选中后默认把主空间留给 Paste 内容。</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selected && (
-            <Button variant="outline" onClick={() => setIndexCollapsed((current) => !current)}>
+            <Button variant="outline" size="sm" onClick={() => setIndexCollapsed((current) => !current)}>
               {indexCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
               {indexCollapsed ? "显示索引" : "隐藏索引"}
             </Button>
           )}
-          <Button onClick={onCreate}>
+          <Button size={hasSelectedPaste ? "sm" : "default"} onClick={onCreate}>
             <Plus size={16} />
             新建 Paste
           </Button>
