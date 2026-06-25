@@ -24,9 +24,12 @@ export function useDialogFocus<T extends HTMLElement>(open: boolean) {
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
       const target = previousFocusRef.current;
       previousFocusRef.current = null;
+      document.body.style.overflow = previousOverflow;
       if (target?.isConnected) window.setTimeout(() => target.focus(), 0);
     };
   }, [open]);
