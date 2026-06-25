@@ -363,8 +363,13 @@ export function App() {
     window.addEventListener("popstate", handlePopState);
     return () => {
       window.removeEventListener("popstate", handlePopState);
+      listRequestId.current += 1;
       listAbortRef.current?.abort();
+      listAbortRef.current = null;
+      openRequestId.current += 1;
       openAbortRef.current?.abort();
+      openAbortRef.current = null;
+      openingPasteIdRef.current = null;
     };
   }, []);
 
