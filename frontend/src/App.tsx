@@ -24,7 +24,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { cn } from "./lib";
@@ -1262,39 +1262,69 @@ function AdminConsole({
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [pasteToDelete, setPasteToDelete] = useState<Paste | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [loadingPastes, setLoadingPastes] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const pasteRequestId = useRef(0);
+  const userRequestId = useRef(0);
 
   useEffect(() => {
     loadStats();
-    loadPastes();
-    loadUsers();
   }, []);
 
   useEffect(() => {
-    loadPastes();
-  }, [pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.sort]);
+    const timeout = window.setTimeout(() => {
+      void loadPastes();
+    }, pasteFilters.search ? 300 : 0);
+    return () => window.clearTimeout(timeout);
+  }, [pasteFilters.search, pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.sort]);
 
   useEffect(() => {
-    loadUsers();
-  }, [userFilters.role]);
+    const timeout = window.setTimeout(() => {
+      void loadUsers();
+    }, userFilters.search ? 300 : 0);
+    return () => window.clearTimeout(timeout);
+  }, [userFilters.search, userFilters.role]);
 
   async function loadStats() {
-    setStats(await api<AdminStats>("/api/admin/stats"));
+    try {
+      setStats(await api<AdminStats>("/api/admin/stats"));
+    } catch (e) {
+      setNotice({ message: (e as Error).message, tone: "error" });
+    }
   }
 
   async function loadPastes() {
-    const params = new URLSearchParams();
-    Object.entries(pasteFilters).forEach(([key, value]) => {
-      if (value && value !== "newest") params.set(key, value);
-    });
-    setPastes((await api<Paste[]>(`/api/admin/pastes?${params.toString()}`)) ?? []);
+    const requestId = ++pasteRequestId.current;
+    setLoadingPastes(true);
+    try {
+      const params = new URLSearchParams();
+      Object.entries(pasteFilters).forEach(([key, value]) => {
+        if (value && value !== "newest") params.set(key, value);
+      });
+      const next = (await api<Paste[]>(`/api/admin/pastes?${params.toString()}`)) ?? [];
+      if (requestId === pasteRequestId.current) setPastes(next);
+    } catch (e) {
+      if (requestId === pasteRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
+    } finally {
+      if (requestId === pasteRequestId.current) setLoadingPastes(false);
+    }
   }
 
   async function loadUsers() {
-    const params = new URLSearchParams();
-    Object.entries(userFilters).forEach(([key, value]) => {
-      if (value) params.set(key, value);
-    });
-    setUsers((await api<User[]>(`/api/admin/users?${params.toString()}`)) ?? []);
+    const requestId = ++userRequestId.current;
+    setLoadingUsers(true);
+    try {
+      const params = new URLSearchParams();
+      Object.entries(userFilters).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+      });
+      const next = (await api<User[]>(`/api/admin/users?${params.toString()}`)) ?? [];
+      if (requestId === userRequestId.current) setUsers(next);
+    } catch (e) {
+      if (requestId === userRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
+    } finally {
+      if (requestId === userRequestId.current) setLoadingUsers(false);
+    }
   }
 
   async function saveSettings() {
@@ -1393,9 +1423,6 @@ function AdminConsole({
                 placeholder="搜索标题、ID 或作者"
                 value={pasteFilters.search}
                 onChange={(e) => setPasteFilters({ ...pasteFilters, search: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") loadPastes();
-                }}
               />
             </div>
             <Select value={pasteFilters.visibility} onChange={(e) => setPasteFilters({ ...pasteFilters, visibility: e.target.value })}>
@@ -1420,8 +1447,9 @@ function AdminConsole({
               <option value="views">访问量</option>
               <option value="title">标题</option>
             </Select>
-            <Button variant="outline" onClick={loadPastes}>搜索</Button>
+            <Button variant="outline" onClick={loadPastes} disabled={loadingPastes}>{loadingPastes ? "筛选中" : "刷新"}</Button>
           </div>
+          {loadingPastes && <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status">正在筛选 Paste...</div>}
           <AdminPasteTable pastes={pastes} onOpen={onOpen} onDelete={setPasteToDelete} />
         </div>
       )}
@@ -1436,9 +1464,6 @@ function AdminConsole({
                 placeholder="搜索用户名"
                 value={userFilters.search}
                 onChange={(e) => setUserFilters({ ...userFilters, search: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") loadUsers();
-                }}
               />
             </div>
             <Select value={userFilters.role} onChange={(e) => setUserFilters({ ...userFilters, role: e.target.value })}>
@@ -1446,8 +1471,9 @@ function AdminConsole({
               <option value="admin">管理员</option>
               <option value="user">用户</option>
             </Select>
-            <Button variant="outline" onClick={loadUsers}>搜索</Button>
+            <Button variant="outline" onClick={loadUsers} disabled={loadingUsers}>{loadingUsers ? "筛选中" : "刷新"}</Button>
           </div>
+          {loadingUsers && <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status">正在筛选用户...</div>}
           <AdminUserTable users={users} currentUserId={currentUser.id} onDelete={setUserToDelete} onRoleChange={updateRole} />
         </div>
       )}
