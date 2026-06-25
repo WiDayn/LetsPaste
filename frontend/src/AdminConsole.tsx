@@ -1257,7 +1257,14 @@ function AdminUserTable({
   }
 
   function renderUserActions(user: User) {
-    if (user.role === "admin") return null;
+    const selfRow = user.id === currentUserId;
+    if (selfRow || user.role === "admin") {
+      return (
+        <div className="max-w-[15rem] text-xs leading-5 text-zinc-500">
+          {selfRow ? "当前登录管理员不能删除。" : "管理员需先改为普通用户，再执行删除。"}
+        </div>
+      );
+    }
     return (
       <Button variant="danger" size="sm" aria-label={`删除用户 ${user.username}`} onClick={() => onDelete(user)}>
         <Trash2 size={14} />
