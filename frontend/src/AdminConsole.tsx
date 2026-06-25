@@ -146,7 +146,6 @@ export default function AdminConsole({
     statsAbortRef.current = controller;
     setLoadingStats(true);
     setStatsError("");
-    setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const next = await api<AdminStats>("/api/admin/stats", { signal: controller.signal });
       if (requestId === statsRequestId.current) {
@@ -157,7 +156,6 @@ export default function AdminConsole({
       if (controller.signal.aborted) return;
       if (requestId === statsRequestId.current) {
         setStatsError((e as Error).message);
-        setNotice({ message: (e as Error).message, tone: "error" });
       }
     } finally {
       if (requestId === statsRequestId.current) {
@@ -174,7 +172,6 @@ export default function AdminConsole({
     pasteAbortRef.current = controller;
     setLoadingPastes(true);
     setPasteError("");
-    setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const params = new URLSearchParams();
       Object.entries(pasteFilters).forEach(([key, value]) => {
@@ -190,7 +187,6 @@ export default function AdminConsole({
       if (controller.signal.aborted) return;
       if (requestId === pasteRequestId.current) {
         setPasteError((e as Error).message);
-        setNotice({ message: (e as Error).message, tone: "error" });
       }
     } finally {
       if (requestId === pasteRequestId.current) {
@@ -207,7 +203,6 @@ export default function AdminConsole({
     userAbortRef.current = controller;
     setLoadingUsers(true);
     setUserError("");
-    setNotice((current) => (current?.tone === "error" ? null : current));
     try {
       const params = new URLSearchParams();
       Object.entries(userFilters).forEach(([key, value]) => {
@@ -223,7 +218,6 @@ export default function AdminConsole({
       if (controller.signal.aborted) return;
       if (requestId === userRequestId.current) {
         setUserError((e as Error).message);
-        setNotice({ message: (e as Error).message, tone: "error" });
       }
     } finally {
       if (requestId === userRequestId.current) {
