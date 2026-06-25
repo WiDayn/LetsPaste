@@ -241,7 +241,7 @@ export function App() {
       window.history.replaceState(null, "", "/admin");
       return;
     }
-    if (next !== "explore") window.history.replaceState(null, "", "/");
+    window.history.replaceState(null, "", "/");
   }
 
   function logout() {
