@@ -19,6 +19,7 @@ import {
   Shield,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ApiError, api } from "./api";
@@ -1076,6 +1077,8 @@ function PasteWorkspace({
   }, [pastes, search, sort]);
   const protectedCount = pastes.filter((paste) => paste.hasPassword || paste.burnAfterReading).length;
   const expiringCount = pastes.filter((paste) => paste.expiresAt).length;
+  const normalizedSearch = search.trim();
+  const hasSearch = normalizedSearch.length > 0;
 
   useEffect(() => {
     setIndexCollapsed(Boolean(selected));
@@ -1106,7 +1109,17 @@ function PasteWorkspace({
           <div className="space-y-3 border-b border-zinc-200 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
-              <Input className="pl-9" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-9 pr-9" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
+              {hasSearch && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  aria-label="清空搜索"
+                  onClick={() => setSearch("")}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="rounded-md border border-zinc-200 bg-white p-2">
@@ -1127,8 +1140,26 @@ function PasteWorkspace({
               <option value="views">访问最多</option>
               <option value="title">标题 A-Z</option>
             </Select>
+            <div className="flex items-center justify-between text-xs text-zinc-500">
+              <span>{hasSearch ? `匹配 ${filtered.length} / ${pastes.length}` : `共 ${pastes.length} 条`}</span>
+              {hasSearch && (
+                <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={() => setSearch("")}>
+                  清除筛选
+                </button>
+              )}
+            </div>
           </div>
-          <PasteIndex pastes={filtered} selectedId={selected?.id} onOpen={onOpen} onDelete={onDelete} />
+          <PasteIndex
+            pastes={filtered}
+            selectedId={selected?.id}
+            onOpen={onOpen}
+            onDelete={onDelete}
+            totalCount={pastes.length}
+            search={normalizedSearch}
+            onClearSearch={() => setSearch("")}
+            onCreate={onCreate}
+            privateMode={privateMode}
+          />
         </aside>
         <section className="min-w-0 bg-white">
           {selected ? (
@@ -1153,19 +1184,38 @@ function PasteIndex({
   selectedId,
   onOpen,
   onDelete,
+  totalCount,
+  search,
+  onClearSearch,
+  onCreate,
+  privateMode = false,
 }: {
   pastes: Paste[];
   selectedId?: string;
   onOpen: (id: string) => void;
   onDelete?: (paste: Paste) => void;
+  totalCount: number;
+  search: string;
+  onClearSearch: () => void;
+  onCreate: () => void;
+  privateMode?: boolean;
 }) {
   if (pastes.length === 0) {
+    const isFiltered = search.length > 0 && totalCount > 0;
     return (
       <div className="grid min-h-72 place-items-center p-6 text-center">
         <div>
           <FileText className="mx-auto mb-3 text-zinc-400" />
-          <p className="font-medium">没有匹配的 Paste</p>
-          <p className="text-sm text-zinc-500">调整搜索条件，或创建新的分享。</p>
+          <p className="font-medium">
+            {isFiltered ? "没有匹配的 Paste" : privateMode ? "还没有自己的 Paste" : "还没有公开 Paste"}
+          </p>
+          <p className="mt-1 text-sm text-zinc-500">
+            {isFiltered ? `没有找到包含“${search}”的内容。` : "创建第一条分享后，它会出现在这里。"}
+          </p>
+          <Button className="mt-4" variant={isFiltered ? "outline" : "default"} size="sm" onClick={isFiltered ? onClearSearch : onCreate}>
+            {isFiltered ? <X size={14} /> : <Plus size={14} />}
+            {isFiltered ? "清空搜索" : "新建 Paste"}
+          </Button>
         </div>
       </div>
     );
