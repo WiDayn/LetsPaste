@@ -1060,18 +1060,24 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const confirmInFlightRef = useRef(false);
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
 
   useEffect(() => {
-    if (open) setBusy(false);
+    if (open) {
+      confirmInFlightRef.current = false;
+      setBusy(false);
+    }
   }, [open]);
 
   async function confirm() {
-    if (busy) return;
+    if (busy || confirmInFlightRef.current) return;
+    confirmInFlightRef.current = true;
     setBusy(true);
     try {
       await onConfirm();
     } finally {
+      confirmInFlightRef.current = false;
       setBusy(false);
     }
   }
@@ -1111,7 +1117,7 @@ function ConfirmDialog({
           <Button variant="ghost" onClick={onCancel} disabled={busy} autoFocus>
             取消
           </Button>
-          <Button variant="danger" onClick={confirm} disabled={busy}>
+          <Button variant="danger" onClick={confirm} disabled={busy} aria-busy={busy || undefined}>
             {busy ? "处理中" : confirmLabel}
           </Button>
         </div>
