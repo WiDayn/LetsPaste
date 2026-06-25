@@ -14,6 +14,8 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   Search,
   Shield,
@@ -988,6 +990,7 @@ function CreateStudio({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
@@ -1002,6 +1005,14 @@ function CreateStudio({
     form.password.trim() ? "访问密码" : "",
     form.burnAfterReading ? "阅后即焚" : "",
   ].filter(Boolean);
+  const lifecycleSummary = invalidExpiry ? "时间无效" : hasExpiry ? `${parsedExpiry} 分钟后销毁` : "永久保留";
+  const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
+    { label: form.isPrivate ? "私密链接" : "公开库可见", tone: form.isPrivate ? "amber" : "green" },
+    { label: authed ? "归属账号" : "匿名发布", tone: authed ? "blue" : "neutral" },
+    { label: form.format === "markdown" ? "Markdown" : form.language, tone: form.format === "markdown" ? "blue" : "neutral" },
+    { label: protectionSummary.length ? protectionSummary.join("、") : "无额外保护", tone: protectionSummary.length ? "amber" : "neutral" },
+    { label: lifecycleSummary, tone: invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral" },
+  ];
 
   function updateFormat(format: Paste["format"]) {
     setForm({
@@ -1022,6 +1033,7 @@ function CreateStudio({
       return;
     }
     if (invalidExpiry) {
+      setSettingsOpen(true);
       setError("自动销毁时间需要填写大于等于 1 的整数分钟。");
       return;
     }
@@ -1041,17 +1053,31 @@ function CreateStudio({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className={cn("grid gap-4", settingsOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
       <section className="rounded-md border border-zinc-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
           <div>
             <h1 className="text-lg font-semibold">创建 Paste</h1>
-            <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开预览或并排查看。</p>
+            <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开设置或并排预览。</p>
           </div>
-          <Button disabled={!canSubmit} onClick={submit}>
-            <Plus size={16} />
-            {busy ? "发布中" : "发布 Paste"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
+              {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+              {settingsOpen ? "收起设置" : "设置"}
+            </Button>
+            <Button disabled={!canSubmit} onClick={submit}>
+              <Plus size={16} />
+              {busy ? "发布中" : "发布 Paste"}
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+          {summaryBadges.map((item) => (
+            <Badge key={item.label} tone={item.tone}>
+              {item.label}
+            </Badge>
+          ))}
+          {error && <span className="text-xs font-medium text-red-600">{error}</span>}
         </div>
         <div className="p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -1088,67 +1114,69 @@ function CreateStudio({
         </div>
       </section>
 
-      <aside className="space-y-4">
-        <section className="rounded-md border border-zinc-200 bg-white p-4">
-          <h2 className="mb-3 font-semibold">元数据</h2>
-          <div className="space-y-3">
-            <Select value={form.format} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
-              <option value="code">代码</option>
-              <option value="markdown">Markdown</option>
-            </Select>
-            <Select value={form.language} disabled={form.format === "markdown"} onChange={(e) => setForm({ ...form, language: e.target.value })}>
-              {languages.map((language) => (
-                <option key={language}>{language}</option>
-              ))}
-            </Select>
-            {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
-            <Input placeholder="访问密码，可留空" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            <Input
-              placeholder="自动销毁时间，单位分钟"
-              type="number"
-              min="1"
-              step="1"
-              aria-invalid={invalidExpiry || undefined}
-              className={cn(invalidExpiry && "border-red-300 bg-red-50")}
-              value={form.expiresInMinutes}
-              onChange={(e) => setForm({ ...form, expiresInMinutes: e.target.value })}
-            />
-            {invalidExpiry && <p className="text-xs text-red-600">自动销毁时间需要填写大于等于 1 的整数分钟。</p>}
-          </div>
-        </section>
-
-        <section className="rounded-md border border-zinc-200 bg-white p-4">
-          <h2 className="mb-3 font-semibold">访问策略</h2>
-          <div className="space-y-3 text-sm">
-            <Toggle checked={form.isPrivate} onChange={(checked) => setForm({ ...form, isPrivate: checked })} label="私密，不出现在公开库" />
-            <Toggle checked={form.burnAfterReading} onChange={(checked) => setForm({ ...form, burnAfterReading: checked })} label="阅后即焚" />
-            <div className="rounded-md bg-zinc-100 p-3 text-xs leading-5 text-zinc-600">
-              {canPost ? "匿名发布状态由后台控制。登录后创建的 Paste 会自动归属到你的账号。" : "管理员已关闭匿名发布，请登录后再发布。"}
+      {settingsOpen && (
+        <aside className="space-y-4">
+          <section className="rounded-md border border-zinc-200 bg-white p-4">
+            <h2 className="mb-3 font-semibold">元数据</h2>
+            <div className="space-y-3">
+              <Select value={form.format} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
+                <option value="code">代码</option>
+                <option value="markdown">Markdown</option>
+              </Select>
+              <Select value={form.language} disabled={form.format === "markdown"} onChange={(e) => setForm({ ...form, language: e.target.value })}>
+                {languages.map((language) => (
+                  <option key={language}>{language}</option>
+                ))}
+              </Select>
+              {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
+              <Input placeholder="访问密码，可留空" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <Input
+                placeholder="自动销毁时间，单位分钟"
+                type="number"
+                min="1"
+                step="1"
+                aria-invalid={invalidExpiry || undefined}
+                className={cn(invalidExpiry && "border-red-300 bg-red-50")}
+                value={form.expiresInMinutes}
+                onChange={(e) => setForm({ ...form, expiresInMinutes: e.target.value })}
+              />
+              {invalidExpiry && <p className="text-xs text-red-600">自动销毁时间需要填写大于等于 1 的整数分钟。</p>}
             </div>
-            {error && <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
-          </div>
-        </section>
+          </section>
 
-        <section className="rounded-md border border-zinc-200 bg-white p-4">
-          <h2 className="mb-3 font-semibold">发布确认</h2>
-          <div className="space-y-3 text-sm">
-            <SummaryRow label="可见性" value={form.isPrivate ? "私密链接" : "公开库可见"} tone={form.isPrivate ? "amber" : "green"} />
-            <SummaryRow label="身份" value={authed ? "归属当前账号" : "匿名发布"} tone={authed ? "blue" : "neutral"} />
-            <SummaryRow label="格式" value={form.format === "markdown" ? "Markdown" : form.language} tone={form.format === "markdown" ? "blue" : "neutral"} />
-            <SummaryRow label="保护" value={protectionSummary.length ? protectionSummary.join("、") : "无额外保护"} tone={protectionSummary.length ? "amber" : "neutral"} />
-            <SummaryRow
-              label="生命周期"
-              value={invalidExpiry ? "自动销毁时间无效" : hasExpiry ? `${parsedExpiry} 分钟后自动销毁` : "永久保留"}
-              tone={invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral"}
-            />
-          </div>
-          {form.burnAfterReading && (
-            <p className="mt-3 rounded-md border border-red-100 bg-red-50 p-2 text-xs leading-5 text-red-700">
-              阅后即焚会在首次成功查看内容后删除该 Paste。
-            </p>
-          )}
-        </section>
-      </aside>
+          <section className="rounded-md border border-zinc-200 bg-white p-4">
+            <h2 className="mb-3 font-semibold">访问策略</h2>
+            <div className="space-y-3 text-sm">
+              <Toggle checked={form.isPrivate} onChange={(checked) => setForm({ ...form, isPrivate: checked })} label="私密，不出现在公开库" />
+              <Toggle checked={form.burnAfterReading} onChange={(checked) => setForm({ ...form, burnAfterReading: checked })} label="阅后即焚" />
+              <div className="rounded-md bg-zinc-100 p-3 text-xs leading-5 text-zinc-600">
+                {canPost ? "匿名发布状态由后台控制。登录后创建的 Paste 会自动归属到你的账号。" : "管理员已关闭匿名发布，请登录后再发布。"}
+              </div>
+              {error && <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
+            </div>
+          </section>
+
+          <section className="rounded-md border border-zinc-200 bg-white p-4">
+            <h2 className="mb-3 font-semibold">发布确认</h2>
+            <div className="space-y-3 text-sm">
+              <SummaryRow label="可见性" value={form.isPrivate ? "私密链接" : "公开库可见"} tone={form.isPrivate ? "amber" : "green"} />
+              <SummaryRow label="身份" value={authed ? "归属当前账号" : "匿名发布"} tone={authed ? "blue" : "neutral"} />
+              <SummaryRow label="格式" value={form.format === "markdown" ? "Markdown" : form.language} tone={form.format === "markdown" ? "blue" : "neutral"} />
+              <SummaryRow label="保护" value={protectionSummary.length ? protectionSummary.join("、") : "无额外保护"} tone={protectionSummary.length ? "amber" : "neutral"} />
+              <SummaryRow
+                label="生命周期"
+                value={invalidExpiry ? "自动销毁时间无效" : hasExpiry ? `${parsedExpiry} 分钟后自动销毁` : "永久保留"}
+                tone={invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral"}
+              />
+            </div>
+            {form.burnAfterReading && (
+              <p className="mt-3 rounded-md border border-red-100 bg-red-50 p-2 text-xs leading-5 text-red-700">
+                阅后即焚会在首次成功查看内容后删除该 Paste。
+              </p>
+            )}
+          </section>
+        </aside>
+      )}
     </div>
   );
 }
