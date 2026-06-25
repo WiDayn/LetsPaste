@@ -740,6 +740,7 @@ function AdminPasteTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[880px] text-left text-sm">
+        <caption className="sr-only">后台 Paste 列表</caption>
         <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
           <tr>
             <th className="px-4 py-3 font-medium">Paste</th>
@@ -773,6 +774,8 @@ function AdminPasteTable({
                     className="max-w-[300px] truncate font-medium hover:underline disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
                     disabled={openingPasteId === paste.id}
                     aria-busy={openingPasteId === paste.id || undefined}
+                    aria-label={`打开 Paste ${paste.title}`}
+                    title={paste.title}
                     onClick={() => onOpen(paste)}
                   >
                     {openingPasteId === paste.id ? "打开中..." : paste.title}
@@ -790,7 +793,7 @@ function AdminPasteTable({
                 <td className="px-4 py-3">{paste.views}</td>
                 <td className="px-4 py-3 text-zinc-500">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</td>
                 <td className="px-4 py-3">
-                  <Button variant="danger" size="sm" onClick={() => onDelete(paste)}>
+                  <Button variant="danger" size="sm" aria-label={`删除 Paste ${paste.title}`} onClick={() => onDelete(paste)}>
                     <Trash2 size={14} />
                     删除
                   </Button>
@@ -845,6 +848,7 @@ function AdminUserTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[680px] text-left text-sm">
+        <caption className="sr-only">后台用户列表</caption>
         <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
           <tr>
             <th className="px-4 py-3 font-medium">用户</th>
@@ -888,7 +892,7 @@ function AdminUserTable({
                 <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
                 <td className="px-4 py-3">
                   {user.role !== "admin" && (
-                    <Button variant="danger" size="sm" onClick={() => onDelete(user)}>
+                    <Button variant="danger" size="sm" aria-label={`删除用户 ${user.username}`} onClick={() => onDelete(user)}>
                       <Trash2 size={14} />
                       删除
                     </Button>
