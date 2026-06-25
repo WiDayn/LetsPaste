@@ -549,6 +549,16 @@ export function App() {
     clearMessage();
   }
 
+  function placeCreatedPasteInList(paste: Paste, nextView: View) {
+    const sameList = listViewRef.current === nextView;
+    const belongsToList = nextView === "mine" || !paste.isPrivate;
+    listViewRef.current = nextView;
+    setPastes((current) => {
+      const retained = sameList ? current.filter((item) => item.id !== paste.id) : [];
+      return belongsToList ? [paste, ...retained] : retained;
+    });
+  }
+
   function requestOpenPaste(paste: Paste, targetView: View = "explore") {
     if (blockUnsavedNavigation(targetView)) return;
     setCreatedPasteId(null);
@@ -711,9 +721,7 @@ export function App() {
               setSelected(paste);
               setCreatedPasteId(paste.id);
               setView(nextView);
-              if (nextView === "mine" || !paste.isPrivate) {
-                setPastes((current) => [paste, ...current.filter((item) => item.id !== paste.id)]);
-              }
+              placeCreatedPasteInList(paste, nextView);
               writeRoute(pasteRoute(paste.id, nextView));
               showInfo("Paste 已创建，链接已经准备好。");
             }}
