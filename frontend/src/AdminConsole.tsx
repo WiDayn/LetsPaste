@@ -225,6 +225,8 @@ export default function AdminConsole({
 
       {notice && (
         <div
+          role={notice.tone === "success" ? "status" : "alert"}
+          aria-live={notice.tone === "success" ? "polite" : "assertive"}
           className={cn(
             "border-b px-4 py-2 text-sm",
             notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700",
@@ -386,7 +388,7 @@ export default function AdminConsole({
             <div>
               <label className="mb-2 block text-sm font-medium" htmlFor={siteNameInputId}>站点名称</label>
               <Input id={siteNameInputId} value={draft.siteName} disabled={savingSettings} aria-invalid={settingsInvalid} onChange={(e) => setDraft({ ...draft, siteName: e.target.value })} />
-              {settingsInvalid && <p className="mt-2 text-xs text-red-600">站点名称不能为空。</p>}
+              {settingsInvalid && <p className="mt-2 text-xs text-red-600" role="alert">站点名称不能为空。</p>}
             </div>
             <Toggle
               checked={draft.allowAnonymousPaste}

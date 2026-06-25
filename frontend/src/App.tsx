@@ -557,6 +557,8 @@ export function App() {
       <main className="mx-auto max-w-[1680px] px-4 py-4">
         {message && (
           <div
+            role={messageTone === "info" ? "status" : "alert"}
+            aria-live={messageTone === "info" ? "polite" : "assertive"}
             className={cn(
               "mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
               messageTone === "info" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-900",
@@ -812,7 +814,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                   </label>
                 </div>
               )}
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={closeDialog} disabled={busy}>
                   {generatedMnemonic ? "关闭" : "取消"}
@@ -943,7 +945,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
       >
         <Input aria-label="管理员用户名" placeholder="管理员用户名" value={username} disabled={busy} onChange={(e) => setUsername(e.target.value)} />
         <Input aria-label="管理员密码" placeholder="管理员密码" type="password" value={password} disabled={busy} onChange={(e) => setPassword(e.target.value)} />
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
         <Button className="w-full" type="submit" disabled={busy || !username.trim() || !password}>
           {busy ? "登录中" : "登录后台"}
         </Button>
@@ -1059,7 +1061,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
           />
           <p className="text-xs leading-5 text-zinc-500">留空时系统会自动生成一组新的登录凭据。</p>
           <Button type="submit" disabled={busy || !currentSecret.trim() || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
-          {message && <p className="text-sm text-zinc-600">{message}</p>}
+          {message && <p className="text-sm text-zinc-600" role="status" aria-live="polite">{message}</p>}
           {resultSecret && (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-center justify-between gap-3">
@@ -1251,7 +1253,7 @@ function CreateStudio({
               {item.label}
             </Badge>
           ))}
-          {error && <span className="text-xs font-medium text-red-600">{error}</span>}
+          {error && <span className="text-xs font-medium text-red-600" role="alert">{error}</span>}
         </div>
         {!canPost && (
           <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
@@ -1941,7 +1943,7 @@ function PasteViewer({
             </p>
           </div>
           <Button type="submit" disabled={unlocking || !password}>{unlocking ? "解锁中" : "解锁"}</Button>
-          {error && <p id={passwordErrorId} className="text-sm text-red-600">{error}</p>}
+          {error && <p id={passwordErrorId} className="text-sm text-red-600" role="alert">{error}</p>}
         </div>
       </form>
     );
@@ -2003,7 +2005,7 @@ function PasteViewer({
           )}
         </div>
         {copyError && (
-          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">
             {copyError}
           </div>
         )}
