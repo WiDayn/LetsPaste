@@ -1242,19 +1242,30 @@ function PasteWorkspace({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
   const [indexCollapsed, setIndexCollapsed] = useState(false);
+  const normalizedSearch = search.trim();
+  const hasSearch = normalizedSearch.length > 0;
   const filtered = useMemo(() => {
-    const query = search.toLowerCase();
-    const data = pastes.filter((paste) => {
-      return [paste.title, paste.id, paste.language, paste.ownerUsername ?? ""].join(" ").toLowerCase().includes(query);
-    });
+    const query = normalizedSearch.toLowerCase();
+    const data = query
+      ? pastes.filter((paste) => {
+          return [paste.title, paste.id, paste.language, paste.ownerUsername ?? ""].join(" ").toLowerCase().includes(query);
+        })
+      : pastes;
     if (sort === "views") return [...data].sort((a, b) => b.views - a.views);
     if (sort === "title") return [...data].sort((a, b) => a.title.localeCompare(b.title));
     return data;
-  }, [pastes, search, sort]);
-  const protectedCount = pastes.filter((paste) => paste.hasPassword || paste.burnAfterReading).length;
-  const expiringCount = pastes.filter((paste) => paste.expiresAt).length;
-  const normalizedSearch = search.trim();
-  const hasSearch = normalizedSearch.length > 0;
+  }, [pastes, normalizedSearch, sort]);
+  const { protectedCount, expiringCount } = useMemo(
+    () =>
+      pastes.reduce(
+        (counts, paste) => ({
+          protectedCount: counts.protectedCount + (paste.hasPassword || paste.burnAfterReading ? 1 : 0),
+          expiringCount: counts.expiringCount + (paste.expiresAt ? 1 : 0),
+        }),
+        { protectedCount: 0, expiringCount: 0 },
+      ),
+    [pastes],
+  );
 
   useEffect(() => {
     setIndexCollapsed(Boolean(selected));
@@ -1469,7 +1480,10 @@ function WorkspaceInsight({
   onOpen: (paste: Paste) => void;
 }) {
   const latest = pastes[0];
-  const popular = [...pastes].sort((a, b) => b.views - a.views)[0];
+  const popular = useMemo(
+    () => pastes.reduce<Paste | undefined>((best, paste) => (!best || paste.views > best.views ? paste : best), undefined),
+    [pastes],
+  );
   if (loading && pastes.length === 0) {
     return (
       <div className="grid min-h-[calc(100vh-9.5rem)] place-items-center p-6 text-center">
