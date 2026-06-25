@@ -329,8 +329,8 @@ export default function AdminConsole({
 
       {tab === "pastes" && (
         <div>
-          <div className="flex flex-wrap gap-2 border-b border-zinc-200 p-3">
-            <div className="relative min-w-64 flex-1">
+          <div className="grid gap-2 border-b border-zinc-200 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap">
+            <div className="relative min-w-0 sm:col-span-2 lg:min-w-64 lg:flex-1">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
               <Input
                 className="pl-9 pr-9"
@@ -350,31 +350,31 @@ export default function AdminConsole({
                 </button>
               )}
             </div>
-            <Select aria-label="筛选可见性" value={pasteFilters.visibility} onChange={(e) => updatePasteFilters({ visibility: e.target.value })}>
+            <Select className="w-full lg:w-auto" aria-label="筛选可见性" value={pasteFilters.visibility} onChange={(e) => updatePasteFilters({ visibility: e.target.value })}>
               <option value="">全部可见性</option>
               <option value="public">公开</option>
               <option value="private">私密</option>
             </Select>
-            <Select aria-label="筛选保护策略" value={pasteFilters.security} onChange={(e) => updatePasteFilters({ security: e.target.value })}>
+            <Select className="w-full lg:w-auto" aria-label="筛选保护策略" value={pasteFilters.security} onChange={(e) => updatePasteFilters({ security: e.target.value })}>
               <option value="">全部策略</option>
               <option value="active">有效</option>
               <option value="expired">已过期</option>
               <option value="password">有密码</option>
               <option value="burn">阅后即焚</option>
             </Select>
-            <Select aria-label="筛选内容格式" value={pasteFilters.format} onChange={(e) => updatePasteFilters({ format: e.target.value })}>
+            <Select className="w-full lg:w-auto" aria-label="筛选内容格式" value={pasteFilters.format} onChange={(e) => updatePasteFilters({ format: e.target.value })}>
               <option value="">全部格式</option>
               <option value="code">代码</option>
               <option value="markdown">Markdown</option>
             </Select>
-            <Select aria-label="排序 Paste" value={pasteFilters.sort} onChange={(e) => updatePasteFilters({ sort: e.target.value })}>
+            <Select className="w-full lg:w-auto" aria-label="排序 Paste" value={pasteFilters.sort} onChange={(e) => updatePasteFilters({ sort: e.target.value })}>
               <option value="newest">最新</option>
               <option value="views">访问量</option>
               <option value="title">标题</option>
             </Select>
-            <Button variant="outline" onClick={loadPastes} disabled={loadingPastes}>{loadingPastes ? "筛选中" : "刷新"}</Button>
+            <Button className="w-full sm:w-auto" variant="outline" onClick={loadPastes} disabled={loadingPastes}>{loadingPastes ? "筛选中" : "刷新"}</Button>
             {hasPasteFilters && (
-              <Button variant="ghost" onClick={clearPasteFilters}>
+              <Button className="w-full sm:w-auto" variant="ghost" onClick={clearPasteFilters}>
                 <X size={14} />
                 清空筛选
               </Button>
@@ -413,8 +413,8 @@ export default function AdminConsole({
 
       {tab === "users" && (
         <div>
-          <div className="flex flex-wrap gap-2 border-b border-zinc-200 p-3">
-            <div className="relative min-w-64 flex-1">
+          <div className="grid gap-2 border-b border-zinc-200 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap">
+            <div className="relative min-w-0 sm:col-span-2 lg:min-w-64 lg:flex-1">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
               <Input
                 className="pl-9 pr-9"
@@ -434,14 +434,14 @@ export default function AdminConsole({
                 </button>
               )}
             </div>
-            <Select aria-label="筛选用户角色" value={userFilters.role} onChange={(e) => updateUserFilters({ role: e.target.value })}>
+            <Select className="w-full lg:w-auto" aria-label="筛选用户角色" value={userFilters.role} onChange={(e) => updateUserFilters({ role: e.target.value })}>
               <option value="">全部角色</option>
               <option value="admin">管理员</option>
               <option value="user">用户</option>
             </Select>
-            <Button variant="outline" onClick={loadUsers} disabled={loadingUsers}>{loadingUsers ? "筛选中" : "刷新"}</Button>
+            <Button className="w-full sm:w-auto" variant="outline" onClick={loadUsers} disabled={loadingUsers}>{loadingUsers ? "筛选中" : "刷新"}</Button>
             {hasUserFilters && (
-              <Button variant="ghost" onClick={clearUserFilters}>
+              <Button className="w-full sm:w-auto" variant="ghost" onClick={clearUserFilters}>
                 <X size={14} />
                 清空筛选
               </Button>
