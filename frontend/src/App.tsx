@@ -2472,6 +2472,18 @@ function WorkspaceInsight({
     () => pastes.reduce<Paste | undefined>((best, paste) => (!best || paste.views > best.views ? paste : best), undefined),
     [pastes],
   );
+  if (openingPasteId) {
+    return (
+      <div className="grid min-h-[18rem] place-items-center p-6 text-center lg:min-h-[calc(100vh-9.5rem)]" role="status" aria-live="polite">
+        <div>
+          <Clock className="mx-auto mb-3 text-zinc-400" size={24} />
+          <h2 className="font-semibold">正在打开 Paste</h2>
+          <p className="mt-1 text-sm text-zinc-500">内容加载完成后会显示在这里。</p>
+          <div className="mt-3 break-all font-mono text-xs text-zinc-500">{openingPasteId}</div>
+        </div>
+      </div>
+    );
+  }
   if (loading && pastes.length === 0) {
     return (
       <div className="grid min-h-[18rem] place-items-center p-6 text-center lg:min-h-[calc(100vh-9.5rem)]">
