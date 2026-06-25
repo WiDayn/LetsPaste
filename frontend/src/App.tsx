@@ -340,7 +340,7 @@ function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium",
+        "inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium",
         tone === "neutral" && "border-zinc-300 bg-white text-zinc-600",
         tone === "green" && "border-emerald-200 bg-emerald-50 text-emerald-700",
         tone === "amber" && "border-amber-200 bg-amber-50 text-amber-700",
@@ -1902,13 +1902,13 @@ function CreateStudio({
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-zinc-50 px-4 py-2">
           {summaryBadges.map((item) => (
             <Badge key={item.label} tone={item.tone}>
               {item.label}
             </Badge>
           ))}
-          {error && <span className="text-xs font-medium text-red-600" role="alert">{error}</span>}
+          {error && <span className="shrink-0 text-xs font-medium text-red-600" role="alert">{error}</span>}
         </div>
         {!canPost && (
           <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
@@ -1970,7 +1970,7 @@ function CreateStudio({
           id={settingsPanelId}
           ref={settingsPanelRef}
           tabIndex={-1}
-          className="order-first scroll-mt-4 space-y-4 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 xl:sticky xl:top-4 xl:order-none xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1"
+          className="scroll-mt-4 space-y-4 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1"
         >
           <section className="rounded-md border border-zinc-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
