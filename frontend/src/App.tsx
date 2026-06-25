@@ -2125,6 +2125,7 @@ function PasteViewer({
   const copyStatus = useTransientStatus();
   const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
   const unlockRequestId = useRef(0);
+  const unlockAbortRef = useRef<AbortController | null>(null);
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
   const passwordErrorId = `paste-password-error-${paste.id}`;
@@ -2133,6 +2134,8 @@ function PasteViewer({
 
   useEffect(() => {
     unlockRequestId.current += 1;
+    unlockAbortRef.current?.abort();
+    unlockAbortRef.current = null;
     setPassword("");
     setError("");
     setCopied(false);
@@ -2142,6 +2145,14 @@ function PasteViewer({
     setMarkdownMode("preview");
     setUnlocking(false);
   }, [paste.id]);
+
+  useEffect(() => {
+    return () => {
+      unlockRequestId.current += 1;
+      unlockAbortRef.current?.abort();
+      unlockAbortRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (lockedWithoutContent) return;
@@ -2156,20 +2167,28 @@ function PasteViewer({
       return;
     }
     const requestId = ++unlockRequestId.current;
+    unlockAbortRef.current?.abort();
+    const controller = new AbortController();
+    unlockAbortRef.current = controller;
     setUnlocking(true);
     try {
       const unlocked = await api<Paste>(`/api/pastes/${paste.id}/unlock`, {
         method: "POST",
+        signal: controller.signal,
         body: JSON.stringify({ password }),
       });
       if (requestId !== unlockRequestId.current) return;
       onUnlocked(unlocked);
       setError("");
     } catch (e) {
+      if (controller.signal.aborted) return;
       if (requestId !== unlockRequestId.current) return;
       setError((e as Error).message);
     } finally {
-      if (requestId === unlockRequestId.current) setUnlocking(false);
+      if (requestId === unlockRequestId.current) {
+        unlockAbortRef.current = null;
+        setUnlocking(false);
+      }
     }
   }
 
