@@ -784,6 +784,7 @@ export function App() {
             onCreate={() => changeView("create")}
             onRefresh={() => void refreshList()}
             justCreated={selected?.id === createdPasteId}
+            onDismissCreatedNotice={() => setCreatedPasteId(null)}
             onClose={() => {
               setSelected(null);
               setCreatedPasteId(null);
@@ -805,6 +806,7 @@ export function App() {
             onCreate={() => changeView("create")}
             onRefresh={() => void refreshList()}
             justCreated={selected?.id === createdPasteId}
+            onDismissCreatedNotice={() => setCreatedPasteId(null)}
             onClose={() => {
               setSelected(null);
               setCreatedPasteId(null);
@@ -2250,6 +2252,7 @@ function PasteWorkspace({
   onUnlocked,
   onCreate,
   onRefresh,
+  onDismissCreatedNotice,
   onClose,
   onDelete,
   privateMode = false,
@@ -2265,6 +2268,7 @@ function PasteWorkspace({
   onUnlocked: (paste: Paste) => void;
   onCreate: () => void;
   onRefresh: () => void;
+  onDismissCreatedNotice?: () => void;
   onClose: () => void;
   onDelete?: (paste: Paste) => void;
   privateMode?: boolean;
@@ -2458,6 +2462,7 @@ function PasteWorkspace({
               openingPasteId={openingPasteId}
               onOpenAdjacent={onOpen}
               onUnlocked={onUnlocked}
+              onDismissCreatedNotice={onDismissCreatedNotice}
               onClose={onClose}
             />
           ) : (
@@ -2758,6 +2763,7 @@ function PasteViewer({
   openingPasteId,
   onOpenAdjacent,
   onUnlocked,
+  onDismissCreatedNotice,
   onClose,
 }: {
   paste: Paste;
@@ -2767,6 +2773,7 @@ function PasteViewer({
   openingPasteId?: string | null;
   onOpenAdjacent: (paste: Paste) => void;
   onUnlocked: (p: Paste) => void;
+  onDismissCreatedNotice?: () => void;
   onClose: () => void;
 }) {
   const [password, setPassword] = useState("");
@@ -3184,10 +3191,15 @@ function PasteViewer({
                   {paste.isPrivate ? "这条 Paste 不会出现在公开库，但可通过链接访问。" : "这条 Paste 已加入公开库，可复制链接分享。"}
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={copyLink} disabled={Boolean(copying)} aria-busy={copying === "link" || undefined}>
-                {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
-                {copying === "link" ? "复制中" : linkCopied.active ? "已复制" : "复制链接"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={copyLink} disabled={Boolean(copying)} aria-busy={copying === "link" || undefined}>
+                  {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
+                  {copying === "link" ? "复制中" : linkCopied.active ? "已复制" : "复制链接"}
+                </Button>
+                <Button variant="ghost" size="icon" title="收起创建提示" aria-label="收起创建提示" onClick={onDismissCreatedNotice}>
+                  <X size={14} />
+                </Button>
+              </div>
             </div>
             <div className="mt-2 rounded border border-emerald-200 bg-white px-2 py-1 font-mono text-xs text-emerald-950">
               <span className="block truncate">{permalink}</span>
