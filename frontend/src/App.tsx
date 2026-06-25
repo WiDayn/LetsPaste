@@ -606,6 +606,14 @@ function CreateStudio({
   const [error, setError] = useState("");
   const canPost = authed || settings.allowAnonymousPaste;
 
+  function updateFormat(format: Paste["format"]) {
+    setForm({
+      ...form,
+      format,
+      language: format === "markdown" ? "markdown" : form.language === "markdown" ? "plaintext" : form.language,
+    });
+  }
+
   async function submit() {
     setBusy(true);
     setError("");
@@ -661,15 +669,16 @@ function CreateStudio({
         <section className="rounded-md border border-zinc-200 bg-white p-4">
           <h2 className="mb-3 font-semibold">元数据</h2>
           <div className="space-y-3">
-            <Select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })}>
+            <Select value={form.format} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
               <option value="code">代码</option>
               <option value="markdown">Markdown</option>
             </Select>
-            <Select value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
+            <Select value={form.language} disabled={form.format === "markdown"} onChange={(e) => setForm({ ...form, language: e.target.value })}>
               {languages.map((language) => (
                 <option key={language}>{language}</option>
               ))}
             </Select>
+            {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
             <Input placeholder="访问密码，可留空" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             <Input
               placeholder="自动销毁时间，单位分钟"

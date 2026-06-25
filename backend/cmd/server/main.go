@@ -340,11 +340,13 @@ func (a *app) createPaste(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, http.StatusBadRequest, "内容不能为空")
 		return
 	}
-	if req.Language == "" {
-		req.Language = "plaintext"
-	}
 	if req.Format != "markdown" {
 		req.Format = "code"
+	}
+	if req.Format == "markdown" {
+		req.Language = "markdown"
+	} else if strings.TrimSpace(req.Language) == "" {
+		req.Language = "plaintext"
 	}
 
 	id := randomID(8)
