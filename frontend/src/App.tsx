@@ -336,6 +336,16 @@ export function App() {
     await openPaste(target.paste.id, true, target.targetView, target.paste);
   }
 
+  function handleUnlockedPaste(paste: Paste) {
+    setSelected(paste);
+    if (paste.burnAfterReading) {
+      setPastes((current) => current.filter((item) => item.id !== paste.id));
+      showInfo("这条阅后即焚 Paste 已在本次解锁后销毁。");
+      return;
+    }
+    clearMessage();
+  }
+
   function requestOpenPaste(paste: Paste, targetView: View = "explore") {
     if (paste.burnAfterReading) {
       setBurnOpenTarget({ paste, targetView });
@@ -469,10 +479,7 @@ export function App() {
             openingPasteId={openingPasteId}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "explore")}
-            onUnlocked={(paste) => {
-              setSelected(paste);
-              if (paste.burnAfterReading) setPastes((current) => current.filter((item) => item.id !== paste.id));
-            }}
+            onUnlocked={handleUnlockedPaste}
             onCreate={() => changeView("create")}
             onClose={() => {
               setSelected(null);
@@ -489,10 +496,7 @@ export function App() {
             openingPasteId={openingPasteId}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "mine")}
-            onUnlocked={(paste) => {
-              setSelected(paste);
-              if (paste.burnAfterReading) setPastes((current) => current.filter((item) => item.id !== paste.id));
-            }}
+            onUnlocked={handleUnlockedPaste}
             onCreate={() => changeView("create")}
             onClose={() => {
               setSelected(null);
