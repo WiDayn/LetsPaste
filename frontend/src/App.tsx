@@ -187,11 +187,11 @@ export function App() {
     }
   }
 
-  async function openPaste(id: string, updateUrl = true) {
+  async function openPaste(id: string, updateUrl = true, targetView: View = "explore") {
     try {
       const next = await api<Paste>(`/api/pastes/${id}`);
       setSelected(next);
-      setView("explore");
+      setView(targetView);
       clearMessage();
       if (updateUrl) window.history.replaceState(null, "", `/${id}`);
     } catch (e) {
@@ -207,7 +207,7 @@ export function App() {
           views: 0,
           createdAt: "",
         });
-        setView("explore");
+        setView(targetView);
         showError(e);
         return;
       }
@@ -235,6 +235,9 @@ export function App() {
   function changeView(next: View) {
     setView(next);
     clearMessage();
+    if (next === "explore" || next === "mine") {
+      setSelected(null);
+    }
     if (next === "admin") {
       window.history.replaceState(null, "", "/admin");
       return;
@@ -309,10 +312,13 @@ export function App() {
             authed={Boolean(user)}
             settings={settings}
             onCreated={(paste) => {
+              const nextView = user ? "mine" : "explore";
               setSelected(paste);
-              setView("explore");
+              setView(nextView);
+              if (nextView === "mine" || !paste.isPrivate) {
+                setPastes((current) => [paste, ...current.filter((item) => item.id !== paste.id)]);
+              }
               window.history.replaceState(null, "", `/${paste.id}`);
-              refreshList();
             }}
           />
         )}
@@ -320,7 +326,16 @@ export function App() {
         {view === "explore" && <PasteWorkspace title="公开 Paste" pastes={pastes} selected={selected} onOpen={openPaste} onUnlocked={setSelected} onCreate={() => changeView("create")} />}
 
         {view === "mine" && (
-          <PasteWorkspace title="我的 Paste" pastes={pastes} selected={selected} onOpen={openPaste} onUnlocked={setSelected} onCreate={() => changeView("create")} onDelete={deleteMyPaste} privateMode />
+          <PasteWorkspace
+            title="我的 Paste"
+            pastes={pastes}
+            selected={selected}
+            onOpen={(id) => openPaste(id, true, "mine")}
+            onUnlocked={setSelected}
+            onCreate={() => changeView("create")}
+            onDelete={deleteMyPaste}
+            privateMode
+          />
         )}
 
         {view === "account" && user && <AccountPanel user={user} onLogout={logout} />}
