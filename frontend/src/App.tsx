@@ -1741,21 +1741,29 @@ function CreateStudio({
   const hasExpiry = expiresValue.length > 0;
   const invalidExpiry = hasExpiry && (!Number.isInteger(parsedExpiry) || parsedExpiry < 1);
   const hasBody = form.content.trim().length > 0;
+  const hasPassword = form.password.trim().length > 0;
   const hasFormInput = hasCreateDraft(form) || form.password.trim().length > 0;
   const canAttemptSubmit = canPost && !busy;
   const contentError = error === emptyContentError;
   const protectionSummary = [
-    form.password.trim() ? "访问密码" : "",
+    hasPassword ? "访问密码" : "",
     form.burnAfterReading ? "阅后即焚" : "",
   ].filter(Boolean);
   const lifecycleSummary = invalidExpiry ? "时间无效" : hasExpiry ? `${parsedExpiry} 分钟后销毁` : "永久保留";
   const identitySummary = authed ? "归属账号" : settings.allowAnonymousPaste ? "匿名发布" : "需要登录";
   const identityTone: "neutral" | "red" | "blue" = authed ? "blue" : settings.allowAnonymousPaste ? "neutral" : "red";
   const publishLabel = busy ? "发布中" : !canPost ? "需要登录" : !hasBody ? "先输入内容" : invalidExpiry ? "时间无效" : "发布 Paste";
-  const draftStatusMessage = draftSaved ? "草稿已保存到本次浏览会话。" : draftReset ? "草稿已清空。" : "";
+  const draftStatusMessage = draftSaved
+    ? hasPassword
+      ? "草稿已保存到本次浏览会话，访问密码不会写入草稿。"
+      : "草稿已保存到本次浏览会话。"
+    : draftReset
+      ? "草稿已清空。"
+      : "";
   const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
     { label: hasBody ? `${form.content.length} 字符` : "正文为空", tone: hasBody ? "neutral" : "red" },
     ...(draftSaved ? [{ label: "草稿已保存", tone: "blue" as const }] : []),
+    ...(hasPassword ? [{ label: "草稿不含密码", tone: "amber" as const }] : []),
     ...(draftReset ? [{ label: "草稿已清空", tone: "neutral" as const }] : []),
     { label: form.isPrivate ? "私密链接" : "公开库可见", tone: form.isPrivate ? "amber" : "green" },
     { label: identitySummary, tone: identityTone },
