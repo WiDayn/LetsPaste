@@ -13,6 +13,7 @@ import {
   KeyRound,
   Lock,
   LogOut,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -2560,9 +2561,11 @@ function PasteViewer({
   const [copying, setCopying] = useState<"content" | "link" | null>(null);
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [wrapLongLines, setWrapLongLines] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const copyStatus = useTransientStatus();
   const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
   const unlockRequestId = useRef(0);
   const unlockInFlightRef = useRef(false);
   const unlockAbortRef = useRef<AbortController | null>(null);
@@ -2571,6 +2574,7 @@ function PasteViewer({
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
   const passwordErrorId = `paste-password-error-${paste.id}`;
+  const actionsMenuId = `paste-actions-${paste.id}`;
   const emptyPasswordError = "请输入访问密码。";
   const lockedWithoutContent = paste.hasPassword && !paste.content;
   const permalink = pastePermalink(paste.id);
@@ -2591,6 +2595,7 @@ function PasteViewer({
     setCopying(null);
     copyStatus.clear();
     setMarkdownMode("preview");
+    setActionsOpen(false);
     setUnlocking(false);
   }, [paste.id]);
 
@@ -2609,6 +2614,28 @@ function PasteViewer({
     if (lockedWithoutContent) return;
     window.setTimeout(() => viewerHeadingRef.current?.focus(), 0);
   }, [lockedWithoutContent, paste.id]);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (actionsRef.current?.contains(event.target as Node)) return;
+      setActionsOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setActionsOpen(false);
+      actionsRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [actionsOpen]);
 
   async function unlock() {
     if (unlocking || unlockInFlightRef.current) return;
@@ -2770,56 +2797,102 @@ function PasteViewer({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
-            {paste.format === "markdown" && (
-              <div className="flex rounded-md border border-zinc-200 bg-zinc-50 p-1" role="group" aria-label="Markdown 显示模式">
-                <button
-                  type="button"
-                  aria-pressed={markdownMode === "preview"}
-                  className={cn(
-                    "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
-                    markdownMode === "preview" && "bg-white shadow",
-                  )}
-                  onClick={() => setMarkdownMode("preview")}
-                >
-                  预览
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={markdownMode === "source"}
-                  className={cn(
-                    "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
-                    markdownMode === "source" && "bg-white shadow",
-                  )}
-                  onClick={() => setMarkdownMode("source")}
-                >
-                  源格式
-                </button>
-              </div>
-            )}
-            {canToggleWrap && (
-              <Button
-                variant={wrapLongLines ? "soft" : "outline"}
-                size="sm"
-                aria-pressed={wrapLongLines}
-                title={wrapLongLines ? "关闭长行换行" : "开启长行换行"}
-                onClick={() => setWrapLongLines((current) => !current)}
-              >
-                <TextWrap size={14} />
-                {wrapLongLines ? "已换行" : "换行"}
-              </Button>
-            )}
             <Button variant="ghost" size="sm" onClick={onClose}>
               <PanelLeftClose size={14} />
               返回列表
-            </Button>
-            <Button variant="outline" size="sm" onClick={copyContent} disabled={!paste.content || Boolean(copying)} aria-busy={copying === "content" || undefined}>
-              {contentCopied.active ? <Check size={14} /> : <Copy size={14} />}
-              {copying === "content" ? "复制中" : contentCopied.active ? "已复制" : "复制内容"}
             </Button>
             <Button variant="outline" size="sm" onClick={copyLink} disabled={Boolean(copying)} aria-busy={copying === "link" || undefined}>
               {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
               {copying === "link" ? "复制中" : linkCopied.active ? "已复制" : "复制链接"}
             </Button>
+            <div ref={actionsRef} className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                aria-haspopup="menu"
+                aria-expanded={actionsOpen}
+                aria-controls={actionsMenuId}
+                onClick={() => setActionsOpen((open) => !open)}
+              >
+                <MoreHorizontal size={14} />
+                更多
+              </Button>
+              {actionsOpen && (
+                <div
+                  id={actionsMenuId}
+                  className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg"
+                  role="menu"
+                >
+                  {paste.format === "markdown" && (
+                    <>
+                      <div className="px-3 py-1.5 text-[11px] font-medium uppercase text-zinc-400">Markdown</div>
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={markdownMode === "preview"}
+                        className={cn(
+                          "flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25",
+                          markdownMode === "preview" && "font-medium",
+                        )}
+                        onClick={() => {
+                          setMarkdownMode("preview");
+                          setActionsOpen(false);
+                        }}
+                      >
+                        预览
+                        {markdownMode === "preview" && <Check size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={markdownMode === "source"}
+                        className={cn(
+                          "flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25",
+                          markdownMode === "source" && "font-medium",
+                        )}
+                        onClick={() => {
+                          setMarkdownMode("source");
+                          setActionsOpen(false);
+                        }}
+                      >
+                        源格式
+                        {markdownMode === "source" && <Check size={14} />}
+                      </button>
+                    </>
+                  )}
+                  {canToggleWrap && (
+                    <button
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={wrapLongLines}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25"
+                      onClick={() => {
+                        setWrapLongLines((current) => !current);
+                        setActionsOpen(false);
+                      }}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <TextWrap size={14} />
+                        长行换行
+                      </span>
+                      {wrapLongLines && <Check size={14} />}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={!paste.content || Boolean(copying)}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => {
+                      void copyContent();
+                    }}
+                  >
+                    {contentCopied.active ? <Check size={14} /> : <Copy size={14} />}
+                    {copying === "content" ? "复制中" : contentCopied.active ? "已复制内容" : "复制内容"}
+                  </button>
+                </div>
+              )}
+            </div>
             <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
               {copyStatus.status}
             </span>
