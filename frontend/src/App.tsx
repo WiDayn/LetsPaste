@@ -2855,7 +2855,7 @@ function PasteViewer({
   const [error, setError] = useState("");
   const linkCopied = useTransientFlag();
   const contentCopied = useTransientFlag();
-  const [copyError, setCopyError] = useState("");
+  const [copyFeedback, setCopyFeedback] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [copying, setCopying] = useState<"content" | "link" | null>(null);
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [wrapLongLines, setWrapLongLines] = useState(false);
@@ -2944,7 +2944,7 @@ function PasteViewer({
     setError("");
     linkCopied.clear();
     contentCopied.clear();
-    setCopyError("");
+    setCopyFeedback(null);
     setCopying(null);
     copyStatus.clear();
     setMarkdownMode("preview");
@@ -3060,7 +3060,7 @@ function PasteViewer({
     copyInFlightRef.current = true;
     const requestId = ++copyRequestId.current;
     setCopying(kind);
-    setCopyError("");
+    setCopyFeedback(null);
     copyStatus.clear();
     try {
       if (await copyText(value)) {
@@ -3070,13 +3070,13 @@ function PasteViewer({
         } else {
           linkCopied.show();
         }
-        setCopyError("");
+        setCopyFeedback({ message: successMessage, tone: "success" });
         copyStatus.announce(successMessage);
         return;
       }
       if (requestId !== copyRequestId.current) return;
       copyStatus.clear();
-      setCopyError(failureMessage);
+      setCopyFeedback({ message: failureMessage, tone: "error" });
     } finally {
       if (requestId === copyRequestId.current) {
         copyInFlightRef.current = false;
@@ -3282,9 +3282,16 @@ function PasteViewer({
             </span>
           </div>
         </div>
-        {copyError && (
-          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">
-            {copyError}
+        {copyFeedback && (
+          <div
+            className={cn(
+              "mt-3 rounded-md border px-3 py-2 text-sm",
+              copyFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800",
+            )}
+            role={copyFeedback.tone === "success" ? "status" : "alert"}
+            aria-live={copyFeedback.tone === "success" ? "polite" : "assertive"}
+          >
+            {copyFeedback.message}
           </div>
         )}
         {justCreated && (
