@@ -21,7 +21,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { cn } from "./lib";
@@ -981,6 +981,8 @@ function CreateStudio({
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
+  const deferredContent = useDeferredValue(form.content);
+  const previewPending = showPreview && deferredContent !== form.content;
   const expiresValue = form.expiresInMinutes.trim();
   const parsedExpiry = Number(expiresValue);
   const hasExpiry = expiresValue.length > 0;
@@ -1071,7 +1073,7 @@ function CreateStudio({
                 />
               </div>
             )}
-            {showPreview && <DraftPreview content={form.content} language={form.language} format={form.format as Paste["format"]} />}
+            {showPreview && <DraftPreview content={deferredContent} language={form.language} format={form.format as Paste["format"]} pending={previewPending} />}
           </div>
         </div>
       </section>
@@ -1177,14 +1179,17 @@ function ComposeModeButton({
   );
 }
 
-function DraftPreview({ content, language, format }: { content: string; language: string; format: Paste["format"] }) {
+function DraftPreview({ content, language, format, pending = false }: { content: string; language: string; format: Paste["format"]; pending?: boolean }) {
   const hasContent = content.trim().length > 0;
 
   return (
     <div className="min-w-0 overflow-hidden rounded-md border border-zinc-200 bg-white">
       <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
         <span>预览</span>
-        <span>{format === "markdown" ? "Markdown" : language}</span>
+        <span className="inline-flex items-center gap-2">
+          {pending && <span className="text-sky-600">同步中</span>}
+          <span>{format === "markdown" ? "Markdown" : language}</span>
+        </span>
       </div>
       <div className="h-[calc(100vh-17rem)] min-h-[30rem] overflow-auto">
         {hasContent ? (
