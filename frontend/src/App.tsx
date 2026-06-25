@@ -727,6 +727,7 @@ function ConfirmDialog({
   }, [open]);
 
   async function confirm() {
+    if (busy) return;
     setBusy(true);
     try {
       await onConfirm();
