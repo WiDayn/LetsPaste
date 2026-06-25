@@ -2258,7 +2258,7 @@ function WorkspaceInsight({
   );
   if (loading && pastes.length === 0) {
     return (
-      <div className="grid min-h-[calc(100vh-9.5rem)] place-items-center p-6 text-center">
+      <div className="grid min-h-[18rem] place-items-center p-6 text-center lg:min-h-[calc(100vh-9.5rem)]">
         <div>
           <Clock className="mx-auto mb-3 text-zinc-400" size={24} />
           <h2 className="font-semibold">正在加载工作台</h2>
