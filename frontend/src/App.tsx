@@ -539,13 +539,13 @@ export function App() {
             </div>
           </button>
 
-          <nav className="flex flex-wrap items-center gap-2">
+          <nav className="flex flex-wrap items-center gap-2" aria-label="主导航">
             <NavButton active={view === "explore"} onClick={() => changeView("explore")} icon={<Globe2 size={16} />} label="公开库" />
             <NavButton active={view === "create"} onClick={() => changeView("create")} icon={<Plus size={16} />} label="创建" />
             {user && <NavButton active={view === "mine"} onClick={() => changeView("mine")} icon={<UserRound size={16} />} label="我的" />}
             <AuthDialog onAuth={setUser} showTrigger={!user} />
             {user && (
-              <Button variant={view === "account" ? "default" : "outline"} onClick={() => changeView("account")}>
+              <Button variant={view === "account" ? "default" : "outline"} aria-current={view === "account" ? "page" : undefined} onClick={() => changeView("account")}>
                 <UserRound size={16} />
                 {user.username}
               </Button>
@@ -656,7 +656,7 @@ export function App() {
 
 function NavButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <Button variant={active ? "default" : "ghost"} onClick={onClick}>
+    <Button variant={active ? "default" : "ghost"} aria-current={active ? "page" : undefined} onClick={onClick}>
       {icon}
       {label}
     </Button>

@@ -241,7 +241,7 @@ export default function AdminConsole({
           <h1 className="text-lg font-semibold">后台管理</h1>
           <p className="text-sm text-zinc-500">集中管理全站 Paste、用户、权限和发布策略。</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="后台分区">
           <AdminTabButton active={tab === "overview"} onClick={() => changeTab("overview")} icon={<LayoutDashboard size={15} />} label="概览" />
           <AdminTabButton active={tab === "pastes"} onClick={() => changeTab("pastes")} icon={<FileText size={15} />} label="Paste" />
           <AdminTabButton active={tab === "users"} onClick={() => changeTab("users")} icon={<Users size={15} />} label="用户" />
@@ -659,7 +659,7 @@ function MetricCard({ icon, label, value }: { icon: ReactNode; label: string; va
 
 function AdminTabButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
-    <Button variant={active ? "default" : "outline"} size="sm" onClick={onClick}>
+    <Button variant={active ? "default" : "outline"} size="sm" aria-pressed={active} onClick={onClick}>
       {icon}
       {label}
     </Button>
