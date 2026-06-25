@@ -157,6 +157,7 @@ const languages = [
 const createDraftKey = "letspaste_create_draft_v1";
 const createDraftSaveDelayMs = 500;
 const pasteIndexBatchSize = 80;
+const publicPasteListLimit = 50;
 const preciseCredentialInputProps = {
   autoCapitalize: "none",
   autoCorrect: "off",
@@ -2325,6 +2326,19 @@ function PasteWorkspace({
 
   const hasSelectedPaste = Boolean(selected);
   const staleListError = error.length > 0 && pastes.length > 0 && !loading;
+  const publicListAtLimit = !privateMode && pastes.length >= publicPasteListLimit;
+  const searchScopeLabel = privateMode ? "我的 Paste" : publicListAtLimit ? `最近 ${publicPasteListLimit} 条公开 Paste` : "已载入公开 Paste";
+  const searchPlaceholder = privateMode ? "搜索标题、ID、语言或作者" : `搜索最近 ${publicPasteListLimit} 条公开 Paste`;
+  const listCountLabel = privateMode ? "我的" : publicListAtLimit ? "最近公开" : "公开";
+  const listStatusText = searchPending
+    ? "正在更新结果..."
+    : hasSearch
+      ? `在 ${searchScopeLabel} 中匹配 ${filtered.length} / ${pastes.length}`
+      : privateMode
+        ? `共 ${pastes.length} 条`
+        : publicListAtLimit
+          ? `最近公开 ${pastes.length} 条`
+          : `公开 ${pastes.length} 条`;
   const workspaceGridColumns = hasSelectedPaste
     ? indexCollapsed
       ? "lg:grid-cols-[minmax(0,1fr)]"
@@ -2376,7 +2390,7 @@ function PasteWorkspace({
           <div className="shrink-0 space-y-3 border-b border-zinc-200 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
-              <Input className="pl-9 pr-9" aria-label="搜索 Paste" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-9 pr-9" aria-label="搜索 Paste" placeholder={searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)} />
               {hasSearch && (
                 <button
                   type="button"
@@ -2392,7 +2406,7 @@ function PasteWorkspace({
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="rounded-md border border-zinc-200 bg-white p-2">
                   <div className="font-semibold">{pastes.length}</div>
-                  <div className="text-zinc-500">{privateMode ? "我的" : "公开"}</div>
+                  <div className="text-zinc-500">{listCountLabel}</div>
                 </div>
                 <div className="rounded-md border border-zinc-200 bg-white p-2">
                   <div className="font-semibold">{protectedCount}</div>
@@ -2410,8 +2424,8 @@ function PasteWorkspace({
               <option value="title">标题 A-Z</option>
             </Select>
             <div className="flex items-center justify-between text-xs text-zinc-500">
-              <span role="status" aria-live="polite" aria-atomic="true">
-                {searchPending ? "正在更新结果..." : hasSearch ? `匹配 ${filtered.length} / ${pastes.length}` : `共 ${pastes.length} 条`}
+              <span className="min-w-0" role="status" aria-live="polite" aria-atomic="true">
+                {listStatusText}
               </span>
               {hasSearch && (
                 <button
