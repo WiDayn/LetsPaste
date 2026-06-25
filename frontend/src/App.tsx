@@ -339,7 +339,7 @@ export function App() {
         )}
 
         {view === "account" && user && <AccountPanel user={user} onLogout={logout} />}
-        {view === "admin" && isAdmin && <AdminConsole settings={settings} setSettings={setSettings} onOpen={openPaste} />}
+        {view === "admin" && isAdmin && user && <AdminConsole settings={settings} setSettings={setSettings} onOpen={openPaste} currentUser={user} />}
         {view === "admin" && !isAdmin && <AdminGate onAuth={setUser} />}
       </main>
     </div>
@@ -1013,10 +1013,12 @@ function AdminConsole({
   settings,
   setSettings,
   onOpen,
+  currentUser,
 }: {
   settings: SiteSettings;
   setSettings: (s: SiteSettings) => void;
   onOpen: (id: string) => void;
+  currentUser: User;
 }) {
   const [tab, setTab] = useState<AdminTab>("overview");
   const [stats, setStats] = useState<AdminStats>({});
@@ -1096,9 +1098,15 @@ function AdminConsole({
   }
 
   async function updateRole(id: number, role: User["role"]) {
-    await api<void>(`/api/admin/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
-    await loadUsers();
-    await loadStats();
+    try {
+      await api<void>(`/api/admin/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
+      await loadUsers();
+      await loadStats();
+      setNotice({ message: "用户角色已更新", tone: "success" });
+    } catch (e) {
+      setNotice({ message: (e as Error).message, tone: "error" });
+      await loadUsers();
+    }
   }
 
   return (
@@ -1208,7 +1216,7 @@ function AdminConsole({
             </Select>
             <Button variant="outline" onClick={loadUsers}>搜索</Button>
           </div>
-          <AdminUserTable users={users} onDelete={removeUser} onRoleChange={updateRole} />
+          <AdminUserTable users={users} currentUserId={currentUser.id} onDelete={removeUser} onRoleChange={updateRole} />
         </div>
       )}
 
@@ -1306,10 +1314,12 @@ function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen
 
 function AdminUserTable({
   users,
+  currentUserId,
   onDelete,
   onRoleChange,
 }: {
   users: User[];
+  currentUserId: number;
   onDelete: (user: User) => void;
   onRoleChange: (id: number, role: User["role"]) => void;
 }) {
@@ -1329,10 +1339,11 @@ function AdminUserTable({
             <tr key={user.id} className="hover:bg-zinc-50">
               <td className="px-4 py-3 font-medium">{user.username}</td>
               <td className="px-4 py-3">
-                <Select value={user.role} onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}>
+                <Select value={user.role} disabled={user.id === currentUserId} title={user.id === currentUserId ? "不能在这里修改自己的角色" : undefined} onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}>
                   <option value="user">用户</option>
                   <option value="admin">管理员</option>
                 </Select>
+                {user.id === currentUserId && <div className="mt-1 text-xs text-zinc-500">当前登录用户</div>}
               </td>
               <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
               <td className="px-4 py-3">

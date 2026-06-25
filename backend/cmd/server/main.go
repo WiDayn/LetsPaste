@@ -603,7 +603,23 @@ func (a *app) adminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, http.StatusBadRequest, "不能删除当前管理员")
 		return
 	}
-	a.db.Exec(`DELETE FROM users WHERE id = ? AND role != 'admin'`, id)
+	var role string
+	if err := a.db.QueryRow(`SELECT role FROM users WHERE id = ?`, id).Scan(&role); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			errorJSON(w, http.StatusNotFound, "用户不存在")
+			return
+		}
+		errorJSON(w, http.StatusInternalServerError, "删除失败")
+		return
+	}
+	if role == "admin" {
+		errorJSON(w, http.StatusBadRequest, "不能删除管理员用户")
+		return
+	}
+	if _, err := a.db.Exec(`DELETE FROM users WHERE id = ?`, id); err != nil {
+		errorJSON(w, http.StatusInternalServerError, "删除失败")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
