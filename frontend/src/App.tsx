@@ -864,6 +864,15 @@ function CreateStudio({
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
+  const expiresValue = form.expiresInMinutes.trim();
+  const parsedExpiry = Number(expiresValue);
+  const hasExpiry = expiresValue.length > 0;
+  const invalidExpiry = hasExpiry && (!Number.isInteger(parsedExpiry) || parsedExpiry < 1);
+  const canSubmit = canPost && form.content.trim().length > 0 && !busy && !invalidExpiry;
+  const protectionSummary = [
+    form.password.trim() ? "访问密码" : "",
+    form.burnAfterReading ? "阅后即焚" : "",
+  ].filter(Boolean);
 
   function updateFormat(format: Paste["format"]) {
     setForm({
@@ -874,12 +883,25 @@ function CreateStudio({
   }
 
   async function submit() {
+    if (busy) return;
+    if (!canPost) {
+      setError("管理员已关闭匿名发布，请登录后再发布。");
+      return;
+    }
+    if (!form.content.trim()) {
+      setError("请输入内容后再发布。");
+      return;
+    }
+    if (invalidExpiry) {
+      setError("自动销毁时间需要填写大于等于 1 的整数分钟。");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const payload = {
         ...form,
-        expiresInMinutes: form.expiresInMinutes ? Number(form.expiresInMinutes) : undefined,
+        expiresInMinutes: hasExpiry ? parsedExpiry : undefined,
       };
       onCreated(await api<Paste>("/api/pastes", { method: "POST", body: JSON.stringify(payload) }));
     } catch (e) {
@@ -897,7 +919,7 @@ function CreateStudio({
             <h1 className="text-lg font-semibold">创建 Paste</h1>
             <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开预览或并排查看。</p>
           </div>
-          <Button disabled={!canPost || !form.content.trim() || busy} onClick={submit}>
+          <Button disabled={!canSubmit} onClick={submit}>
             <Plus size={16} />
             {busy ? "发布中" : "发布 Paste"}
           </Button>
@@ -956,9 +978,13 @@ function CreateStudio({
               placeholder="自动销毁时间，单位分钟"
               type="number"
               min="1"
+              step="1"
+              aria-invalid={invalidExpiry || undefined}
+              className={cn(invalidExpiry && "border-red-300 bg-red-50")}
               value={form.expiresInMinutes}
               onChange={(e) => setForm({ ...form, expiresInMinutes: e.target.value })}
             />
+            {invalidExpiry && <p className="text-xs text-red-600">自动销毁时间需要填写大于等于 1 的整数分钟。</p>}
           </div>
         </section>
 
@@ -973,7 +999,36 @@ function CreateStudio({
             {error && <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
           </div>
         </section>
+
+        <section className="rounded-md border border-zinc-200 bg-white p-4">
+          <h2 className="mb-3 font-semibold">发布确认</h2>
+          <div className="space-y-3 text-sm">
+            <SummaryRow label="可见性" value={form.isPrivate ? "私密链接" : "公开库可见"} tone={form.isPrivate ? "amber" : "green"} />
+            <SummaryRow label="身份" value={authed ? "归属当前账号" : "匿名发布"} tone={authed ? "blue" : "neutral"} />
+            <SummaryRow label="格式" value={form.format === "markdown" ? "Markdown" : form.language} tone={form.format === "markdown" ? "blue" : "neutral"} />
+            <SummaryRow label="保护" value={protectionSummary.length ? protectionSummary.join("、") : "无额外保护"} tone={protectionSummary.length ? "amber" : "neutral"} />
+            <SummaryRow
+              label="生命周期"
+              value={invalidExpiry ? "自动销毁时间无效" : hasExpiry ? `${parsedExpiry} 分钟后自动销毁` : "永久保留"}
+              tone={invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral"}
+            />
+          </div>
+          {form.burnAfterReading && (
+            <p className="mt-3 rounded-md border border-red-100 bg-red-50 p-2 text-xs leading-5 text-red-700">
+              阅后即焚会在首次成功查看内容后删除该 Paste。
+            </p>
+          )}
+        </section>
       </aside>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, tone }: { label: string; value: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-zinc-500">{label}</span>
+      <Badge tone={tone}>{value}</Badge>
     </div>
   );
 }
