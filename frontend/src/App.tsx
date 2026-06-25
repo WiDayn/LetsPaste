@@ -34,6 +34,7 @@ import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { trapDialogTab, useDialogFocus } from "./dialogFocus";
 import { cn, copyText, pastePermalink } from "./lib";
+import { preloadPasteContentRenderer } from "./rendering";
 
 type View = "explore" | "create" | "mine" | "account" | "admin";
 type ComposeMode = "write" | "split" | "preview";
@@ -260,8 +261,14 @@ function clearCreateDraft() {
   }
 }
 
-const PasteContent = lazy(() => import("./PasteContent"));
+const loadPasteContent = () => import("./PasteContent");
+const PasteContent = lazy(loadPasteContent);
 const AdminConsole = lazy(() => import("./AdminConsole"));
+
+function preloadPasteContent(format: Paste["format"]) {
+  void loadPasteContent();
+  preloadPasteContentRenderer(format);
+}
 
 function Button({
   className,
@@ -518,6 +525,7 @@ export function App() {
 
   async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste, routeMode: "push" | "replace" = "push") {
     if (openingPasteIdRef.current === id) return false;
+    if (knownPaste) preloadPasteContent(knownPaste.format);
     const requestId = ++openRequestId.current;
     openAbortRef.current?.abort();
     const controller = new AbortController();
@@ -527,6 +535,7 @@ export function App() {
     try {
       const next = await api<Paste>(`/api/pastes/${id}`, { signal: controller.signal });
       if (requestId !== openRequestId.current) return false;
+      preloadPasteContent(next.format);
       setSelected(next);
       setView(targetView);
       setCreatedPasteId(null);
@@ -589,6 +598,7 @@ export function App() {
   }
 
   function handleUnlockedPaste(paste: Paste) {
+    preloadPasteContent(paste.format);
     setSelected(paste);
     if (paste.burnAfterReading) {
       setPastes((current) => current.filter((item) => item.id !== paste.id));
@@ -610,6 +620,7 @@ export function App() {
 
   function requestOpenPaste(paste: Paste, targetView: View = "explore") {
     if (blockUnsavedNavigation(targetView)) return;
+    preloadPasteContent(paste.format);
     setCreatedPasteId(null);
     if (paste.burnAfterReading) {
       setBurnOpenTarget({ paste, targetView });
@@ -1876,7 +1887,13 @@ function CreateStudio({
     if (error) setError("");
   }
 
+  function changeComposeMode(nextMode: ComposeMode) {
+    if (nextMode !== "write") preloadPasteContent(form.format);
+    setComposeMode(nextMode);
+  }
+
   function updateFormat(format: Paste["format"]) {
+    if (composeMode !== "write") preloadPasteContent(format);
     updateCreateForm((current) => ({
       ...current,
       format,
@@ -2031,9 +2048,9 @@ function CreateStudio({
               onKeyDown={submitFromShortcut}
             />
             <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="编辑模式">
-              <ComposeModeButton active={composeMode === "write"} icon={<Code2 size={14} />} label="编辑" onClick={() => setComposeMode("write")} />
-              <ComposeModeButton active={composeMode === "split"} icon={<Columns2 size={14} />} label="并排" onClick={() => setComposeMode("split")} />
-              <ComposeModeButton active={composeMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => setComposeMode("preview")} />
+              <ComposeModeButton active={composeMode === "write"} icon={<Code2 size={14} />} label="编辑" onClick={() => changeComposeMode("write")} />
+              <ComposeModeButton active={composeMode === "split"} icon={<Columns2 size={14} />} label="并排" onClick={() => changeComposeMode("split")} />
+              <ComposeModeButton active={composeMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => changeComposeMode("preview")} />
             </div>
           </div>
 
@@ -3177,7 +3194,15 @@ function PasteViewer({
             <PasteAdjacentNav previousPaste={previousPaste} nextPaste={nextPaste} openingPasteId={openingPasteId} onOpen={onOpenAdjacent} />
             {paste.format === "markdown" && (
               <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="Markdown 显示模式">
-                <ComposeModeButton active={markdownMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => setMarkdownMode("preview")} />
+                <ComposeModeButton
+                  active={markdownMode === "preview"}
+                  icon={<Eye size={14} />}
+                  label="预览"
+                  onClick={() => {
+                    preloadPasteContent("markdown");
+                    setMarkdownMode("preview");
+                  }}
+                />
                 <ComposeModeButton active={markdownMode === "source"} icon={<Code2 size={14} />} label="源格式" onClick={() => setMarkdownMode("source")} />
               </div>
             )}
