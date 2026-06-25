@@ -10,18 +10,20 @@ export default function PasteContent({
   language,
   format,
   light = false,
+  wrapLines = false,
 }: {
   content: string;
   language: string;
   format: Paste["format"];
   light?: boolean;
+  wrapLines?: boolean;
 }) {
   return (
     <Suspense fallback={<RendererLoading light={light} />}>
       {format === "markdown" ? (
         <MarkdownContent content={content} light={light} />
       ) : (
-        <CodeContent content={content} language={language} light={light} />
+        <CodeContent content={content} language={language} light={light} wrapLines={wrapLines} />
       )}
     </Suspense>
   );

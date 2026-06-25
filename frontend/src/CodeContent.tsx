@@ -6,10 +6,12 @@ export default function CodeContent({
   content,
   language,
   light = false,
+  wrapLines = false,
 }: {
   content: string;
   language: string;
   light?: boolean;
+  wrapLines?: boolean;
 }) {
   const html = useMemo(() => {
     if (!content) return "";
@@ -28,6 +30,7 @@ export default function CodeContent({
       className={cn(
         "content-surface syntax-viewer m-0 min-h-full overflow-auto p-5 text-sm leading-6",
         light ? "content-surface-light bg-white text-zinc-900" : "content-surface-dark bg-zinc-950 text-zinc-100",
+        wrapLines && "content-wrap",
       )}
     >
       <code className="hljs" dangerouslySetInnerHTML={{ __html: html || escapeHTML(content) }} />

@@ -87,6 +87,12 @@ select {
   padding: 0;
 }
 
+.content-wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .content-surface :is(.hljs-doctag, .hljs-keyword, .hljs-meta .hljs-keyword, .hljs-template-tag, .hljs-template-variable, .hljs-type, .hljs-variable.language_) {
   color: var(--syntax-keyword);
 }

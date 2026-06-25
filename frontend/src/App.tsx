@@ -21,6 +21,7 @@ import {
   RotateCcw,
   Search,
   Shield,
+  TextWrap,
   Trash2,
   UserRound,
   X,
@@ -2530,6 +2531,7 @@ function PasteViewer({
   const [copyError, setCopyError] = useState("");
   const [copying, setCopying] = useState<"content" | "link" | null>(null);
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
+  const [wrapLongLines, setWrapLongLines] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const copyStatus = useTransientStatus();
   const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -2544,6 +2546,7 @@ function PasteViewer({
   const emptyPasswordError = "请输入访问密码。";
   const lockedWithoutContent = paste.hasPassword && !paste.content;
   const permalink = pastePermalink(paste.id);
+  const canToggleWrap = paste.format !== "markdown" || markdownMode === "source";
 
   useEffect(() => {
     unlockRequestId.current += 1;
@@ -2765,6 +2768,18 @@ function PasteViewer({
                 </button>
               </div>
             )}
+            {canToggleWrap && (
+              <Button
+                variant={wrapLongLines ? "soft" : "outline"}
+                size="sm"
+                aria-pressed={wrapLongLines}
+                title={wrapLongLines ? "关闭长行换行" : "开启长行换行"}
+                onClick={() => setWrapLongLines((current) => !current)}
+              >
+                <TextWrap size={14} />
+                {wrapLongLines ? "已换行" : "换行"}
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={onClose}>
               <PanelLeftClose size={14} />
               返回列表
@@ -2809,12 +2824,12 @@ function PasteViewer({
       </div>
       <div className="min-h-[18rem] flex-1 overflow-auto md:min-h-[22rem] lg:min-h-[24rem]">
         {paste.format === "markdown" && markdownMode === "source" ? (
-          <pre className="m-0 min-h-full overflow-auto bg-white p-5 font-mono text-sm leading-6 text-zinc-900">
+          <pre className={cn("m-0 min-h-full overflow-auto bg-white p-5 font-mono text-sm leading-6 text-zinc-900", wrapLongLines && "content-wrap")}>
             <code>{paste.content ?? ""}</code>
           </pre>
         ) : (
           <Suspense fallback={<ContentLoading />}>
-            <PasteContent content={paste.content ?? ""} language={paste.language} format={paste.format} light />
+            <PasteContent content={paste.content ?? ""} language={paste.language} format={paste.format} light wrapLines={wrapLongLines} />
           </Suspense>
         )}
       </div>
