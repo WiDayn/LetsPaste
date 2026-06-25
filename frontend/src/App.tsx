@@ -2289,6 +2289,11 @@ function PasteWorkspace({
 
   const hasSelectedPaste = Boolean(selected);
   const staleListError = error.length > 0 && pastes.length > 0 && !loading;
+  const workspaceGridColumns = hasSelectedPaste
+    ? indexCollapsed
+      ? "lg:grid-cols-[minmax(0,1fr)]"
+      : "lg:grid-cols-[280px_minmax(0,1fr)]"
+    : "lg:grid-cols-[320px_minmax(0,1fr)]";
 
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -2326,7 +2331,7 @@ function PasteWorkspace({
           </Button>
         </div>
       )}
-      <div className={cn("grid lg:min-h-[calc(100vh-9.5rem)]", selected && indexCollapsed ? "lg:grid-cols-[minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)]")}>
+      <div className={cn("grid lg:min-h-[calc(100vh-9.5rem)]", workspaceGridColumns)}>
         <aside className={cn("min-h-0 border-b border-zinc-200 bg-zinc-50 lg:flex lg:flex-col lg:border-b-0 lg:border-r", selected && indexCollapsed && "hidden")}>
           <div className="shrink-0 space-y-3 border-b border-zinc-200 p-3">
             <div className="relative">
@@ -2343,20 +2348,22 @@ function PasteWorkspace({
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="rounded-md border border-zinc-200 bg-white p-2">
-                <div className="font-semibold">{pastes.length}</div>
-                <div className="text-zinc-500">{privateMode ? "我的" : "公开"}</div>
+            {!hasSelectedPaste && (
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-md border border-zinc-200 bg-white p-2">
+                  <div className="font-semibold">{pastes.length}</div>
+                  <div className="text-zinc-500">{privateMode ? "我的" : "公开"}</div>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-white p-2">
+                  <div className="font-semibold">{protectedCount}</div>
+                  <div className="text-zinc-500">保护</div>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-white p-2">
+                  <div className="font-semibold">{expiringCount}</div>
+                  <div className="text-zinc-500">限时</div>
+                </div>
               </div>
-              <div className="rounded-md border border-zinc-200 bg-white p-2">
-                <div className="font-semibold">{protectedCount}</div>
-                <div className="text-zinc-500">保护</div>
-              </div>
-              <div className="rounded-md border border-zinc-200 bg-white p-2">
-                <div className="font-semibold">{expiringCount}</div>
-                <div className="text-zinc-500">限时</div>
-              </div>
-            </div>
+            )}
             <Select className="w-full" aria-label="排序 Paste" value={sort} onChange={(e) => setSort(e.target.value)}>
               <option value="newest">最新优先</option>
               <option value="views">访问最多</option>
@@ -2391,6 +2398,7 @@ function PasteWorkspace({
             onCreate={onCreate}
             onRetry={onRefresh}
             privateMode={privateMode}
+            compact={hasSelectedPaste}
           />
         </aside>
         <section className="min-w-0 bg-white lg:min-h-0">
@@ -2424,6 +2432,7 @@ function PasteIndex({
   onCreate,
   onRetry,
   privateMode = false,
+  compact = false,
 }: {
   pastes: Paste[];
   loading: boolean;
@@ -2438,6 +2447,7 @@ function PasteIndex({
   onCreate: () => void;
   onRetry: () => void;
   privateMode?: boolean;
+  compact?: boolean;
 }) {
   const [visibleCount, setVisibleCount] = useState(pasteIndexBatchSize);
 
@@ -2497,7 +2507,8 @@ function PasteIndex({
             key={paste.id}
             role="listitem"
             className={cn(
-              "rounded-md border border-zinc-200 bg-white p-3 transition hover:border-zinc-300 hover:bg-zinc-50",
+              "rounded-md border border-zinc-200 bg-white transition hover:border-zinc-300 hover:bg-zinc-50",
+              compact ? "p-2.5" : "p-3",
               selectedId === paste.id && "border-sky-300 bg-sky-50",
             )}
           >
@@ -2510,9 +2521,9 @@ function PasteIndex({
                 aria-label={`打开 ${paste.title}`}
                 onClick={() => onOpen(paste)}
               >
-                <div className="line-clamp-2 break-words text-sm font-medium leading-5">{paste.title}</div>
-                <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{paste.id}</div>
-                {openingPasteId === paste.id && <div className="mt-2 text-xs font-medium text-sky-700">正在打开...</div>}
+                <div className={cn("break-words text-sm font-medium leading-5", compact ? "line-clamp-1" : "line-clamp-2")}>{paste.title}</div>
+                <div className={cn("truncate font-mono text-[11px] text-zinc-500", compact ? "mt-0.5" : "mt-1")}>{paste.id}</div>
+                {openingPasteId === paste.id && <div className={cn("text-xs font-medium text-sky-700", compact ? "mt-1" : "mt-2")}>正在打开...</div>}
               </button>
               {onDelete && (
                 <Button className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700" variant="ghost" size="icon" title="删除 Paste" aria-label={`删除 ${paste.title}`} onClick={() => onDelete(paste)}>
@@ -2520,15 +2531,15 @@ function PasteIndex({
                 </Button>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <div className={cn("flex flex-wrap items-center gap-1.5", compact ? "mt-2" : "mt-3")}>
               <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
               <Badge>{paste.language}</Badge>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+            <div className={cn("flex flex-wrap items-center gap-2 text-xs text-zinc-500", compact ? "mt-1.5" : "mt-2")}>
               <span>{formatViews(paste.views)}</span>
               {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
             </div>
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div className={cn("flex flex-wrap gap-1", compact ? "mt-1.5" : "mt-2")}>
               <PasteBadges paste={paste} />
             </div>
           </div>
