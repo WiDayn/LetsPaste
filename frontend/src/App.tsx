@@ -361,6 +361,7 @@ export function App() {
   const [listLoading, setListLoading] = useState(false);
   const [selected, setSelected] = useState<Paste | null>(null);
   const [openingPasteId, setOpeningPasteId] = useState<string | null>(null);
+  const [createdPasteId, setCreatedPasteId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
@@ -470,6 +471,7 @@ export function App() {
       if (requestId !== openRequestId.current) return false;
       setSelected(next);
       setView(targetView);
+      setCreatedPasteId(null);
       clearMessage();
       if (next.burnAfterReading) {
         setPastes((current) => current.filter((item) => item.id !== next.id));
@@ -496,6 +498,7 @@ export function App() {
           createdAt: lockedPaste?.createdAt ?? "",
         });
         setView(targetView);
+        setCreatedPasteId(null);
         if (updateUrl) writeRoute(pasteRoute(id, targetView));
         clearMessage();
         return false;
@@ -538,6 +541,7 @@ export function App() {
   }
 
   function requestOpenPaste(paste: Paste, targetView: View = "explore") {
+    setCreatedPasteId(null);
     if (paste.burnAfterReading) {
       setBurnOpenTarget({ paste, targetView });
       return;
@@ -555,6 +559,7 @@ export function App() {
     }
     cancelOpenRequest();
     setSelected(null);
+    setCreatedPasteId(null);
     setView(route.view);
   }
 
@@ -564,6 +569,7 @@ export function App() {
       setPastes((current) => current.filter((item) => item.id !== paste.id));
       if (selected?.id === paste.id) {
         setSelected(null);
+        setCreatedPasteId(null);
         writeRoute(viewRoute(view), "replace");
       }
       showInfo("Paste 已删除");
@@ -584,6 +590,7 @@ export function App() {
     if (next === "explore" || next === "mine") {
       setSelected(null);
     }
+    setCreatedPasteId(null);
     writeRoute(viewRoute(next));
   }
 
@@ -595,6 +602,7 @@ export function App() {
     setUser(null);
     setView("explore");
     setSelected(null);
+    setCreatedPasteId(null);
     setAccountCredentialUnsaved(false);
     writeRoute(viewRoute("explore"), "replace");
   }
@@ -675,11 +683,13 @@ export function App() {
             onCreated={(paste) => {
               const nextView = user ? "mine" : "explore";
               setSelected(paste);
+              setCreatedPasteId(paste.id);
               setView(nextView);
               if (nextView === "mine" || !paste.isPrivate) {
                 setPastes((current) => [paste, ...current.filter((item) => item.id !== paste.id)]);
               }
               writeRoute(pasteRoute(paste.id, nextView));
+              showInfo("Paste 已创建，链接已经准备好。");
             }}
           />
         )}
@@ -694,8 +704,10 @@ export function App() {
             onOpen={(paste) => requestOpenPaste(paste, "explore")}
             onUnlocked={handleUnlockedPaste}
             onCreate={() => changeView("create")}
+            justCreated={selected?.id === createdPasteId}
             onClose={() => {
               setSelected(null);
+              setCreatedPasteId(null);
               writeRoute(viewRoute("explore"));
             }}
           />
@@ -711,8 +723,10 @@ export function App() {
             onOpen={(paste) => requestOpenPaste(paste, "mine")}
             onUnlocked={handleUnlockedPaste}
             onCreate={() => changeView("create")}
+            justCreated={selected?.id === createdPasteId}
             onClose={() => {
               setSelected(null);
+              setCreatedPasteId(null);
               writeRoute(viewRoute("mine"));
             }}
             onDelete={setDeleteTarget}
@@ -2093,6 +2107,7 @@ function PasteWorkspace({
   loading,
   openingPasteId,
   selected,
+  justCreated,
   onOpen,
   onUnlocked,
   onCreate,
@@ -2105,6 +2120,7 @@ function PasteWorkspace({
   loading: boolean;
   openingPasteId: string | null;
   selected: Paste | null;
+  justCreated?: boolean;
   onOpen: (paste: Paste) => void;
   onUnlocked: (paste: Paste) => void;
   onCreate: () => void;
@@ -2237,6 +2253,7 @@ function PasteWorkspace({
           {selected ? (
             <PasteViewer
               paste={selected}
+              justCreated={Boolean(justCreated)}
               onUnlocked={onUnlocked}
               onClose={onClose}
             />
@@ -2449,10 +2466,12 @@ function InsightRow({ title, paste, opening, onOpen }: { title: string; paste: P
 
 function PasteViewer({
   paste,
+  justCreated = false,
   onUnlocked,
   onClose,
 }: {
   paste: Paste;
+  justCreated?: boolean;
   onUnlocked: (p: Paste) => void;
   onClose: () => void;
 }) {
@@ -2476,6 +2495,7 @@ function PasteViewer({
   const passwordErrorId = `paste-password-error-${paste.id}`;
   const emptyPasswordError = "请输入访问密码。";
   const lockedWithoutContent = paste.hasPassword && !paste.content;
+  const permalink = pastePermalink(paste.id);
 
   useEffect(() => {
     unlockRequestId.current += 1;
@@ -2575,7 +2595,7 @@ function PasteViewer({
   }
 
   async function copyLink() {
-    await copyPasteData("link", pastePermalink(paste.id), "链接已复制到剪贴板。", "复制链接失败，请手动复制浏览器地址栏。");
+    await copyPasteData("link", permalink, "链接已复制到剪贴板。", "复制链接失败，请手动复制浏览器地址栏。");
   }
 
   async function copyContent() {
@@ -2717,6 +2737,25 @@ function PasteViewer({
         {copyError && (
           <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">
             {copyError}
+          </div>
+        )}
+        {justCreated && (
+          <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900" role="status" aria-live="polite">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="font-medium">Paste 已创建</div>
+                <div className="mt-0.5 text-xs leading-5 text-emerald-800">
+                  {paste.isPrivate ? "这条 Paste 不会出现在公开库，但可通过链接访问。" : "这条 Paste 已加入公开库，可复制链接分享。"}
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={copyLink} disabled={Boolean(copying)} aria-busy={copying === "link" || undefined}>
+                {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
+                {copying === "link" ? "复制中" : linkCopied.active ? "已复制" : "复制链接"}
+              </Button>
+            </div>
+            <div className="mt-2 rounded border border-emerald-200 bg-white px-2 py-1 font-mono text-xs text-emerald-950">
+              <span className="block truncate">{permalink}</span>
+            </div>
           </div>
         )}
       </div>
