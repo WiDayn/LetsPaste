@@ -1789,6 +1789,10 @@ function CreateStudio({
                 阅后即焚会在首次成功查看内容后删除该 Paste。
               </p>
             )}
+            <Button className="mt-4 w-full" disabled={!canAttemptSubmit} aria-busy={busy || undefined} onClick={submit}>
+              <Plus size={16} />
+              {publishLabel}
+            </Button>
           </section>
         </aside>
       )}
