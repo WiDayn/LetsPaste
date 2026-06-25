@@ -823,7 +823,7 @@ export function App() {
             <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} openingPasteId={openingPasteId} currentUser={user} onUnsavedSettingsChange={setAdminSettingsUnsaved} />
           </Suspense>
         )}
-        {view === "admin" && !isAdmin && <AdminGate onAuth={setUser} />}
+        {view === "admin" && !isAdmin && <AdminGate currentUser={user} onAuth={setUser} />}
       </main>
       <ConfirmDialog
         open={Boolean(deleteTarget)}
@@ -1310,7 +1310,7 @@ function ConfirmDialog({
   );
 }
 
-function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
+function AdminGate({ currentUser, onAuth }: { currentUser: User | null; onAuth: (u: User) => void }) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -1323,6 +1323,7 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
   const emptyPasswordError = "请输入管理员密码。";
   const usernameError = error === emptyUsernameError;
   const passwordError = error === emptyPasswordError;
+  const signedInNonAdmin = Boolean(currentUser && currentUser.role !== "admin");
 
   async function submit() {
     if (busy || adminLoginInFlightRef.current) return;
@@ -1374,6 +1375,11 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
       <Shield className="mb-4 text-zinc-500" />
       <h1 className="text-lg font-semibold">管理员入口</h1>
       <p className="mt-1 text-sm text-zinc-500">后台不在前台导航显示，请通过独立路径访问。</p>
+      {signedInNonAdmin && (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900" role="status">
+          当前会话是普通用户「{currentUser?.username}」。登录后台会切换为管理员会话，之后可再用助记码回到普通用户。
+        </div>
+      )}
       <form
         className="mt-5 space-y-3"
         onSubmit={(e) => {
