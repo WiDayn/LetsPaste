@@ -27,6 +27,22 @@ export type Settings = {
   siteName: string;
 };
 
+type ApiErrorBody = {
+  error?: string;
+};
+
+export class ApiError extends Error {
+  status: number;
+  body: ApiErrorBody;
+
+  constructor(status: number, body: ApiErrorBody) {
+    super(body.error ?? `HTTP ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("letspaste_token");
   const res = await fetch(`${API_BASE}${path}`, {
@@ -38,8 +54,8 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `HTTP ${res.status}`);
+    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+    throw new ApiError(res.status, body);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

@@ -26,7 +26,7 @@ import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
-import { api } from "./api";
+import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { cn } from "./lib";
 
@@ -149,7 +149,13 @@ export function App() {
 
   useEffect(() => {
     api<SiteSettings>("/api/settings").then(setSettings).catch(() => {});
-    api<{ user: User }>("/api/me").then((r) => setUser(r.user)).catch(() => {});
+    api<{ user: User }>("/api/me")
+      .then((r) => setUser(r.user))
+      .catch((e) => {
+        if (e instanceof ApiError && e.status === 401) {
+          localStorage.removeItem("letspaste_token");
+        }
+      });
     const id = window.location.pathname.split("/").filter(Boolean)[0];
     if (id === "admin") {
       setView("admin");
@@ -172,6 +178,11 @@ export function App() {
       setPastes(data);
       setMessage("");
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        localStorage.removeItem("letspaste_token");
+        setUser(null);
+        if (view === "mine") setView("explore");
+      }
       setMessage((e as Error).message);
       setPastes([]);
     }
@@ -185,18 +196,25 @@ export function App() {
       setMessage("");
       if (updateUrl) window.history.replaceState(null, "", `/${id}`);
     } catch (e) {
-      setSelected({
-        id,
-        title: "需要密码",
-        language: "plaintext",
-        format: "code",
-        isPrivate: false,
-        hasPassword: true,
-        burnAfterReading: false,
-        views: 0,
-        createdAt: "",
-      });
+      if (e instanceof ApiError && e.status === 423) {
+        setSelected({
+          id,
+          title: "需要密码",
+          language: "plaintext",
+          format: "code",
+          isPrivate: false,
+          hasPassword: true,
+          burnAfterReading: false,
+          views: 0,
+          createdAt: "",
+        });
+        setView("explore");
+        setMessage(e.message);
+        return;
+      }
+      setSelected(null);
       setMessage((e as Error).message);
+      if (updateUrl) window.history.replaceState(null, "", "/");
     }
   }
 
@@ -234,13 +252,12 @@ export function App() {
             <NavButton active={view === "explore"} onClick={() => changeView("explore")} icon={<Globe2 size={16} />} label="公开库" />
             <NavButton active={view === "create"} onClick={() => changeView("create")} icon={<Plus size={16} />} label="创建" />
             {user && <NavButton active={view === "mine"} onClick={() => changeView("mine")} icon={<UserRound size={16} />} label="我的" />}
-            {user ? (
+            <AuthDialog onAuth={setUser} showTrigger={!user} />
+            {user && (
               <Button variant={view === "account" ? "default" : "outline"} onClick={() => changeView("account")}>
                 <UserRound size={16} />
                 {user.username}
               </Button>
-            ) : (
-              <AuthDialog onAuth={setUser} />
             )}
           </nav>
         </div>
@@ -290,11 +307,12 @@ function NavButton({ active, icon, label, onClick }: { active: boolean; icon: Re
   );
 }
 
-function AuthDialog({ onAuth }: { onAuth: (u: User) => void }) {
+function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void; showTrigger?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [mnemonic, setMnemonic] = useState("");
   const [generatedMnemonic, setGeneratedMnemonic] = useState("");
+  const [copiedMnemonic, setCopiedMnemonic] = useState(false);
   const [error, setError] = useState("");
 
   async function submit() {
@@ -308,6 +326,7 @@ function AuthDialog({ onAuth }: { onAuth: (u: User) => void }) {
       if (data.mnemonic) {
         setGeneratedMnemonic(data.mnemonic);
         setMnemonic(data.mnemonic);
+        setCopiedMnemonic(false);
       } else {
         setOpen(false);
       }
@@ -317,12 +336,27 @@ function AuthDialog({ onAuth }: { onAuth: (u: User) => void }) {
     }
   }
 
+  function closeDialog() {
+    setOpen(false);
+    setError("");
+    setGeneratedMnemonic("");
+    setCopiedMnemonic(false);
+  }
+
+  async function copyGeneratedMnemonic() {
+    await copyText(generatedMnemonic);
+    setCopiedMnemonic(true);
+    window.setTimeout(() => setCopiedMnemonic(false), 1400);
+  }
+
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        <KeyRound size={16} />
-        助记码登录
-      </Button>
+      {showTrigger && (
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          <KeyRound size={16} />
+          助记码登录
+        </Button>
+      )}
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-md border border-zinc-200 bg-white p-5 shadow-2xl">
@@ -347,16 +381,22 @@ function AuthDialog({ onAuth }: { onAuth: (u: User) => void }) {
               )}
               {generatedMnemonic && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-                  <div className="text-xs font-medium text-amber-800">请立即保存助记码</div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs font-medium text-amber-800">请立即保存助记码</div>
+                    <Button variant="outline" size="sm" onClick={copyGeneratedMnemonic}>
+                      {copiedMnemonic ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedMnemonic ? "已复制" : "复制"}
+                    </Button>
+                  </div>
                   <div className="mt-2 break-all font-mono text-sm text-amber-950">{generatedMnemonic}</div>
                 </div>
               )}
               {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  取消
+                <Button variant="ghost" onClick={closeDialog}>
+                  {generatedMnemonic ? "关闭" : "取消"}
                 </Button>
-                <Button onClick={submit}>{mode === "login" ? "登录" : "生成并登录"}</Button>
+                <Button onClick={generatedMnemonic ? closeDialog : submit}>{generatedMnemonic ? "我已保存" : mode === "login" ? "登录" : "生成并登录"}</Button>
               </div>
             </div>
           </div>
@@ -409,12 +449,14 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [currentSecret, setCurrentSecret] = useState("");
   const [newSecret, setNewSecret] = useState("");
   const [resultSecret, setResultSecret] = useState("");
+  const [copiedSecret, setCopiedSecret] = useState(false);
   const [message, setMessage] = useState("");
   const isAdmin = user.role === "admin";
 
   async function updateSecret() {
     setMessage("");
     setResultSecret("");
+    setCopiedSecret(false);
     try {
       const res = await api<{ mnemonic?: string }>("/api/me/secret", {
         method: "PUT",
@@ -422,6 +464,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
       });
       if (res.mnemonic) {
         setResultSecret(res.mnemonic);
+        setCopiedSecret(false);
       }
       setCurrentSecret("");
       setNewSecret("");
@@ -429,6 +472,12 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
     } catch (e) {
       setMessage((e as Error).message);
     }
+  }
+
+  async function copyResultSecret() {
+    await copyText(resultSecret);
+    setCopiedSecret(true);
+    window.setTimeout(() => setCopiedSecret(false), 1400);
   }
 
   return (
@@ -470,7 +519,13 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
           {message && <p className="text-sm text-zinc-600">{message}</p>}
           {resultSecret && (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-              <div className="text-xs font-medium text-amber-800">请保存新的登录凭据</div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-medium text-amber-800">请保存新的登录凭据</div>
+                <Button variant="outline" size="sm" onClick={copyResultSecret}>
+                  {copiedSecret ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedSecret ? "已复制" : "复制"}
+                </Button>
+              </div>
               <div className="mt-2 break-all font-mono text-sm text-amber-950">{resultSecret}</div>
             </div>
           )}
@@ -790,7 +845,7 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
   }
 
   async function copyLink() {
-    await navigator.clipboard.writeText(`${window.location.origin}/${paste.id}`);
+    await copyText(`${window.location.origin}/${paste.id}`);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   }
@@ -1228,6 +1283,31 @@ function formatDate(value?: string | null) {
 function isExpired(value?: string | null) {
   if (!value) return false;
   return new Date(value).getTime() <= Date.now();
+}
+
+async function copyText(value: string) {
+  if (!value) return;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // Fall back for embedded browsers or restrictive clipboard permissions.
+    }
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  try {
+    document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
 
 function escapeHTML(value: string) {
