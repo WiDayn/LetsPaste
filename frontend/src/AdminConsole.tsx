@@ -65,13 +65,16 @@ export default function AdminConsole({
   const [pasteToDelete, setPasteToDelete] = useState<Paste | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [roleChangeTarget, setRoleChangeTarget] = useState<RoleChangeTarget | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
   const [loadingPastes, setLoadingPastes] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [roleUpdatingUserIds, setRoleUpdatingUserIds] = useState<Set<number>>(() => new Set());
   const roleUpdatingUserIdsRef = useRef<Set<number>>(new Set());
   const settingsSaveInFlightRef = useRef(false);
+  const statsRequestId = useRef(0);
   const pasteRequestId = useRef(0);
   const userRequestId = useRef(0);
+  const statsAbortRef = useRef<AbortController | null>(null);
   const pasteAbortRef = useRef<AbortController | null>(null);
   const userAbortRef = useRef<AbortController | null>(null);
   const hasPasteFilters =
@@ -94,8 +97,11 @@ export default function AdminConsole({
 
   useEffect(() => {
     return () => {
+      statsRequestId.current += 1;
       pasteRequestId.current += 1;
       userRequestId.current += 1;
+      statsAbortRef.current?.abort();
+      statsAbortRef.current = null;
       pasteAbortRef.current?.abort();
       pasteAbortRef.current = null;
       userAbortRef.current?.abort();
@@ -130,10 +136,23 @@ export default function AdminConsole({
   }, [tab, userFilters.search, userFilters.role]);
 
   async function loadStats() {
+    const requestId = ++statsRequestId.current;
+    statsAbortRef.current?.abort();
+    const controller = new AbortController();
+    statsAbortRef.current = controller;
+    setLoadingStats(true);
+    setNotice((current) => (current?.tone === "error" ? null : current));
     try {
-      setStats(await api<AdminStats>("/api/admin/stats"));
+      const next = await api<AdminStats>("/api/admin/stats", { signal: controller.signal });
+      if (requestId === statsRequestId.current) setStats(next);
     } catch (e) {
-      setNotice({ message: (e as Error).message, tone: "error" });
+      if (controller.signal.aborted) return;
+      if (requestId === statsRequestId.current) setNotice({ message: (e as Error).message, tone: "error" });
+    } finally {
+      if (requestId === statsRequestId.current) {
+        statsAbortRef.current = null;
+        setLoadingStats(false);
+      }
     }
   }
 
@@ -364,6 +383,21 @@ export default function AdminConsole({
 
       {tab === "overview" && (
         <div id={adminPanelId("overview")} className="space-y-4 p-4" role="tabpanel" tabIndex={0} aria-labelledby={adminTabId("overview")}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">站点概览</h2>
+              <p className="mt-1 text-sm text-zinc-500">快速查看当前 Paste、访问和用户规模。</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={loadStats} disabled={loadingStats} aria-busy={loadingStats || undefined}>
+              <RotateCcw size={14} />
+              {loadingStats ? "刷新中" : "刷新概览"}
+            </Button>
+          </div>
+          {loadingStats && (
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500" role="status" aria-live="polite">
+              正在同步概览数据...
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard icon={<Database size={18} />} label="Paste 总数" value={stats.totalPastes ?? 0} />
             <MetricCard icon={<Eye size={18} />} label="总访问量" value={stats.totalViews ?? 0} />
