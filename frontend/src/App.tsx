@@ -814,7 +814,10 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const copiedMnemonic = useTransientFlag();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [copyingMnemonic, setCopyingMnemonic] = useState(false);
   const authSubmitInFlightRef = useRef(false);
+  const mnemonicCopyInFlightRef = useRef(false);
+  const mnemonicCopyRequestId = useRef(0);
   const mnemonicCopyStatus = useTransientStatus();
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
   const authDescriptionId = "auth-dialog-description";
@@ -827,6 +830,13 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const generatedMnemonicUnsaved = Boolean(generatedMnemonic) && !mnemonicSaved;
 
   useBeforeUnloadWarning(generatedMnemonicUnsaved);
+
+  useEffect(() => {
+    return () => {
+      mnemonicCopyRequestId.current += 1;
+      mnemonicCopyInFlightRef.current = false;
+    };
+  }, []);
 
   async function submit() {
     if (busy || authSubmitInFlightRef.current) return;
@@ -850,9 +860,12 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
       localStorage.setItem("letspaste_token", data.token);
       onAuth(data.user);
       if (data.mnemonic) {
+        mnemonicCopyRequestId.current += 1;
+        mnemonicCopyInFlightRef.current = false;
         setGeneratedMnemonic(data.mnemonic);
         setMnemonic(data.mnemonic);
         setMnemonicSaved(false);
+        setCopyingMnemonic(false);
         copiedMnemonic.clear();
         mnemonicCopyStatus.clear();
       } else {
@@ -875,22 +888,38 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
     }
     setOpen(false);
     setError("");
+    mnemonicCopyRequestId.current += 1;
+    mnemonicCopyInFlightRef.current = false;
     setGeneratedMnemonic("");
     setMnemonicSaved(false);
+    setCopyingMnemonic(false);
     copiedMnemonic.clear();
     mnemonicCopyStatus.clear();
   }
 
   async function copyGeneratedMnemonic() {
-    if (await copyText(generatedMnemonic)) {
-      copiedMnemonic.show();
-      setMnemonicSaved(true);
-      setError("");
-      mnemonicCopyStatus.announce("助记码已复制到剪贴板。");
-      return;
+    if (mnemonicCopyInFlightRef.current) return;
+    mnemonicCopyInFlightRef.current = true;
+    const requestId = ++mnemonicCopyRequestId.current;
+    setCopyingMnemonic(true);
+    try {
+      if (await copyText(generatedMnemonic)) {
+        if (requestId !== mnemonicCopyRequestId.current) return;
+        copiedMnemonic.show();
+        setMnemonicSaved(true);
+        setError("");
+        mnemonicCopyStatus.announce("助记码已复制到剪贴板。");
+        return;
+      }
+      if (requestId !== mnemonicCopyRequestId.current) return;
+      mnemonicCopyStatus.clear();
+      setError("复制失败，请手动选中助记码复制。");
+    } finally {
+      if (requestId === mnemonicCopyRequestId.current) {
+        mnemonicCopyInFlightRef.current = false;
+        setCopyingMnemonic(false);
+      }
     }
-    mnemonicCopyStatus.clear();
-    setError("复制失败，请手动选中助记码复制。");
   }
 
   function updateMode(nextMode: "login" | "register") {
@@ -997,9 +1026,9 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-xs font-medium text-amber-800" role="status" aria-live="polite">请立即保存助记码</div>
-                    <Button type="button" variant="outline" size="sm" onClick={copyGeneratedMnemonic}>
+                    <Button type="button" variant="outline" size="sm" onClick={copyGeneratedMnemonic} disabled={copyingMnemonic} aria-busy={copyingMnemonic || undefined}>
                       {copiedMnemonic.active ? <Check size={14} /> : <Copy size={14} />}
-                      {copiedMnemonic.active ? "已复制" : "复制"}
+                      {copyingMnemonic ? "复制中" : copiedMnemonic.active ? "已复制" : "复制"}
                     </Button>
                     <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                       {mnemonicCopyStatus.status}
@@ -1242,7 +1271,10 @@ function AccountPanel({
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("info");
   const [busy, setBusy] = useState(false);
+  const [copyingSecret, setCopyingSecret] = useState(false);
   const secretUpdateInFlightRef = useRef(false);
+  const secretCopyInFlightRef = useRef(false);
+  const secretCopyRequestId = useRef(0);
   const secretCopyStatus = useTransientStatus();
   const isAdmin = user.role === "admin";
   const currentSecretInputId = "account-current-secret";
@@ -1258,6 +1290,13 @@ function AccountPanel({
     onUnsavedCredentialChange(resultSecretUnsaved);
     return () => onUnsavedCredentialChange(false);
   }, [onUnsavedCredentialChange, resultSecretUnsaved]);
+
+  useEffect(() => {
+    return () => {
+      secretCopyRequestId.current += 1;
+      secretCopyInFlightRef.current = false;
+    };
+  }, []);
 
   function showInfo(text: string) {
     setMessageTone("info");
@@ -1287,8 +1326,11 @@ function AccountPanel({
     secretUpdateInFlightRef.current = true;
     setBusy(true);
     clearAccountMessage();
+    secretCopyRequestId.current += 1;
+    secretCopyInFlightRef.current = false;
     setResultSecret("");
     setResultSecretSaved(false);
+    setCopyingSecret(false);
     copiedSecret.clear();
     secretCopyStatus.clear();
     try {
@@ -1297,8 +1339,11 @@ function AccountPanel({
         body: JSON.stringify({ currentSecret, newSecret }),
       });
       if (res.mnemonic) {
+        secretCopyRequestId.current += 1;
+        secretCopyInFlightRef.current = false;
         setResultSecret(res.mnemonic);
         setResultSecretSaved(false);
+        setCopyingSecret(false);
         copiedSecret.clear();
         secretCopyStatus.clear();
       }
@@ -1314,15 +1359,28 @@ function AccountPanel({
   }
 
   async function copyResultSecret() {
-    if (await copyText(resultSecret)) {
-      copiedSecret.show();
-      setResultSecretSaved(true);
-      clearAccountMessage();
-      secretCopyStatus.announce(isAdmin ? "新管理员密码已复制到剪贴板。" : "新助记码已复制到剪贴板。");
-      return;
+    if (secretCopyInFlightRef.current) return;
+    secretCopyInFlightRef.current = true;
+    const requestId = ++secretCopyRequestId.current;
+    setCopyingSecret(true);
+    try {
+      if (await copyText(resultSecret)) {
+        if (requestId !== secretCopyRequestId.current) return;
+        copiedSecret.show();
+        setResultSecretSaved(true);
+        clearAccountMessage();
+        secretCopyStatus.announce(isAdmin ? "新管理员密码已复制到剪贴板。" : "新助记码已复制到剪贴板。");
+        return;
+      }
+      if (requestId !== secretCopyRequestId.current) return;
+      secretCopyStatus.clear();
+      showErrorMessage("复制失败，请手动选中新密钥复制。");
+    } finally {
+      if (requestId === secretCopyRequestId.current) {
+        secretCopyInFlightRef.current = false;
+        setCopyingSecret(false);
+      }
     }
-    secretCopyStatus.clear();
-    showErrorMessage("复制失败，请手动选中新密钥复制。");
   }
 
   function handleLogout() {
@@ -1424,9 +1482,9 @@ function AccountPanel({
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs font-medium text-amber-800">请保存新的登录凭据</div>
-                <Button type="button" variant="outline" size="sm" onClick={copyResultSecret}>
+                <Button type="button" variant="outline" size="sm" onClick={copyResultSecret} disabled={copyingSecret} aria-busy={copyingSecret || undefined}>
                   {copiedSecret.active ? <Check size={14} /> : <Copy size={14} />}
-                  {copiedSecret.active ? "已复制" : "复制"}
+                  {copyingSecret ? "复制中" : copiedSecret.active ? "已复制" : "复制"}
                 </Button>
                 <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                   {secretCopyStatus.status}
