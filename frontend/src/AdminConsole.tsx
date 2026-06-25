@@ -52,6 +52,8 @@ export default function AdminConsole({
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [loadingPastes, setLoadingPastes] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [roleUpdatingUserIds, setRoleUpdatingUserIds] = useState<Set<number>>(() => new Set());
+  const roleUpdatingUserIdsRef = useRef<Set<number>>(new Set());
   const pasteRequestId = useRef(0);
   const userRequestId = useRef(0);
   const pasteAbortRef = useRef<AbortController | null>(null);
@@ -210,6 +212,10 @@ export default function AdminConsole({
   }
 
   async function updateRole(id: number, role: User["role"]) {
+    if (roleUpdatingUserIdsRef.current.has(id)) return;
+    const updating = new Set(roleUpdatingUserIdsRef.current).add(id);
+    roleUpdatingUserIdsRef.current = updating;
+    setRoleUpdatingUserIds(updating);
     try {
       await api<void>(`/api/admin/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
       await loadUsers();
@@ -218,6 +224,11 @@ export default function AdminConsole({
     } catch (e) {
       setNotice({ message: (e as Error).message, tone: "error" });
       await loadUsers();
+    } finally {
+      const next = new Set(roleUpdatingUserIdsRef.current);
+      next.delete(id);
+      roleUpdatingUserIdsRef.current = next;
+      setRoleUpdatingUserIds(next);
     }
   }
 
@@ -430,7 +441,16 @@ export default function AdminConsole({
               正在筛选用户...
             </div>
           )}
-          <AdminUserTable users={users} loading={loadingUsers} filtersActive={hasUserFilters} onClearFilters={clearUserFilters} currentUserId={currentUser.id} onDelete={setUserToDelete} onRoleChange={updateRole} />
+          <AdminUserTable
+            users={users}
+            loading={loadingUsers}
+            filtersActive={hasUserFilters}
+            onClearFilters={clearUserFilters}
+            currentUserId={currentUser.id}
+            roleUpdatingUserIds={roleUpdatingUserIds}
+            onDelete={setUserToDelete}
+            onRoleChange={updateRole}
+          />
         </div>
       )}
 
@@ -851,6 +871,7 @@ function AdminUserTable({
   filtersActive,
   onClearFilters,
   currentUserId,
+  roleUpdatingUserIds,
   onDelete,
   onRoleChange,
 }: {
@@ -859,6 +880,7 @@ function AdminUserTable({
   filtersActive: boolean;
   onClearFilters: () => void;
   currentUserId: number;
+  roleUpdatingUserIds: Set<number>;
   onDelete: (user: User) => void;
   onRoleChange: (id: number, role: User["role"]) => void;
 }) {
@@ -901,33 +923,39 @@ function AdminUserTable({
               </td>
             </tr>
           ) : (
-            visibleUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-zinc-50">
-                <td className="px-4 py-3 font-medium">{user.username}</td>
-                <td className="px-4 py-3">
-                  <Select
-                    aria-label={`修改 ${user.username} 的角色`}
-                    value={user.role}
-                    disabled={user.id === currentUserId}
-                    title={user.id === currentUserId ? "不能在这里修改自己的角色" : undefined}
-                    onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
-                  >
-                    <option value="user">用户</option>
-                    <option value="admin">管理员</option>
-                  </Select>
-                  {user.id === currentUserId && <div className="mt-1 text-xs text-zinc-500">当前登录用户</div>}
-                </td>
-                <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
-                <td className="px-4 py-3">
-                  {user.role !== "admin" && (
-                    <Button variant="danger" size="sm" aria-label={`删除用户 ${user.username}`} onClick={() => onDelete(user)}>
-                      <Trash2 size={14} />
-                      删除
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))
+            visibleUsers.map((user) => {
+              const roleUpdating = roleUpdatingUserIds.has(user.id);
+              const selfRow = user.id === currentUserId;
+              return (
+                <tr key={user.id} className="hover:bg-zinc-50">
+                  <td className="px-4 py-3 font-medium">{user.username}</td>
+                  <td className="px-4 py-3">
+                    <Select
+                      aria-label={`修改 ${user.username} 的角色`}
+                      value={user.role}
+                      disabled={selfRow || roleUpdating}
+                      aria-busy={roleUpdating || undefined}
+                      title={selfRow ? "不能在这里修改自己的角色" : roleUpdating ? "正在更新角色" : undefined}
+                      onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
+                    >
+                      <option value="user">用户</option>
+                      <option value="admin">管理员</option>
+                    </Select>
+                    {selfRow && <div className="mt-1 text-xs text-zinc-500">当前登录用户</div>}
+                    {roleUpdating && <div className="mt-1 text-xs text-sky-700" role="status">正在更新角色...</div>}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    {user.role !== "admin" && (
+                      <Button variant="danger" size="sm" aria-label={`删除用户 ${user.username}`} onClick={() => onDelete(user)}>
+                        <Trash2 size={14} />
+                        删除
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
           )}
           {hiddenCount > 0 && (
             <tr>
