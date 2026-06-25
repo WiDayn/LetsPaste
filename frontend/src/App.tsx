@@ -333,6 +333,8 @@ export function App() {
   const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
+  const viewRef = useRef<View>(initialRouteRef.current?.view ?? "explore");
+  const accountCredentialUnsavedRef = useRef(false);
   const listRequestId = useRef(0);
   const listViewRef = useRef<View | null>(null);
   const openRequestId = useRef(0);
@@ -369,6 +371,14 @@ export function App() {
   useEffect(() => {
     refreshList();
   }, [view]);
+
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  useEffect(() => {
+    accountCredentialUnsavedRef.current = accountCredentialUnsaved;
+  }, [accountCredentialUnsaved]);
 
   async function refreshList() {
     const requestId = ++listRequestId.current;
@@ -498,6 +508,8 @@ export function App() {
   }
 
   async function applyRoute(route: AppRoute) {
+    const nextView = route.pasteId ? route.targetView ?? "explore" : route.view;
+    if (blockUnsavedCredentialNavigation(nextView)) return;
     clearMessage();
     if (route.pasteId) {
       await openPaste(route.pasteId, false, route.targetView ?? "explore");
@@ -523,10 +535,7 @@ export function App() {
   }
 
   function changeView(next: View) {
-    if (view === "account" && next !== "account" && accountCredentialUnsaved) {
-      showError(new Error("请先保存新的登录凭据，再离开用户信息。"));
-      return;
-    }
+    if (blockUnsavedCredentialNavigation(next)) return;
     if (next === view && !selected) {
       clearMessage();
       return;
@@ -564,6 +573,13 @@ export function App() {
   function showError(e: unknown) {
     setMessageTone("error");
     setMessage((e as Error).message);
+  }
+
+  function blockUnsavedCredentialNavigation(nextView: View) {
+    if (viewRef.current !== "account" || nextView === "account" || !accountCredentialUnsavedRef.current) return false;
+    showError(new Error("请先保存新的登录凭据，再离开用户信息。"));
+    writeRoute(viewRoute("account"), "replace");
+    return true;
   }
 
   return (
