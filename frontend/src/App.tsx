@@ -43,6 +43,8 @@ type AppRoute = {
   pasteId?: string;
   targetView?: "explore" | "mine";
 };
+type PasteDeleteTarget = { paste: Paste; nextPaste?: Paste | null };
+type PasteDeleteHandler = (paste: Paste, nextPaste?: Paste | null) => void;
 
 const routeViews: View[] = ["explore", "create", "mine", "account", "admin"];
 const appBasePath = normalizeBasePath(import.meta.env.BASE_URL);
@@ -391,7 +393,7 @@ export function App() {
   const [createdPasteId, setCreatedPasteId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
-  const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PasteDeleteTarget | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
   const [adminSettingsUnsaved, setAdminSettingsUnsaved] = useState(false);
@@ -514,7 +516,7 @@ export function App() {
     }
   }
 
-  async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste) {
+  async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste, routeMode: "push" | "replace" = "push") {
     if (openingPasteIdRef.current === id) return false;
     const requestId = ++openRequestId.current;
     openAbortRef.current?.abort();
@@ -533,7 +535,7 @@ export function App() {
         setPastes((current) => current.filter((item) => item.id !== next.id));
         showInfo("这条阅后即焚 Paste 已在本次查看后销毁。");
       }
-      if (updateUrl) writeRoute(pasteRoute(id, targetView));
+      if (updateUrl) writeRoute(pasteRoute(id, targetView), routeMode);
       return true;
     } catch (e) {
       if (controller.signal.aborted) return false;
@@ -555,9 +557,9 @@ export function App() {
         });
         setView(targetView);
         setCreatedPasteId(null);
-        if (updateUrl) writeRoute(pasteRoute(id, targetView));
+        if (updateUrl) writeRoute(pasteRoute(id, targetView), routeMode);
         clearMessage();
-        return false;
+        return true;
       }
       setSelected(null);
       showError(e);
@@ -630,14 +632,29 @@ export function App() {
     setView(route.view);
   }
 
-  async function deleteMyPaste(paste: Paste) {
+  async function deleteMyPaste(paste: Paste, nextPaste?: Paste | null) {
     try {
       await api<void>(`/api/my/pastes/${paste.id}`, { method: "DELETE" });
       setPastes((current) => current.filter((item) => item.id !== paste.id));
       if (selected?.id === paste.id) {
+        const targetView = viewRef.current;
+        const canAutoOpenNext = Boolean(nextPaste && nextPaste.id !== paste.id && !nextPaste.burnAfterReading);
         setSelected(null);
         setCreatedPasteId(null);
-        writeRoute(viewRoute(view), "replace");
+        if (canAutoOpenNext && nextPaste) {
+          const opened = await openPaste(nextPaste.id, true, targetView, nextPaste, "replace");
+          if (opened) {
+            showInfo(`Paste 已删除，已打开「${compactDocumentTitle(nextPaste.title, nextPaste.id)}」。`);
+            return;
+          }
+          writeRoute(viewRoute(targetView), "replace");
+          return;
+        }
+        writeRoute(viewRoute(targetView), "replace");
+        if (nextPaste?.burnAfterReading) {
+          showInfo("Paste 已删除。相邻 Paste 是阅后即焚，已保留在列表中等待你手动打开。");
+          return;
+        }
       }
       showInfo("Paste 已删除");
     } catch (e) {
@@ -814,7 +831,7 @@ export function App() {
               setCreatedPasteId(null);
               writeRoute(viewRoute("mine"));
             }}
-            onDelete={setDeleteTarget}
+            onDelete={(paste, nextPaste) => setDeleteTarget({ paste, nextPaste })}
             privateMode
           />
         )}
@@ -830,13 +847,13 @@ export function App() {
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title="删除 Paste"
-        description={`确定删除「${deleteTarget?.title ?? ""}」？此操作不可恢复。`}
+        description={`确定删除「${deleteTarget?.paste.title ?? ""}」？此操作不可恢复。`}
         confirmLabel="删除"
         onCancel={() => setDeleteTarget(null)}
         onConfirm={async () => {
           if (!deleteTarget) return;
           const target = deleteTarget;
-          await deleteMyPaste(target);
+          await deleteMyPaste(target.paste, target.nextPaste);
           setDeleteTarget(null);
         }}
       />
@@ -2288,7 +2305,7 @@ function PasteWorkspace({
   onRefresh: () => void;
   onDismissCreatedNotice?: () => void;
   onClose: () => void;
-  onDelete?: (paste: Paste) => void;
+  onDelete?: PasteDeleteHandler;
   privateMode?: boolean;
 }) {
   const [search, setSearch] = useState("");
@@ -2359,6 +2376,7 @@ function PasteWorkspace({
   const selectedFilteredOut = Boolean(selected && deferredSearch && selectedIndex === -1 && !searchPending);
   const previousPaste = selectedIndex > 0 ? filtered[selectedIndex - 1] : null;
   const nextPaste = selectedIndex >= 0 && selectedIndex < filtered.length - 1 ? filtered[selectedIndex + 1] : null;
+  const nextAfterSelectedDelete = nextPaste ?? previousPaste ?? null;
 
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -2496,7 +2514,7 @@ function PasteWorkspace({
               onUnlocked={onUnlocked}
               onDismissCreatedNotice={onDismissCreatedNotice}
               onClose={onClose}
-              onDelete={onDelete}
+              onDelete={onDelete ? (paste) => onDelete(paste, nextAfterSelectedDelete) : undefined}
             />
           ) : (
             <WorkspaceInsight pastes={pastes} loading={loading} error={error} openingPasteId={openingPasteId} onCreate={onCreate} onOpen={onOpen} onRetry={onRefresh} />
@@ -2530,7 +2548,7 @@ function PasteIndex({
   openingPasteId: string | null;
   selectedId?: string;
   onOpen: (paste: Paste) => void;
-  onDelete?: (paste: Paste) => void;
+  onDelete?: PasteDeleteHandler;
   totalCount: number;
   search: string;
   onClearSearch: () => void;
@@ -2593,48 +2611,51 @@ function PasteIndex({
         </div>
       )}
       <div className="space-y-2" role="list" aria-label="Paste 索引">
-        {visiblePastes.map((paste) => (
-          <div
-            key={paste.id}
-            role="listitem"
-            className={cn(
-              "rounded-md border border-zinc-200 bg-white transition hover:border-zinc-300 hover:bg-zinc-50",
-              compact ? "p-2.5" : "p-3",
-              selectedId === paste.id && "border-sky-300 bg-sky-50",
-            )}
-          >
-            <div className="flex items-start gap-2">
-              <button
-                className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-wait disabled:opacity-70"
-                disabled={openingPasteId === paste.id}
-                aria-busy={openingPasteId === paste.id || undefined}
-                aria-current={selectedId === paste.id ? "true" : undefined}
-                aria-label={`打开 ${paste.title}`}
-                onClick={() => onOpen(paste)}
-              >
-                <div className={cn("break-words text-sm font-medium leading-5", compact ? "line-clamp-1" : "line-clamp-2")}>{paste.title}</div>
-                <div className={cn("truncate font-mono text-[11px] text-zinc-500", compact ? "mt-0.5" : "mt-1")}>{paste.id}</div>
-                {openingPasteId === paste.id && <div className={cn("text-xs font-medium text-sky-700", compact ? "mt-1" : "mt-2")}>正在打开...</div>}
-              </button>
-              {onDelete && (
-                <Button className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700" variant="ghost" size="icon" title="删除 Paste" aria-label={`删除 ${paste.title}`} onClick={() => onDelete(paste)}>
-                  <Trash2 size={15} />
-                </Button>
+        {visiblePastes.map((paste, index) => {
+          const nextAfterDelete = visiblePastes[index + 1] ?? visiblePastes[index - 1] ?? null;
+          return (
+            <div
+              key={paste.id}
+              role="listitem"
+              className={cn(
+                "rounded-md border border-zinc-200 bg-white transition hover:border-zinc-300 hover:bg-zinc-50",
+                compact ? "p-2.5" : "p-3",
+                selectedId === paste.id && "border-sky-300 bg-sky-50",
               )}
+            >
+              <div className="flex items-start gap-2">
+                <button
+                  className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-wait disabled:opacity-70"
+                  disabled={openingPasteId === paste.id}
+                  aria-busy={openingPasteId === paste.id || undefined}
+                  aria-current={selectedId === paste.id ? "true" : undefined}
+                  aria-label={`打开 ${paste.title}`}
+                  onClick={() => onOpen(paste)}
+                >
+                  <div className={cn("break-words text-sm font-medium leading-5", compact ? "line-clamp-1" : "line-clamp-2")}>{paste.title}</div>
+                  <div className={cn("truncate font-mono text-[11px] text-zinc-500", compact ? "mt-0.5" : "mt-1")}>{paste.id}</div>
+                  {openingPasteId === paste.id && <div className={cn("text-xs font-medium text-sky-700", compact ? "mt-1" : "mt-2")}>正在打开...</div>}
+                </button>
+                {onDelete && (
+                  <Button className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700" variant="ghost" size="icon" title="删除 Paste" aria-label={`删除 ${paste.title}`} onClick={() => onDelete(paste, nextAfterDelete)}>
+                    <Trash2 size={15} />
+                  </Button>
+                )}
+              </div>
+              <div className={cn("flex flex-wrap items-center gap-1.5", compact ? "mt-2" : "mt-3")}>
+                <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
+                <Badge>{paste.language}</Badge>
+              </div>
+              <div className={cn("flex flex-wrap items-center gap-2 text-xs text-zinc-500", compact ? "mt-1.5" : "mt-2")}>
+                <span>{formatViews(paste.views)}</span>
+                {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
+              </div>
+              <div className={cn("flex flex-wrap gap-1", compact ? "mt-1.5" : "mt-2")}>
+                <PasteBadges paste={paste} />
+              </div>
             </div>
-            <div className={cn("flex flex-wrap items-center gap-1.5", compact ? "mt-2" : "mt-3")}>
-              <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
-              <Badge>{paste.language}</Badge>
-            </div>
-            <div className={cn("flex flex-wrap items-center gap-2 text-xs text-zinc-500", compact ? "mt-1.5" : "mt-2")}>
-              <span>{formatViews(paste.views)}</span>
-              {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
-            </div>
-            <div className={cn("flex flex-wrap gap-1", compact ? "mt-1.5" : "mt-2")}>
-              <PasteBadges paste={paste} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {hiddenCount > 0 && (
         <div className="mt-2 rounded-md border border-dashed border-zinc-300 bg-white p-3 text-center">
@@ -2811,7 +2832,7 @@ function PasteViewer({
   onUnlocked: (p: Paste) => void;
   onDismissCreatedNotice?: () => void;
   onClose: () => void;
-  onDelete?: (paste: Paste) => void;
+  onDelete?: PasteDeleteHandler;
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
