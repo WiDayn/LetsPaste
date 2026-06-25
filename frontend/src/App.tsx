@@ -759,7 +759,6 @@ export function App() {
               setView(nextView);
               placeCreatedPasteInList(paste, nextView);
               writeRoute(pasteRoute(paste.id, nextView));
-              showInfo("Paste 已创建，链接已经准备好。");
             }}
           />
         )}
