@@ -667,12 +667,20 @@ export function App() {
             role={messageTone === "info" ? "status" : "alert"}
             aria-live={messageTone === "info" ? "polite" : "assertive"}
             className={cn(
-              "mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+              "mb-4 flex items-start gap-2 rounded-md border px-3 py-2 text-sm",
               messageTone === "info" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-900",
             )}
           >
-            {messageTone === "info" ? <Check size={16} /> : <AlertTriangle size={16} />}
-            {message}
+            <span className="mt-0.5 shrink-0">{messageTone === "info" ? <Check size={16} /> : <AlertTriangle size={16} />}</span>
+            <span className="min-w-0 flex-1 break-words">{message}</span>
+            <button
+              type="button"
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-current opacity-70 hover:bg-black/5 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
+              aria-label="关闭提示"
+              onClick={clearMessage}
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
 

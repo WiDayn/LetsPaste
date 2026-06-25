@@ -339,11 +339,19 @@ export default function AdminConsole({
           role={notice.tone === "success" ? "status" : "alert"}
           aria-live={notice.tone === "success" ? "polite" : "assertive"}
           className={cn(
-            "border-b px-4 py-2 text-sm",
+            "flex items-start gap-2 border-b px-4 py-2 text-sm",
             notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700",
           )}
         >
-          {notice.message}
+          <span className="min-w-0 flex-1 break-words">{notice.message}</span>
+          <button
+            type="button"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-current opacity-70 hover:bg-black/5 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
+            aria-label="关闭后台通知"
+            onClick={() => setNotice(null)}
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
