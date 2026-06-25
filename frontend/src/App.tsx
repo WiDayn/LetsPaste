@@ -178,6 +178,12 @@ function focusFieldById(id: string) {
   window.requestAnimationFrame(() => document.getElementById(id)?.focus());
 }
 
+function isEditableEventTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
+}
+
 function freshCreateForm(): CreateFormState {
   return { ...defaultCreateForm };
 }
@@ -2696,6 +2702,7 @@ function PasteAdjacentNav({
         variant="outline"
         size="sm"
         disabled={!previousPaste || opening}
+        aria-keyshortcuts="Alt+ArrowLeft"
         aria-label={previousPaste ? `打开上一条 Paste：${previousPaste.title}` : "没有上一条 Paste"}
         onClick={() => previousPaste && onOpen(previousPaste)}
       >
@@ -2706,6 +2713,7 @@ function PasteAdjacentNav({
         variant="outline"
         size="sm"
         disabled={!nextPaste || opening}
+        aria-keyshortcuts="Alt+ArrowRight"
         aria-label={nextPaste ? `打开下一条 Paste：${nextPaste.title}` : "没有下一条 Paste"}
         onClick={() => nextPaste && onOpen(nextPaste)}
       >
@@ -2812,6 +2820,11 @@ function PasteViewer({
     focusActionMenuItem(baseIndex + (event.key === "ArrowDown" ? 1 : -1));
   }
 
+  function openAdjacentPaste(target: Paste | null | undefined) {
+    if (!target || openingPasteId) return;
+    onOpenAdjacent(target);
+  }
+
   useEffect(() => {
     unlockRequestId.current += 1;
     copyRequestId.current += 1;
@@ -2860,6 +2873,21 @@ function PasteViewer({
   useEffect(() => {
     if (!hasSecondaryActions) setActionsOpen(false);
   }, [hasSecondaryActions]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (isEditableEventTarget(event.target)) return;
+      const target = event.key === "ArrowLeft" ? previousPaste : nextPaste;
+      if (!target || openingPasteId) return;
+      event.preventDefault();
+      openAdjacentPaste(target);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [nextPaste, onOpenAdjacent, openingPasteId, previousPaste]);
 
   useEffect(() => {
     if (!actionsOpen) return;
