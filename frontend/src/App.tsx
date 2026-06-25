@@ -899,6 +899,7 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedContent, setCopiedContent] = useState(false);
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
 
   async function unlock() {
@@ -918,6 +919,12 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
     await copyText(`${window.location.origin}/${paste.id}`);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
+  }
+
+  async function copyContent() {
+    await copyText(paste.content ?? "");
+    setCopiedContent(true);
+    window.setTimeout(() => setCopiedContent(false), 1400);
   }
 
   if (paste.hasPassword && !paste.content) {
@@ -946,10 +953,16 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
               {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={copyLink}>
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? "已复制" : "复制链接"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={copyContent} disabled={!paste.content}>
+              {copiedContent ? <Check size={14} /> : <Copy size={14} />}
+              {copiedContent ? "已复制" : "复制内容"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={copyLink}>
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? "已复制" : "复制链接"}
+            </Button>
+          </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
