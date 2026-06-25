@@ -1539,6 +1539,8 @@ function CreateStudio({
   const [composeMode, setComposeMode] = useState<ComposeMode>("write");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const formRef = useRef(form);
+  const settingsPanelRef = useRef<HTMLElement | null>(null);
+  const settingsOpenRequestedRef = useRef(false);
   const submitInFlightRef = useRef(false);
   const titleInputId = "create-paste-title";
   const contentInputId = "create-paste-content";
@@ -1548,6 +1550,7 @@ function CreateStudio({
   const passwordInputId = "create-paste-password";
   const expiryInputId = "create-paste-expiry";
   const expiryErrorId = "create-paste-expiry-error";
+  const settingsPanelId = "create-paste-settings-panel";
   const emptyContentError = "请输入内容后再发布。";
   const expiryError = "自动销毁时间需要填写大于等于 1 的整数分钟。";
   const canPost = authed || settings.allowAnonymousPaste;
@@ -1613,6 +1616,19 @@ function CreateStudio({
     };
   }, []);
 
+  useEffect(() => {
+    if (!settingsOpen || !settingsOpenRequestedRef.current) return;
+    settingsOpenRequestedRef.current = false;
+    const panel = settingsPanelRef.current;
+    if (!panel) return;
+    const frame = window.requestAnimationFrame(() => {
+      panel.focus({ preventScroll: true });
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      panel.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [settingsOpen]);
+
   function updateCreateForm(update: (current: CreateFormState) => CreateFormState) {
     setForm((current) => {
       const next = update(current);
@@ -1639,6 +1655,19 @@ function CreateStudio({
     setDraftReset(true);
     setError("");
     setComposeMode("write");
+    setSettingsOpen(false);
+  }
+
+  function toggleSettingsPanel() {
+    setSettingsOpen((open) => {
+      const nextOpen = !open;
+      settingsOpenRequestedRef.current = nextOpen;
+      return nextOpen;
+    });
+  }
+
+  function closeSettingsPanel() {
+    settingsOpenRequestedRef.current = false;
     setSettingsOpen(false);
   }
 
@@ -1690,7 +1719,7 @@ function CreateStudio({
   }
 
   return (
-    <div className={cn("grid gap-4", settingsOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
+    <div className={cn("grid items-start gap-4", settingsOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
       <section className="flex flex-col rounded-md border border-zinc-200 bg-white lg:min-h-[calc(100vh-9.5rem)]">
         <div className="shrink-0 border-b border-zinc-200 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1705,7 +1734,7 @@ function CreateStudio({
                   清空草稿
                 </Button>
               )}
-              <Button variant="outline" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}>
+              <Button variant="outline" aria-expanded={settingsOpen} aria-controls={settingsPanelId} onClick={toggleSettingsPanel}>
                 {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
                 {settingsOpen ? "收起设置" : "设置"}
               </Button>
@@ -1780,9 +1809,20 @@ function CreateStudio({
       </section>
 
       {settingsOpen && (
-        <aside className="space-y-4">
+        <aside
+          id={settingsPanelId}
+          ref={settingsPanelRef}
+          tabIndex={-1}
+          className="order-first scroll-mt-4 space-y-4 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 xl:sticky xl:top-4 xl:order-none xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1"
+        >
           <section className="rounded-md border border-zinc-200 bg-white p-4">
-            <h2 className="mb-3 font-semibold">元数据</h2>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-semibold">元数据</h2>
+              <Button variant="ghost" size="sm" onClick={closeSettingsPanel}>
+                <PanelRightClose size={14} />
+                收起
+              </Button>
+            </div>
             <div className="space-y-3">
               <Field label="内容格式" htmlFor={formatSelectId}>
                 <Select id={formatSelectId} value={form.format} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
