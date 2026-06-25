@@ -1395,13 +1395,14 @@ function AccountPanel({
           <Input
             id={newSecretInputId}
             aria-label={isAdmin ? "新管理员密码" : "新助记码"}
-            placeholder={isAdmin ? "新管理员密码，留空则自动生成" : "新助记码，留空则自动生成"}
+            autoComplete="off"
+            placeholder={isAdmin ? "新管理员密码，可任意长度，留空则自动生成" : "新助记码，可任意长度，留空则自动生成"}
             type={isAdmin ? "password" : "text"}
             value={newSecret}
             disabled={busy}
             onChange={(e) => updateNewSecret(e.target.value)}
           />
-          <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据会直接保存；留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据会直接保存，不限制长度；留空时系统会自动生成一组新的登录凭据。</p>
           <Button
             type="submit"
             disabled={busy || (Boolean(resultSecret) && !resultSecretSaved)}
