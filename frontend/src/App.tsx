@@ -2831,6 +2831,8 @@ function PasteViewer({
     copyInFlightRef.current = true;
     const requestId = ++copyRequestId.current;
     setCopying(kind);
+    setCopyError("");
+    copyStatus.clear();
     try {
       if (await copyText(value)) {
         if (requestId !== copyRequestId.current) return;
