@@ -218,6 +218,7 @@ export function App() {
   const listRequestId = useRef(0);
   const listViewRef = useRef<View | null>(null);
   const openRequestId = useRef(0);
+  const openingPasteIdRef = useRef<string | null>(null);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -277,8 +278,9 @@ export function App() {
   }
 
   async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste) {
-    if (openingPasteId === id) return false;
+    if (openingPasteIdRef.current === id) return false;
     const requestId = ++openRequestId.current;
+    openingPasteIdRef.current = id;
     setOpeningPasteId(id);
     try {
       const next = await api<Paste>(`/api/pastes/${id}`);
@@ -317,7 +319,10 @@ export function App() {
       showError(e);
       return false;
     } finally {
-      if (requestId === openRequestId.current) setOpeningPasteId(null);
+      if (requestId === openRequestId.current) {
+        openingPasteIdRef.current = null;
+        setOpeningPasteId(null);
+      }
     }
   }
 
