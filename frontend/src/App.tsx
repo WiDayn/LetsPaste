@@ -2066,10 +2066,12 @@ function PasteViewer({
   const [copied, setCopied] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [copyError, setCopyError] = useState("");
+  const [copyStatus, setCopyStatus] = useState("");
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [unlocking, setUnlocking] = useState(false);
   const viewerHeadingRef = useRef<HTMLHeadingElement>(null);
   const unlockRequestId = useRef(0);
+  const copyStatusTimerRef = useRef<number | null>(null);
   const passwordInputId = `paste-password-${paste.id}`;
   const passwordHelpId = `paste-password-help-${paste.id}`;
   const passwordErrorId = `paste-password-error-${paste.id}`;
@@ -2083,6 +2085,11 @@ function PasteViewer({
     setCopied(false);
     setCopiedContent(false);
     setCopyError("");
+    setCopyStatus("");
+    if (copyStatusTimerRef.current !== null) {
+      window.clearTimeout(copyStatusTimerRef.current);
+      copyStatusTimerRef.current = null;
+    }
     setMarkdownMode("preview");
     setUnlocking(false);
   }, [paste.id]);
@@ -2091,6 +2098,12 @@ function PasteViewer({
     if (lockedWithoutContent) return;
     window.setTimeout(() => viewerHeadingRef.current?.focus(), 0);
   }, [lockedWithoutContent, paste.id]);
+
+  useEffect(() => {
+    return () => {
+      if (copyStatusTimerRef.current !== null) window.clearTimeout(copyStatusTimerRef.current);
+    };
+  }, []);
 
   async function unlock() {
     if (unlocking) return;
@@ -2121,9 +2134,11 @@ function PasteViewer({
     if (await copyText(pastePermalink(paste.id))) {
       setCopied(true);
       setCopyError("");
+      announceCopyStatus("链接已复制到剪贴板。");
       window.setTimeout(() => setCopied(false), 1400);
       return;
     }
+    setCopyStatus("");
     setCopyError("复制链接失败，请手动复制浏览器地址栏。");
   }
 
@@ -2131,10 +2146,22 @@ function PasteViewer({
     if (await copyText(paste.content ?? "")) {
       setCopiedContent(true);
       setCopyError("");
+      announceCopyStatus("Paste 内容已复制到剪贴板。");
       window.setTimeout(() => setCopiedContent(false), 1400);
       return;
     }
+    setCopyStatus("");
     setCopyError("复制内容失败，请手动选中内容复制。");
+  }
+
+  function announceCopyStatus(message: string) {
+    if (copyStatusTimerRef.current !== null) window.clearTimeout(copyStatusTimerRef.current);
+    setCopyStatus("");
+    window.setTimeout(() => setCopyStatus(message), 0);
+    copyStatusTimerRef.current = window.setTimeout(() => {
+      setCopyStatus("");
+      copyStatusTimerRef.current = null;
+    }, 1800);
   }
 
   if (lockedWithoutContent) {
@@ -2243,6 +2270,9 @@ function PasteViewer({
               {copied ? <Check size={14} /> : <Copy size={14} />}
               {copied ? "已复制" : "复制链接"}
             </Button>
+            <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+              {copyStatus}
+            </span>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
