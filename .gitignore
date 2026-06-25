@@ -1,0 +1,6 @@
+backend/data/
+backend/server
+backend/server.exe
+frontend/dist/
+frontend/node_modules/
+.env
