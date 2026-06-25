@@ -891,7 +891,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             disabled={busy}
             onChange={(e) => setNewSecret(e.target.value)}
           />
-          <p className="text-xs leading-5 text-zinc-500">手动填写的新凭据不限制长度；留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">新凭据不设最短长度；留空时系统会自动生成一组新的登录凭据。</p>
           <Button type="submit" disabled={busy || !currentSecret.trim()}>{busy ? "保存中" : "保存修改"}</Button>
           {message && <p className="text-sm text-zinc-600">{message}</p>}
           {resultSecret && (
