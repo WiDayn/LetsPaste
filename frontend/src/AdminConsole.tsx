@@ -282,6 +282,7 @@ export default function AdminConsole({
   async function removePaste(paste: Paste) {
     try {
       await api<void>(`/api/admin/pastes/${paste.id}`, { method: "DELETE" });
+      setPastes((current) => current.filter((item) => item.id !== paste.id));
       await loadPastes();
       await loadStats();
       setNotice({ message: "Paste 已删除", tone: "success" });
@@ -293,6 +294,8 @@ export default function AdminConsole({
   async function removeUser(user: User) {
     try {
       await api<void>(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      setUsers((current) => current.filter((item) => item.id !== user.id));
+      setPastes((current) => current.map((paste) => (paste.ownerUsername === user.username ? { ...paste, ownerUsername: null } : paste)));
       await loadUsers();
       await loadStats();
       setNotice({ message: "用户已删除", tone: "success" });
@@ -308,6 +311,7 @@ export default function AdminConsole({
     setRoleUpdatingUserIds(updating);
     try {
       await api<void>(`/api/admin/users/${id}/role`, { method: "PUT", body: JSON.stringify({ role }) });
+      setUsers((current) => current.map((user) => (user.id === id ? { ...user, role } : user)));
       await loadUsers();
       await loadStats();
       setNotice({ message: "用户角色已更新", tone: "success" });
