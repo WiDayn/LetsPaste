@@ -549,9 +549,13 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   }
 
   async function copyGeneratedMnemonic() {
-    await copyText(generatedMnemonic);
-    setCopiedMnemonic(true);
-    window.setTimeout(() => setCopiedMnemonic(false), 1400);
+    if (await copyText(generatedMnemonic)) {
+      setCopiedMnemonic(true);
+      setError("");
+      window.setTimeout(() => setCopiedMnemonic(false), 1400);
+      return;
+    }
+    setError("复制失败，请手动选中助记码复制。");
   }
 
   return (
@@ -808,9 +812,13 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   }
 
   async function copyResultSecret() {
-    await copyText(resultSecret);
-    setCopiedSecret(true);
-    window.setTimeout(() => setCopiedSecret(false), 1400);
+    if (await copyText(resultSecret)) {
+      setCopiedSecret(true);
+      setMessage("");
+      window.setTimeout(() => setCopiedSecret(false), 1400);
+      return;
+    }
+    setMessage("复制失败，请手动选中新密钥复制。");
   }
 
   return (
@@ -1405,6 +1413,7 @@ function PasteViewer({
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
+  const [copyError, setCopyError] = useState("");
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [unlocking, setUnlocking] = useState(false);
 
@@ -1426,15 +1435,23 @@ function PasteViewer({
   }
 
   async function copyLink() {
-    await copyText(`${window.location.origin}/${paste.id}`);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    if (await copyText(`${window.location.origin}/${paste.id}`)) {
+      setCopied(true);
+      setCopyError("");
+      window.setTimeout(() => setCopied(false), 1400);
+      return;
+    }
+    setCopyError("复制链接失败，请手动复制浏览器地址栏。");
   }
 
   async function copyContent() {
-    await copyText(paste.content ?? "");
-    setCopiedContent(true);
-    window.setTimeout(() => setCopiedContent(false), 1400);
+    if (await copyText(paste.content ?? "")) {
+      setCopiedContent(true);
+      setCopyError("");
+      window.setTimeout(() => setCopiedContent(false), 1400);
+      return;
+    }
+    setCopyError("复制内容失败，请手动选中内容复制。");
   }
 
   if (paste.hasPassword && !paste.content) {
@@ -1520,6 +1537,11 @@ function PasteViewer({
             </div>
           )}
         </div>
+        {copyError && (
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {copyError}
+          </div>
+        )}
       </div>
       <div className="max-h-[calc(100vh-15rem)] overflow-auto">
         {paste.format === "markdown" && markdownMode === "source" ? (
@@ -1567,11 +1589,11 @@ function isExpired(value?: string | null) {
 }
 
 async function copyText(value: string) {
-  if (!value) return;
+  if (!value) return false;
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(value);
-      return;
+      return true;
     } catch {
       // Fall back for embedded browsers or restrictive clipboard permissions.
     }
@@ -1585,7 +1607,9 @@ async function copyText(value: string) {
   textarea.focus();
   textarea.select();
   try {
-    document.execCommand("copy");
+    return document.execCommand("copy");
+  } catch {
+    return false;
   } finally {
     document.body.removeChild(textarea);
   }
