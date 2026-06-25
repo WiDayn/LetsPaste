@@ -1005,7 +1005,8 @@ function CreateStudio({
   const parsedExpiry = Number(expiresValue);
   const hasExpiry = expiresValue.length > 0;
   const invalidExpiry = hasExpiry && (!Number.isInteger(parsedExpiry) || parsedExpiry < 1);
-  const canSubmit = canPost && form.content.trim().length > 0 && !busy && !invalidExpiry;
+  const hasBody = form.content.trim().length > 0;
+  const canSubmit = canPost && hasBody && !busy && !invalidExpiry;
   const protectionSummary = [
     form.password.trim() ? "访问密码" : "",
     form.burnAfterReading ? "阅后即焚" : "",
@@ -1013,7 +1014,9 @@ function CreateStudio({
   const lifecycleSummary = invalidExpiry ? "时间无效" : hasExpiry ? `${parsedExpiry} 分钟后销毁` : "永久保留";
   const identitySummary = authed ? "归属账号" : settings.allowAnonymousPaste ? "匿名发布" : "需要登录";
   const identityTone: "neutral" | "red" | "blue" = authed ? "blue" : settings.allowAnonymousPaste ? "neutral" : "red";
+  const publishLabel = busy ? "发布中" : !canPost ? "需要登录" : !hasBody ? "先输入内容" : invalidExpiry ? "时间无效" : "发布 Paste";
   const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
+    { label: hasBody ? `${form.content.length} 字符` : "正文为空", tone: hasBody ? "neutral" : "red" },
     { label: form.isPrivate ? "私密链接" : "公开库可见", tone: form.isPrivate ? "amber" : "green" },
     { label: identitySummary, tone: identityTone },
     { label: form.format === "markdown" ? "Markdown" : form.language, tone: form.format === "markdown" ? "blue" : "neutral" },
@@ -1074,7 +1077,7 @@ function CreateStudio({
             </Button>
             <Button disabled={!canSubmit} onClick={submit}>
               <Plus size={16} />
-              {busy ? "发布中" : canPost ? "发布 Paste" : "需要登录"}
+              {publishLabel}
             </Button>
           </div>
         </div>
@@ -1163,7 +1166,11 @@ function CreateStudio({
               <Toggle checked={form.isPrivate} onChange={(checked) => setForm({ ...form, isPrivate: checked })} label="私密，不出现在公开库" />
               <Toggle checked={form.burnAfterReading} onChange={(checked) => setForm({ ...form, burnAfterReading: checked })} label="阅后即焚" />
               <div className="rounded-md bg-zinc-100 p-3 text-xs leading-5 text-zinc-600">
-                {canPost ? "匿名发布状态由后台控制。登录后创建的 Paste 会自动归属到你的账号。" : "管理员已关闭匿名发布，请登录后再发布。"}
+                {authed
+                  ? "当前 Paste 会归属到你的账号，匿名发布开关不会影响已登录用户。"
+                  : settings.allowAnonymousPaste
+                    ? "当前将以匿名身份发布，登录后创建的 Paste 会自动归属到你的账号。"
+                    : "管理员已关闭匿名发布，请登录后再发布。"}
               </div>
               {error && <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
             </div>
@@ -1173,7 +1180,7 @@ function CreateStudio({
             <h2 className="mb-3 font-semibold">发布确认</h2>
             <div className="space-y-3 text-sm">
               <SummaryRow label="可见性" value={form.isPrivate ? "私密链接" : "公开库可见"} tone={form.isPrivate ? "amber" : "green"} />
-              <SummaryRow label="身份" value={authed ? "归属当前账号" : "匿名发布"} tone={authed ? "blue" : "neutral"} />
+              <SummaryRow label="身份" value={identitySummary} tone={identityTone} />
               <SummaryRow label="格式" value={form.format === "markdown" ? "Markdown" : form.language} tone={form.format === "markdown" ? "blue" : "neutral"} />
               <SummaryRow label="保护" value={protectionSummary.length ? protectionSummary.join("、") : "无额外保护"} tone={protectionSummary.length ? "amber" : "neutral"} />
               <SummaryRow
