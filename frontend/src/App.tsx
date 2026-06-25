@@ -1539,21 +1539,36 @@ function PasteViewer({
   const [copyError, setCopyError] = useState("");
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [unlocking, setUnlocking] = useState(false);
+  const unlockRequestId = useRef(0);
+
+  useEffect(() => {
+    unlockRequestId.current += 1;
+    setPassword("");
+    setError("");
+    setCopied(false);
+    setCopiedContent(false);
+    setCopyError("");
+    setMarkdownMode("preview");
+    setUnlocking(false);
+  }, [paste.id]);
 
   async function unlock() {
     if (unlocking) return;
+    const requestId = ++unlockRequestId.current;
     setUnlocking(true);
     try {
       const unlocked = await api<Paste>(`/api/pastes/${paste.id}/unlock`, {
         method: "POST",
         body: JSON.stringify({ password }),
       });
+      if (requestId !== unlockRequestId.current) return;
       onUnlocked(unlocked);
       setError("");
     } catch (e) {
+      if (requestId !== unlockRequestId.current) return;
       setError((e as Error).message);
     } finally {
-      setUnlocking(false);
+      if (requestId === unlockRequestId.current) setUnlocking(false);
     }
   }
 
