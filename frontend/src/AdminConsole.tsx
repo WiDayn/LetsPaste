@@ -1082,6 +1082,18 @@ function AdminPasteTable({
           {copyFeedback.message}
         </div>
       )}
+      {hasError && pastes.length > 0 && !loading && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="alert">
+          <span className="inline-flex min-w-0 items-center gap-2">
+            <AlertTriangle className="shrink-0" size={16} />
+            <span className="break-words">刷新 Paste 失败，当前显示上一次结果：{error}</span>
+          </span>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            <RotateCcw size={14} />
+            重试加载
+          </Button>
+        </div>
+      )}
       <div className="md:hidden">
         {pastes.length === 0 ? (
           renderEmptyState()
@@ -1289,6 +1301,18 @@ function AdminUserTable({
 
   return (
     <div>
+      {hasError && users.length > 0 && !loading && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="alert">
+          <span className="inline-flex min-w-0 items-center gap-2">
+            <AlertTriangle className="shrink-0" size={16} />
+            <span className="break-words">刷新用户失败，当前显示上一次结果：{error}</span>
+          </span>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            <RotateCcw size={14} />
+            重试加载
+          </Button>
+        </div>
+      )}
       <div className="md:hidden">
         {users.length === 0 ? (
           renderEmptyState()
