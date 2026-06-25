@@ -63,6 +63,8 @@ export default function AdminConsole({
   const hasUserFilters = userFilters.search.trim().length > 0 || Boolean(userFilters.role);
   const settingsDirty = draft.siteName !== settings.siteName || draft.allowAnonymousPaste !== settings.allowAnonymousPaste;
   const settingsInvalid = draft.siteName.trim().length === 0;
+  const canAttemptSaveSettings = settingsDirty && !savingSettings;
+  const saveSettingsLabel = savingSettings ? "保存中" : settingsInvalid ? "检查站点名称" : "保存设置";
   const siteNameInputId = "admin-site-name";
   const siteNameErrorId = "admin-site-name-error";
 
@@ -439,9 +441,9 @@ export default function AdminConsole({
               description="关闭后，访客仍可浏览公开内容，但创建 Paste 前需要登录。"
             />
             <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={saveSettings} disabled={savingSettings || !settingsDirty || settingsInvalid}>
+              <Button onClick={saveSettings} disabled={!canAttemptSaveSettings}>
                 <Save size={16} />
-                {savingSettings ? "保存中" : "保存设置"}
+                {saveSettingsLabel}
               </Button>
               <Button variant="outline" onClick={resetSettingsDraft} disabled={savingSettings || !settingsDirty}>
                 <RotateCcw size={16} />
