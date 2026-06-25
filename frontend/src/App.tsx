@@ -1723,6 +1723,7 @@ function CreateStudio({
   const formatSelectId = "create-paste-format";
   const languageSelectId = "create-paste-language";
   const passwordInputId = "create-paste-password";
+  const passwordHelpId = "create-paste-password-help";
   const expiryInputId = "create-paste-expiry";
   const expiryErrorId = "create-paste-expiry-error";
   const settingsPanelId = "create-paste-settings-panel";
@@ -1749,6 +1750,7 @@ function CreateStudio({
   const identitySummary = authed ? "归属账号" : settings.allowAnonymousPaste ? "匿名发布" : "需要登录";
   const identityTone: "neutral" | "red" | "blue" = authed ? "blue" : settings.allowAnonymousPaste ? "neutral" : "red";
   const publishLabel = busy ? "发布中" : !canPost ? "需要登录" : !hasBody ? "先输入内容" : invalidExpiry ? "时间无效" : "发布 Paste";
+  const draftStatusMessage = draftSaved ? "草稿已保存到本次浏览会话。" : draftReset ? "草稿已清空。" : "";
   const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
     { label: hasBody ? `${form.content.length} 字符` : "正文为空", tone: hasBody ? "neutral" : "red" },
     ...(draftSaved ? [{ label: "草稿已保存", tone: "blue" as const }] : []),
@@ -1938,6 +1940,9 @@ function CreateStudio({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {draftStatusMessage}
+          </span>
           {summaryBadges.map((item) => (
             <Badge key={item.label} tone={item.tone}>
               {item.label}
@@ -2031,7 +2036,19 @@ function CreateStudio({
               </Field>
               {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
               <Field label="访问密码" htmlFor={passwordInputId}>
-                <SecretInput id={passwordInputId} {...preciseCredentialInputProps} autoComplete="new-password" placeholder="可留空" revealLabel="访问密码" value={form.password} onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))} />
+                <SecretInput
+                  id={passwordInputId}
+                  {...preciseCredentialInputProps}
+                  autoComplete="new-password"
+                  aria-describedby={passwordHelpId}
+                  placeholder="可留空"
+                  revealLabel="访问密码"
+                  value={form.password}
+                  onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))}
+                />
+                <p id={passwordHelpId} className="text-xs leading-5 text-zinc-500">
+                  访问密码只随本次发布提交，不会写入浏览器草稿。
+                </p>
               </Field>
               <Field label="自动销毁" htmlFor={expiryInputId}>
                 <Input
