@@ -26,11 +26,13 @@ export default function AdminConsole({
   settings,
   setSettings,
   onOpen,
+  openingPasteId,
   currentUser,
 }: {
   settings: SiteSettings;
   setSettings: (s: SiteSettings) => void;
   onOpen: (paste: Paste) => void;
+  openingPasteId: string | null;
   currentUser: User;
 }) {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -272,7 +274,15 @@ export default function AdminConsole({
             )}
           </div>
           {loadingPastes && <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status">正在筛选 Paste...</div>}
-          <AdminPasteTable pastes={pastes} loading={loadingPastes} filtersActive={hasPasteFilters} onClearFilters={clearPasteFilters} onOpen={onOpen} onDelete={setPasteToDelete} />
+          <AdminPasteTable
+            pastes={pastes}
+            loading={loadingPastes}
+            openingPasteId={openingPasteId}
+            filtersActive={hasPasteFilters}
+            onClearFilters={clearPasteFilters}
+            onOpen={onOpen}
+            onDelete={setPasteToDelete}
+          />
         </div>
       )}
 
@@ -564,6 +574,7 @@ function AdminBreakdown({ title, rows }: { title: string; rows: [string, number]
 function AdminPasteTable({
   pastes,
   loading,
+  openingPasteId,
   filtersActive,
   onClearFilters,
   onOpen,
@@ -571,6 +582,7 @@ function AdminPasteTable({
 }: {
   pastes: Paste[];
   loading: boolean;
+  openingPasteId: string | null;
   filtersActive: boolean;
   onClearFilters: () => void;
   onOpen: (paste: Paste) => void;
@@ -611,8 +623,13 @@ function AdminPasteTable({
             pastes.map((paste) => (
             <tr key={paste.id} className="hover:bg-zinc-50">
               <td className="px-4 py-3">
-                <button className="max-w-[300px] truncate font-medium hover:underline" onClick={() => onOpen(paste)}>
-                  {paste.title}
+                <button
+                  className="max-w-[300px] truncate font-medium hover:underline disabled:cursor-wait disabled:text-zinc-500 disabled:no-underline"
+                  disabled={openingPasteId === paste.id}
+                  aria-busy={openingPasteId === paste.id || undefined}
+                  onClick={() => onOpen(paste)}
+                >
+                  {openingPasteId === paste.id ? "打开中..." : paste.title}
                 </button>
                 <div className="text-xs text-zinc-500">{paste.id}</div>
               </td>

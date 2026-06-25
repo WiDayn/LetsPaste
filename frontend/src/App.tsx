@@ -208,12 +208,14 @@ export function App() {
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [selected, setSelected] = useState<Paste | null>(null);
+  const [openingPasteId, setOpeningPasteId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
   const listRequestId = useRef(0);
   const listViewRef = useRef<View | null>(null);
+  const openRequestId = useRef(0);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -271,8 +273,12 @@ export function App() {
   }
 
   async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste) {
+    if (openingPasteId === id) return false;
+    const requestId = ++openRequestId.current;
+    setOpeningPasteId(id);
     try {
       const next = await api<Paste>(`/api/pastes/${id}`);
+      if (requestId !== openRequestId.current) return false;
       setSelected(next);
       setView(targetView);
       clearMessage();
@@ -283,6 +289,7 @@ export function App() {
       if (updateUrl) writeRoute(pasteRoute(id, targetView));
       return true;
     } catch (e) {
+      if (requestId !== openRequestId.current) return false;
       if (e instanceof ApiError && e.status === 423) {
         setSelected({
           id,
@@ -305,6 +312,8 @@ export function App() {
       setSelected(null);
       showError(e);
       return false;
+    } finally {
+      if (requestId === openRequestId.current) setOpeningPasteId(null);
     }
   }
 
@@ -445,6 +454,7 @@ export function App() {
             title="公开 Paste"
             pastes={pastes}
             loading={listLoading}
+            openingPasteId={openingPasteId}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "explore")}
             onUnlocked={(paste) => {
@@ -464,6 +474,7 @@ export function App() {
             title="我的 Paste"
             pastes={pastes}
             loading={listLoading}
+            openingPasteId={openingPasteId}
             selected={selected}
             onOpen={(paste) => requestOpenPaste(paste, "mine")}
             onUnlocked={(paste) => {
@@ -483,7 +494,7 @@ export function App() {
         {view === "account" && user && <AccountPanel user={user} onLogout={logout} />}
         {view === "admin" && isAdmin && user && (
           <Suspense fallback={<ContentLoading />}>
-            <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} currentUser={user} />
+            <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} openingPasteId={openingPasteId} currentUser={user} />
           </Suspense>
         )}
         {view === "admin" && !isAdmin && <AdminGate onAuth={setUser} />}
@@ -1163,6 +1174,7 @@ function PasteWorkspace({
   title,
   pastes,
   loading,
+  openingPasteId,
   selected,
   onOpen,
   onUnlocked,
@@ -1174,6 +1186,7 @@ function PasteWorkspace({
   title: string;
   pastes: Paste[];
   loading: boolean;
+  openingPasteId: string | null;
   selected: Paste | null;
   onOpen: (paste: Paste) => void;
   onUnlocked: (paste: Paste) => void;
@@ -1271,6 +1284,7 @@ function PasteWorkspace({
           <PasteIndex
             pastes={filtered}
             loading={loading}
+            openingPasteId={openingPasteId}
             selectedId={selected?.id}
             onOpen={onOpen}
             onDelete={onDelete}
@@ -1291,7 +1305,7 @@ function PasteWorkspace({
               onRevealIndex={() => setIndexCollapsed(false)}
             />
           ) : (
-            <WorkspaceInsight pastes={pastes} loading={loading} onCreate={onCreate} onOpen={onOpen} />
+            <WorkspaceInsight pastes={pastes} loading={loading} openingPasteId={openingPasteId} onCreate={onCreate} onOpen={onOpen} />
           )}
         </section>
       </div>
@@ -1302,6 +1316,7 @@ function PasteWorkspace({
 function PasteIndex({
   pastes,
   loading,
+  openingPasteId,
   selectedId,
   onOpen,
   onDelete,
@@ -1313,6 +1328,7 @@ function PasteIndex({
 }: {
   pastes: Paste[];
   loading: boolean;
+  openingPasteId: string | null;
   selectedId?: string;
   onOpen: (paste: Paste) => void;
   onDelete?: (paste: Paste) => void;
@@ -1361,9 +1377,15 @@ function PasteIndex({
             )}
           >
             <div className="flex items-start gap-2">
-              <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(paste)}>
+              <button
+                className="min-w-0 flex-1 text-left disabled:cursor-wait disabled:opacity-70"
+                disabled={openingPasteId === paste.id}
+                aria-busy={openingPasteId === paste.id || undefined}
+                onClick={() => onOpen(paste)}
+              >
                 <div className="line-clamp-2 text-sm font-medium leading-5">{paste.title}</div>
                 <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{paste.id}</div>
+                {openingPasteId === paste.id && <div className="mt-2 text-xs font-medium text-sky-700">正在打开...</div>}
               </button>
               {onDelete && (
                 <Button className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700" variant="ghost" size="icon" title="删除 Paste" onClick={() => onDelete(paste)}>
@@ -1389,7 +1411,19 @@ function PasteIndex({
   );
 }
 
-function WorkspaceInsight({ pastes, loading, onCreate, onOpen }: { pastes: Paste[]; loading: boolean; onCreate: () => void; onOpen: (paste: Paste) => void }) {
+function WorkspaceInsight({
+  pastes,
+  loading,
+  openingPasteId,
+  onCreate,
+  onOpen,
+}: {
+  pastes: Paste[];
+  loading: boolean;
+  openingPasteId: string | null;
+  onCreate: () => void;
+  onOpen: (paste: Paste) => void;
+}) {
   const latest = pastes[0];
   const popular = [...pastes].sort((a, b) => b.views - a.views)[0];
   if (loading && pastes.length === 0) {
@@ -1414,16 +1448,21 @@ function WorkspaceInsight({ pastes, loading, onCreate, onOpen }: { pastes: Paste
         </Button>
       </div>
       {latest && (
-        <InsightRow title="最新 Paste" paste={latest} onOpen={onOpen} />
+        <InsightRow title="最新 Paste" paste={latest} opening={openingPasteId === latest.id} onOpen={onOpen} />
       )}
-      {popular && popular.id !== latest?.id && <InsightRow title="访问最多" paste={popular} onOpen={onOpen} />}
+      {popular && popular.id !== latest?.id && <InsightRow title="访问最多" paste={popular} opening={openingPasteId === popular.id} onOpen={onOpen} />}
     </div>
   );
 }
 
-function InsightRow({ title, paste, onOpen }: { title: string; paste: Paste; onOpen: (paste: Paste) => void }) {
+function InsightRow({ title, paste, opening, onOpen }: { title: string; paste: Paste; opening: boolean; onOpen: (paste: Paste) => void }) {
   return (
-    <button className="w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50" onClick={() => onOpen(paste)}>
+    <button
+      className="w-full rounded-md border border-zinc-200 bg-white p-4 text-left hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-70"
+      disabled={opening}
+      aria-busy={opening || undefined}
+      onClick={() => onOpen(paste)}
+    >
       <div className="mb-2 text-xs font-medium uppercase text-zinc-500">{title}</div>
       <div className="font-medium">{paste.title}</div>
       <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
@@ -1431,6 +1470,7 @@ function InsightRow({ title, paste, onOpen }: { title: string; paste: Paste; onO
         <span>{paste.views} views</span>
         <span>{formatDate(paste.createdAt)}</span>
       </div>
+      {opening && <div className="mt-3 text-xs font-medium text-sky-700">正在打开...</div>}
     </button>
   );
 }
