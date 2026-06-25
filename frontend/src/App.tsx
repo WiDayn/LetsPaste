@@ -1171,12 +1171,17 @@ function CreateStudio({
     };
   }, [form]);
 
+  function updateCreateForm(update: (current: CreateFormState) => CreateFormState) {
+    setForm(update);
+    if (error) setError("");
+  }
+
   function updateFormat(format: Paste["format"]) {
-    setForm({
-      ...form,
+    updateCreateForm((current) => ({
+      ...current,
       format,
-      language: format === "markdown" ? "markdown" : form.language === "markdown" ? "plaintext" : form.language,
-    });
+      language: format === "markdown" ? "markdown" : current.language === "markdown" ? "plaintext" : current.language,
+    }));
   }
 
   function resetDraft() {
@@ -1269,7 +1274,7 @@ function CreateStudio({
               aria-label="Paste 标题"
               placeholder="标题，例如：nginx 502 调试日志"
               value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onChange={(e) => updateCreateForm((current) => ({ ...current, title: e.target.value }))}
             />
             <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="编辑模式">
               <ComposeModeButton active={composeMode === "write"} icon={<Code2 size={14} />} label="编辑" onClick={() => setComposeMode("write")} />
@@ -1290,7 +1295,7 @@ function CreateStudio({
                   className="h-[calc(100vh-17rem)] min-h-[30rem] resize-none"
                   placeholder="粘贴代码、日志或 Markdown..."
                   value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
+                  onChange={(e) => updateCreateForm((current) => ({ ...current, content: e.target.value }))}
                 />
               </div>
             )}
@@ -1311,7 +1316,7 @@ function CreateStudio({
                 </Select>
               </Field>
               <Field label="代码语言" htmlFor={languageSelectId}>
-                <Select id={languageSelectId} value={form.language} disabled={form.format === "markdown"} onChange={(e) => setForm({ ...form, language: e.target.value })}>
+                <Select id={languageSelectId} value={form.language} disabled={form.format === "markdown"} onChange={(e) => updateCreateForm((current) => ({ ...current, language: e.target.value }))}>
                   {languages.map((language) => (
                     <option key={language}>{language}</option>
                   ))}
@@ -1319,7 +1324,7 @@ function CreateStudio({
               </Field>
               {form.format === "markdown" && <p className="text-xs leading-5 text-zinc-500">Markdown 内容会固定标记为 markdown，源格式仍可在查看页切换。</p>}
               <Field label="访问密码" htmlFor={passwordInputId}>
-                <Input id={passwordInputId} placeholder="可留空" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <Input id={passwordInputId} placeholder="可留空" value={form.password} onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))} />
               </Field>
               <Field label="自动销毁" htmlFor={expiryInputId}>
                 <Input
@@ -1331,7 +1336,7 @@ function CreateStudio({
                   aria-invalid={invalidExpiry || undefined}
                   className={cn(invalidExpiry && "border-red-300 bg-red-50")}
                   value={form.expiresInMinutes}
-                  onChange={(e) => setForm({ ...form, expiresInMinutes: e.target.value })}
+                  onChange={(e) => updateCreateForm((current) => ({ ...current, expiresInMinutes: e.target.value }))}
                 />
               </Field>
               {invalidExpiry && <p className="text-xs text-red-600">自动销毁时间需要填写大于等于 1 的整数分钟。</p>}
@@ -1341,8 +1346,8 @@ function CreateStudio({
           <section className="rounded-md border border-zinc-200 bg-white p-4">
             <h2 className="mb-3 font-semibold">访问策略</h2>
             <div className="space-y-3 text-sm">
-              <Toggle checked={form.isPrivate} onChange={(checked) => setForm({ ...form, isPrivate: checked })} label="私密，不出现在公开库" />
-              <Toggle checked={form.burnAfterReading} onChange={(checked) => setForm({ ...form, burnAfterReading: checked })} label="阅后即焚" />
+              <Toggle checked={form.isPrivate} onChange={(checked) => updateCreateForm((current) => ({ ...current, isPrivate: checked }))} label="私密，不出现在公开库" />
+              <Toggle checked={form.burnAfterReading} onChange={(checked) => updateCreateForm((current) => ({ ...current, burnAfterReading: checked }))} label="阅后即焚" />
               <div className="rounded-md bg-zinc-100 p-3 text-xs leading-5 text-zinc-600">
                 {authed
                   ? "当前 Paste 会归属到你的账号，匿名发布开关不会影响已登录用户。"
