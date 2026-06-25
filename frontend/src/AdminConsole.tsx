@@ -10,6 +10,7 @@ import {
   Settings,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "./api";
@@ -18,6 +19,8 @@ import { cn } from "./lib";
 
 type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
+const defaultPasteFilters = { search: "", visibility: "", security: "", format: "", sort: "newest" };
+const defaultUserFilters = { search: "", role: "" };
 
 export default function AdminConsole({
   settings,
@@ -34,8 +37,8 @@ export default function AdminConsole({
   const [stats, setStats] = useState<AdminStats>({});
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [pasteFilters, setPasteFilters] = useState({ search: "", visibility: "", security: "", format: "", sort: "newest" });
-  const [userFilters, setUserFilters] = useState({ search: "", role: "" });
+  const [pasteFilters, setPasteFilters] = useState(defaultPasteFilters);
+  const [userFilters, setUserFilters] = useState(defaultUserFilters);
   const [draft, setDraft] = useState(settings);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [pasteToDelete, setPasteToDelete] = useState<Paste | null>(null);
@@ -44,6 +47,13 @@ export default function AdminConsole({
   const [loadingUsers, setLoadingUsers] = useState(false);
   const pasteRequestId = useRef(0);
   const userRequestId = useRef(0);
+  const hasPasteFilters =
+    pasteFilters.search.trim().length > 0 ||
+    Boolean(pasteFilters.visibility) ||
+    Boolean(pasteFilters.security) ||
+    Boolean(pasteFilters.format) ||
+    pasteFilters.sort !== "newest";
+  const hasUserFilters = userFilters.search.trim().length > 0 || Boolean(userFilters.role);
 
   useEffect(() => {
     void loadStats();
@@ -77,7 +87,8 @@ export default function AdminConsole({
     try {
       const params = new URLSearchParams();
       Object.entries(pasteFilters).forEach(([key, value]) => {
-        if (value && value !== "newest") params.set(key, value);
+        const normalized = key === "search" ? value.trim() : value;
+        if (normalized && normalized !== "newest") params.set(key, normalized);
       });
       const next = (await api<Paste[]>(`/api/admin/pastes?${params.toString()}`)) ?? [];
       if (requestId === pasteRequestId.current) setPastes(next);
@@ -94,7 +105,8 @@ export default function AdminConsole({
     try {
       const params = new URLSearchParams();
       Object.entries(userFilters).forEach(([key, value]) => {
-        if (value) params.set(key, value);
+        const normalized = key === "search" ? value.trim() : value;
+        if (normalized) params.set(key, normalized);
       });
       const next = (await api<User[]>(`/api/admin/users?${params.toString()}`)) ?? [];
       if (requestId === userRequestId.current) setUsers(next);
@@ -149,6 +161,14 @@ export default function AdminConsole({
     }
   }
 
+  function clearPasteFilters() {
+    setPasteFilters({ ...defaultPasteFilters });
+  }
+
+  function clearUserFilters() {
+    setUserFilters({ ...defaultUserFilters });
+  }
+
   return (
     <section className="rounded-md border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
@@ -197,11 +217,21 @@ export default function AdminConsole({
             <div className="relative min-w-64 flex-1">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
               <Input
-                className="pl-9"
+                className="pl-9 pr-9"
                 placeholder="搜索标题、ID 或作者"
                 value={pasteFilters.search}
                 onChange={(e) => setPasteFilters({ ...pasteFilters, search: e.target.value })}
               />
+              {pasteFilters.search.trim() && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  aria-label="清空 Paste 搜索"
+                  onClick={() => setPasteFilters({ ...pasteFilters, search: "" })}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <Select value={pasteFilters.visibility} onChange={(e) => setPasteFilters({ ...pasteFilters, visibility: e.target.value })}>
               <option value="">全部可见性</option>
@@ -226,9 +256,23 @@ export default function AdminConsole({
               <option value="title">标题</option>
             </Select>
             <Button variant="outline" onClick={loadPastes} disabled={loadingPastes}>{loadingPastes ? "筛选中" : "刷新"}</Button>
+            {hasPasteFilters && (
+              <Button variant="ghost" onClick={clearPasteFilters}>
+                <X size={14} />
+                清空筛选
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
+            <span>{hasPasteFilters ? `当前筛选返回 ${pastes.length} 条 Paste` : `共 ${stats.totalPastes ?? pastes.length} 条 Paste`}</span>
+            {hasPasteFilters && (
+              <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={clearPasteFilters}>
+                恢复全部 Paste
+              </button>
+            )}
           </div>
           {loadingPastes && <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status">正在筛选 Paste...</div>}
-          <AdminPasteTable pastes={pastes} onOpen={onOpen} onDelete={setPasteToDelete} />
+          <AdminPasteTable pastes={pastes} loading={loadingPastes} filtersActive={hasPasteFilters} onClearFilters={clearPasteFilters} onOpen={onOpen} onDelete={setPasteToDelete} />
         </div>
       )}
 
@@ -238,11 +282,21 @@ export default function AdminConsole({
             <div className="relative min-w-64 flex-1">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
               <Input
-                className="pl-9"
+                className="pl-9 pr-9"
                 placeholder="搜索用户名"
                 value={userFilters.search}
                 onChange={(e) => setUserFilters({ ...userFilters, search: e.target.value })}
               />
+              {userFilters.search.trim() && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  aria-label="清空用户搜索"
+                  onClick={() => setUserFilters({ ...userFilters, search: "" })}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <Select value={userFilters.role} onChange={(e) => setUserFilters({ ...userFilters, role: e.target.value })}>
               <option value="">全部角色</option>
@@ -250,9 +304,23 @@ export default function AdminConsole({
               <option value="user">用户</option>
             </Select>
             <Button variant="outline" onClick={loadUsers} disabled={loadingUsers}>{loadingUsers ? "筛选中" : "刷新"}</Button>
+            {hasUserFilters && (
+              <Button variant="ghost" onClick={clearUserFilters}>
+                <X size={14} />
+                清空筛选
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
+            <span>{hasUserFilters ? `当前筛选返回 ${users.length} 个用户` : `共 ${stats.totalUsers ?? users.length} 个用户`}</span>
+            {hasUserFilters && (
+              <button type="button" className="font-medium text-zinc-700 hover:text-zinc-950" onClick={clearUserFilters}>
+                恢复全部用户
+              </button>
+            )}
           </div>
           {loadingUsers && <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500" role="status">正在筛选用户...</div>}
-          <AdminUserTable users={users} currentUserId={currentUser.id} onDelete={setUserToDelete} onRoleChange={updateRole} />
+          <AdminUserTable users={users} loading={loadingUsers} filtersActive={hasUserFilters} onClearFilters={clearUserFilters} currentUserId={currentUser.id} onDelete={setUserToDelete} onRoleChange={updateRole} />
         </div>
       )}
 
@@ -493,7 +561,24 @@ function AdminBreakdown({ title, rows }: { title: string; rows: [string, number]
   );
 }
 
-function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen: (id: string) => void; onDelete: (paste: Paste) => void }) {
+function AdminPasteTable({
+  pastes,
+  loading,
+  filtersActive,
+  onClearFilters,
+  onOpen,
+  onDelete,
+}: {
+  pastes: Paste[];
+  loading: boolean;
+  filtersActive: boolean;
+  onClearFilters: () => void;
+  onOpen: (id: string) => void;
+  onDelete: (paste: Paste) => void;
+}) {
+  const emptyTitle = loading ? "正在加载 Paste..." : filtersActive ? "没有符合筛选的 Paste" : "还没有 Paste";
+  const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部 Paste 列表。" : "新建 Paste 后会出现在这里。";
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[880px] text-left text-sm">
@@ -508,7 +593,22 @@ function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-200">
-          {pastes.map((paste) => (
+          {pastes.length === 0 ? (
+            <tr>
+              <td className="px-4 py-12 text-center" colSpan={6}>
+                <FileText className="mx-auto mb-3 text-zinc-400" size={24} />
+                <div className="font-medium text-zinc-800">{emptyTitle}</div>
+                <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
+                {!loading && filtersActive && (
+                  <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
+                    <X size={14} />
+                    清空筛选
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ) : (
+            pastes.map((paste) => (
             <tr key={paste.id} className="hover:bg-zinc-50">
               <td className="px-4 py-3">
                 <button className="max-w-[300px] truncate font-medium hover:underline" onClick={() => onOpen(paste.id)}>
@@ -533,7 +633,8 @@ function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen
                 </Button>
               </td>
             </tr>
-          ))}
+            ))
+          )}
         </tbody>
       </table>
     </div>
@@ -542,15 +643,24 @@ function AdminPasteTable({ pastes, onOpen, onDelete }: { pastes: Paste[]; onOpen
 
 function AdminUserTable({
   users,
+  loading,
+  filtersActive,
+  onClearFilters,
   currentUserId,
   onDelete,
   onRoleChange,
 }: {
   users: User[];
+  loading: boolean;
+  filtersActive: boolean;
+  onClearFilters: () => void;
   currentUserId: number;
   onDelete: (user: User) => void;
   onRoleChange: (id: number, role: User["role"]) => void;
 }) {
+  const emptyTitle = loading ? "正在加载用户..." : filtersActive ? "没有符合筛选的用户" : "还没有用户";
+  const emptyDescription = loading ? "数据返回后会自动更新列表。" : filtersActive ? "清空筛选后可以回到全部用户列表。" : "新用户注册后会出现在这里。";
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[680px] text-left text-sm">
@@ -563,7 +673,22 @@ function AdminUserTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-200">
-          {users.map((user) => (
+          {users.length === 0 ? (
+            <tr>
+              <td className="px-4 py-12 text-center" colSpan={4}>
+                <Users className="mx-auto mb-3 text-zinc-400" size={24} />
+                <div className="font-medium text-zinc-800">{emptyTitle}</div>
+                <div className="mt-1 text-sm text-zinc-500">{emptyDescription}</div>
+                {!loading && filtersActive && (
+                  <Button className="mt-4" variant="outline" size="sm" onClick={onClearFilters}>
+                    <X size={14} />
+                    清空筛选
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ) : (
+            users.map((user) => (
             <tr key={user.id} className="hover:bg-zinc-50">
               <td className="px-4 py-3 font-medium">{user.username}</td>
               <td className="px-4 py-3">
@@ -583,7 +708,8 @@ function AdminUserTable({
                 )}
               </td>
             </tr>
-          ))}
+            ))
+          )}
         </tbody>
       </table>
     </div>
