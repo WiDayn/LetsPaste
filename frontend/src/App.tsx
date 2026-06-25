@@ -332,6 +332,7 @@ export function App() {
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
+  const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
   const listRequestId = useRef(0);
   const listViewRef = useRef<View | null>(null);
   const openRequestId = useRef(0);
@@ -522,6 +523,10 @@ export function App() {
   }
 
   function changeView(next: View) {
+    if (view === "account" && next !== "account" && accountCredentialUnsaved) {
+      showError(new Error("请先保存新的登录凭据，再离开用户信息。"));
+      return;
+    }
     if (next === view && !selected) {
       clearMessage();
       return;
@@ -543,6 +548,7 @@ export function App() {
     setUser(null);
     setView("explore");
     setSelected(null);
+    setAccountCredentialUnsaved(false);
     writeRoute(viewRoute("explore"), "replace");
   }
 
@@ -660,7 +666,7 @@ export function App() {
           />
         )}
 
-        {view === "account" && user && <AccountPanel user={user} onLogout={logout} />}
+        {view === "account" && user && <AccountPanel user={user} onLogout={logout} onUnsavedCredentialChange={setAccountCredentialUnsaved} />}
         {view === "admin" && isAdmin && user && (
           <Suspense fallback={<ContentLoading />}>
             <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} openingPasteId={openingPasteId} currentUser={user} />
@@ -770,6 +776,18 @@ function useTransientFlag(durationMs = 1400) {
   return { active, show, clear };
 }
 
+function useBeforeUnloadWarning(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [enabled]);
+}
+
 function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void; showTrigger?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -788,6 +806,9 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
   const emptyMnemonicError = "请输入助记码。";
   const title = generatedMnemonic ? "保存助记码" : mode === "login" ? "助记码登录" : "生成助记码";
   const loginError = Boolean(error) && mode === "login" && !generatedMnemonic;
+  const generatedMnemonicUnsaved = Boolean(generatedMnemonic) && !mnemonicSaved;
+
+  useBeforeUnloadWarning(generatedMnemonicUnsaved);
 
   async function submit() {
     if (busy) return;
@@ -828,7 +849,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
 
   function closeDialog() {
     if (busy) return;
-    if (generatedMnemonic && !mnemonicSaved) {
+    if (generatedMnemonicUnsaved) {
       setError("请先保存助记码，再点击“我已保存”。");
       return;
     }
@@ -1171,7 +1192,15 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
   );
 }
 
-function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) {
+function AccountPanel({
+  user,
+  onLogout,
+  onUnsavedCredentialChange,
+}: {
+  user: User;
+  onLogout: () => void;
+  onUnsavedCredentialChange: (unsaved: boolean) => void;
+}) {
   const [currentSecret, setCurrentSecret] = useState("");
   const [newSecret, setNewSecret] = useState("");
   const [resultSecret, setResultSecret] = useState("");
@@ -1187,6 +1216,14 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   const accountMessageId = "account-secret-message";
   const emptyCurrentSecretError = isAdmin ? "请输入当前管理员密码。" : "请输入当前助记码。";
   const currentSecretError = messageTone === "error" && (message === emptyCurrentSecretError || message === "当前密钥不正确");
+  const resultSecretUnsaved = Boolean(resultSecret) && !resultSecretSaved;
+
+  useBeforeUnloadWarning(resultSecretUnsaved);
+
+  useEffect(() => {
+    onUnsavedCredentialChange(resultSecretUnsaved);
+    return () => onUnsavedCredentialChange(false);
+  }, [onUnsavedCredentialChange, resultSecretUnsaved]);
 
   function showInfo(text: string) {
     setMessageTone("info");
@@ -1209,7 +1246,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
       window.setTimeout(() => document.getElementById(currentSecretInputId)?.focus(), 0);
       return;
     }
-    if (resultSecret && !resultSecretSaved) {
+    if (resultSecretUnsaved) {
       showErrorMessage("请先保存新的登录凭据，再继续修改。");
       return;
     }
@@ -1253,7 +1290,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
   }
 
   function handleLogout() {
-    if (resultSecret && !resultSecretSaved) {
+    if (resultSecretUnsaved) {
       showErrorMessage("请先保存新的登录凭据，再退出登录。");
       return;
     }
