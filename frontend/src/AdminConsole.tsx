@@ -6,6 +6,8 @@ import {
   Flame,
   LayoutDashboard,
   Lock,
+  RotateCcw,
+  Save,
   Search,
   Settings,
   Trash2,
@@ -42,6 +44,7 @@ export default function AdminConsole({
   const [pasteFilters, setPasteFilters] = useState(defaultPasteFilters);
   const [userFilters, setUserFilters] = useState(defaultUserFilters);
   const [draft, setDraft] = useState(settings);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [pasteToDelete, setPasteToDelete] = useState<Paste | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -56,10 +59,16 @@ export default function AdminConsole({
     Boolean(pasteFilters.format) ||
     pasteFilters.sort !== "newest";
   const hasUserFilters = userFilters.search.trim().length > 0 || Boolean(userFilters.role);
+  const settingsDirty = draft.siteName !== settings.siteName || draft.allowAnonymousPaste !== settings.allowAnonymousPaste;
+  const settingsInvalid = draft.siteName.trim().length === 0;
 
   useEffect(() => {
     void loadStats();
   }, []);
+
+  useEffect(() => {
+    setDraft(settings);
+  }, [settings.allowAnonymousPaste, settings.siteName]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -120,13 +129,35 @@ export default function AdminConsole({
   }
 
   async function saveSettings() {
+    if (savingSettings) return;
+    if (!settingsDirty) {
+      setNotice({ message: "没有需要保存的设置", tone: "success" });
+      return;
+    }
+    if (settingsInvalid) {
+      setNotice({ message: "站点名称不能为空", tone: "error" });
+      return;
+    }
+    setSavingSettings(true);
+    setNotice(null);
     try {
-      const next = await api<SiteSettings>("/api/admin/settings", { method: "PUT", body: JSON.stringify(draft) });
+      const next = await api<SiteSettings>("/api/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify({ siteName: draft.siteName.trim(), allowAnonymousPaste: draft.allowAnonymousPaste }),
+      });
       setSettings(next);
+      setDraft(next);
       setNotice({ message: "设置已保存", tone: "success" });
     } catch (e) {
       setNotice({ message: (e as Error).message, tone: "error" });
+    } finally {
+      setSavingSettings(false);
     }
+  }
+
+  function resetSettingsDraft() {
+    setDraft(settings);
+    setNotice({ message: "已还原未保存的修改", tone: "success" });
   }
 
   async function removePaste(paste: Paste) {
@@ -337,12 +368,38 @@ export default function AdminConsole({
       {tab === "settings" && (
         <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_360px]">
           <section className="space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold">发布策略</h2>
+                <p className="mt-1 text-sm text-zinc-500">调整前台显示名称和匿名发布入口。</p>
+              </div>
+              <Badge tone={settingsDirty ? "amber" : "green"}>{settingsDirty ? "有未保存修改" : "已保存"}</Badge>
+            </div>
             <div>
               <label className="mb-2 block text-sm font-medium">站点名称</label>
-              <Input value={draft.siteName} onChange={(e) => setDraft({ ...draft, siteName: e.target.value })} />
+              <Input value={draft.siteName} disabled={savingSettings} aria-invalid={settingsInvalid} onChange={(e) => setDraft({ ...draft, siteName: e.target.value })} />
+              {settingsInvalid && <p className="mt-2 text-xs text-red-600">站点名称不能为空。</p>}
             </div>
-            <Toggle checked={draft.allowAnonymousPaste} onChange={(checked) => setDraft({ ...draft, allowAnonymousPaste: checked })} label="允许匿名发布 Paste" />
-            <Button onClick={saveSettings}>保存设置</Button>
+            <Toggle
+              checked={draft.allowAnonymousPaste}
+              disabled={savingSettings}
+              onChange={(checked) => setDraft({ ...draft, allowAnonymousPaste: checked })}
+              label="允许匿名发布 Paste"
+              description="关闭后，访客仍可浏览公开内容，但创建 Paste 前需要登录。"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={saveSettings} disabled={savingSettings || !settingsDirty || settingsInvalid}>
+                <Save size={16} />
+                {savingSettings ? "保存中" : "保存设置"}
+              </Button>
+              <Button variant="outline" onClick={resetSettingsDraft} disabled={savingSettings || !settingsDirty}>
+                <RotateCcw size={16} />
+                还原修改
+              </Button>
+            </div>
+            <p className="text-xs text-zinc-500" role="status">
+              {savingSettings ? "正在写入后台设置..." : settingsDirty ? "修改尚未保存，离开设置页前请保存或还原。" : "当前设置已和服务器同步。"}
+            </p>
           </section>
           <aside className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-600">
             <h2 className="mb-2 font-semibold text-zinc-900">策略说明</h2>
@@ -456,11 +513,26 @@ function Badge({
   );
 }
 
-function Toggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+function Toggle({
+  checked,
+  description,
+  disabled = false,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  description?: string;
+  disabled?: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-zinc-200 px-3 py-2">
-      <span>{label}</span>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label className={cn("flex cursor-pointer items-center justify-between gap-3 rounded-md border border-zinc-200 px-3 py-2", disabled && "cursor-not-allowed opacity-60")}>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-zinc-900">{label}</span>
+        {description && <span className="mt-1 block text-xs leading-5 text-zinc-500">{description}</span>}
+      </span>
+      <input className="h-4 w-4 shrink-0" type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     </label>
   );
 }
