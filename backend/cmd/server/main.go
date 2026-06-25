@@ -421,7 +421,7 @@ func (a *app) adminUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	var users []user
+	users := []user{}
 	for rows.Next() {
 		var u user
 		rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt)
@@ -482,7 +482,7 @@ func (a *app) loadPasteRaw(id string, passwordHash *sql.NullString, burn *int) (
 }
 
 func scanPastes(rows *sql.Rows) []paste {
-	var out []paste
+	out := []paste{}
 	for rows.Next() {
 		var p paste
 		var privateInt, hasPassword, burn int

@@ -77,9 +77,9 @@ export function App() {
 
   async function refreshList() {
     try {
-      if (view === "admin") setPastes(await api<Paste[]>("/api/admin/pastes"));
-      else if (view === "mine") setPastes(await api<Paste[]>("/api/my/pastes"));
-      else setPastes(await api<Paste[]>("/api/pastes"));
+      if (view === "admin") setPastes((await api<Paste[]>("/api/admin/pastes")) ?? []);
+      else if (view === "mine") setPastes((await api<Paste[]>("/api/my/pastes")) ?? []);
+      else setPastes((await api<Paste[]>("/api/pastes")) ?? []);
     } catch (e) {
       setMessage((e as Error).message);
     }
@@ -252,14 +252,14 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
 function AdminPanel({ settings, setSettings, pastes, onOpen, onRefresh }: { settings: SiteSettings; setSettings: (s: SiteSettings) => void; pastes: Paste[]; onOpen: (id: string) => void; onRefresh: () => void }) {
   const [users, setUsers] = useState<User[]>([]);
   const [draft, setDraft] = useState(settings);
-  useEffect(() => { api<User[]>("/api/admin/users").then(setUsers).catch(() => {}); }, []);
+  useEffect(() => { api<User[]>("/api/admin/users").then((data) => setUsers(data ?? [])).catch(() => {}); }, []);
   async function save() {
     const next = await api<SiteSettings>("/api/admin/settings", { method: "PUT", body: JSON.stringify(draft) });
     setSettings(next);
   }
   async function removeUser(id: number) {
     await api(`/api/admin/users/${id}`, { method: "DELETE" });
-    setUsers(await api<User[]>("/api/admin/users"));
+    setUsers((await api<User[]>("/api/admin/users")) ?? []);
     onRefresh();
   }
   async function removePaste(id: string) {
