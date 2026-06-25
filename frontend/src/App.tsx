@@ -1713,6 +1713,7 @@ function CreateStudio({
   onCreated: (p: Paste) => void;
 }) {
   const [form, setForm] = useState<CreateFormState>(() => loadCreateDraft());
+  const [draftRestored, setDraftRestored] = useState(() => hasCreateDraft(form));
   const [draftSaved, setDraftSaved] = useState(false);
   const [draftReset, setDraftReset] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1764,11 +1765,14 @@ function CreateStudio({
     ? hasPassword
       ? "草稿已保存到本次浏览会话，访问密码不会写入草稿。"
       : "草稿已保存到本次浏览会话。"
+    : draftRestored
+      ? "已恢复上次会话的草稿，访问密码不会写入草稿。"
     : draftReset
       ? "草稿已清空。"
       : "";
   const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
     { label: hasBody ? `${form.content.length} 字符` : "正文为空", tone: hasBody ? "neutral" : "red" },
+    ...(draftRestored && !draftSaved ? [{ label: "草稿已恢复", tone: "blue" as const }] : []),
     ...(draftSaved ? [{ label: "草稿已保存", tone: "blue" as const }] : []),
     ...(hasPassword ? [{ label: "草稿不含密码", tone: "amber" as const }] : []),
     ...(draftReset ? [{ label: "草稿已清空", tone: "neutral" as const }] : []),
@@ -1784,6 +1788,7 @@ function CreateStudio({
     if (!hasCreateDraft(form)) {
       clearCreateDraft();
       setDraftSaved(false);
+      setDraftRestored(false);
       return;
     }
     setDraftReset(false);
@@ -1833,6 +1838,7 @@ function CreateStudio({
       formRef.current = next;
       return next;
     });
+    setDraftRestored(false);
     if (error) setError("");
   }
 
@@ -1850,6 +1856,7 @@ function CreateStudio({
     formRef.current = emptyForm;
     setForm(emptyForm);
     setDraftSaved(false);
+    setDraftRestored(false);
     setDraftReset(true);
     setError("");
     setComposeMode("write");
@@ -1914,6 +1921,7 @@ function CreateStudio({
       formRef.current = emptyForm;
       setForm(emptyForm);
       setDraftSaved(false);
+      setDraftRestored(false);
       onCreated(paste);
     } catch (e) {
       setError((e as Error).message);
