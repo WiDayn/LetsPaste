@@ -738,6 +738,7 @@ export function App() {
             onOpen={(paste) => requestOpenPaste(paste, "explore")}
             onUnlocked={handleUnlockedPaste}
             onCreate={() => changeView("create")}
+            onRefresh={() => void refreshList()}
             justCreated={selected?.id === createdPasteId}
             onClose={() => {
               setSelected(null);
@@ -757,6 +758,7 @@ export function App() {
             onOpen={(paste) => requestOpenPaste(paste, "mine")}
             onUnlocked={handleUnlockedPaste}
             onCreate={() => changeView("create")}
+            onRefresh={() => void refreshList()}
             justCreated={selected?.id === createdPasteId}
             onClose={() => {
               setSelected(null);
@@ -2168,6 +2170,7 @@ function PasteWorkspace({
   onOpen,
   onUnlocked,
   onCreate,
+  onRefresh,
   onClose,
   onDelete,
   privateMode = false,
@@ -2181,6 +2184,7 @@ function PasteWorkspace({
   onOpen: (paste: Paste) => void;
   onUnlocked: (paste: Paste) => void;
   onCreate: () => void;
+  onRefresh: () => void;
   onClose: () => void;
   onDelete?: (paste: Paste) => void;
   privateMode?: boolean;
@@ -2229,6 +2233,10 @@ function PasteWorkspace({
           <p className={cn("text-sm text-zinc-500", hasSelectedPaste && "hidden sm:block")}>索引只负责定位，选中后默认把主空间留给 Paste 内容。</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size={hasSelectedPaste ? "sm" : "default"} onClick={onRefresh} disabled={loading} aria-busy={loading || undefined}>
+            <RotateCcw size={16} />
+            {loading ? "刷新中" : "刷新"}
+          </Button>
           {selected && (
             <Button variant="outline" size="sm" onClick={() => setIndexCollapsed((current) => !current)}>
               {indexCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
