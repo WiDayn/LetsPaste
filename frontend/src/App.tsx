@@ -2443,7 +2443,7 @@ function PasteViewer({
   if (lockedWithoutContent) {
     return (
       <form
-        className="min-h-full p-4"
+        className="p-4 lg:min-h-full"
         onSubmit={(e) => {
           e.preventDefault();
           void unlock();
@@ -2505,7 +2505,7 @@ function PasteViewer({
   }
 
   return (
-    <article className="flex h-full min-h-[calc(100vh-9.5rem)] min-w-0 flex-col">
+    <article className="flex min-h-0 min-w-0 flex-col lg:h-full lg:min-h-[calc(100vh-9.5rem)]">
       <div className="shrink-0 border-b border-zinc-200 bg-white p-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
@@ -2578,7 +2578,7 @@ function PasteViewer({
           </div>
         )}
       </div>
-      <div className="min-h-[24rem] flex-1 overflow-auto">
+      <div className="min-h-[18rem] flex-1 overflow-auto md:min-h-[22rem] lg:min-h-[24rem]">
         {paste.format === "markdown" && markdownMode === "source" ? (
           <pre className="m-0 min-h-full overflow-auto bg-white p-5 font-mono text-sm leading-6 text-zinc-900">
             <code>{paste.content ?? ""}</code>
