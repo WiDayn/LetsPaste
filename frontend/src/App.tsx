@@ -2021,8 +2021,6 @@ function PasteWorkspace({
               paste={selected}
               onUnlocked={onUnlocked}
               onClose={onClose}
-              indexCollapsed={indexCollapsed}
-              onRevealIndex={() => setIndexCollapsed(false)}
             />
           ) : (
             <WorkspaceInsight pastes={pastes} loading={loading} openingPasteId={openingPasteId} onCreate={onCreate} onOpen={onOpen} />
@@ -2225,14 +2223,10 @@ function PasteViewer({
   paste,
   onUnlocked,
   onClose,
-  indexCollapsed,
-  onRevealIndex,
 }: {
   paste: Paste;
   onUnlocked: (p: Paste) => void;
   onClose: () => void;
-  indexCollapsed: boolean;
-  onRevealIndex: () => void;
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -2343,12 +2337,6 @@ function PasteViewer({
         }}
       >
         <div className="mb-4 flex flex-wrap justify-end gap-2">
-          {indexCollapsed && (
-            <Button type="button" variant="outline" size="sm" onClick={onRevealIndex}>
-              <PanelLeftOpen size={14} />
-              显示索引
-            </Button>
-          )}
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             <PanelLeftClose size={14} />
             返回列表
@@ -2403,29 +2391,54 @@ function PasteViewer({
 
   return (
     <article className="flex h-full min-h-[calc(100vh-9.5rem)] min-w-0 flex-col">
-      <div className="shrink-0 border-b border-zinc-200 bg-white p-4">
+      <div className="shrink-0 border-b border-zinc-200 bg-white p-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <h2
               ref={viewerHeadingRef}
               tabIndex={-1}
-              className="break-all rounded-sm text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/20"
+              className="inline-block max-w-full break-all rounded-sm text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/20 sm:text-lg"
             >
               {paste.title}
             </h2>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
+            <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-xs text-zinc-500">
               <span>{paste.id}</span>
               <span>{formatViews(paste.views)}</span>
               <span>{formatDate(paste.createdAt)}</span>
               {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
             </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
+              <Badge>{paste.language}</Badge>
+              <PasteBadges paste={paste} />
+            </div>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
-            {indexCollapsed && (
-              <Button variant="outline" size="sm" onClick={onRevealIndex}>
-                <PanelLeftOpen size={14} />
-                显示索引
-              </Button>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+            {paste.format === "markdown" && (
+              <div className="flex rounded-md border border-zinc-200 bg-zinc-50 p-1" role="group" aria-label="Markdown 显示模式">
+                <button
+                  type="button"
+                  aria-pressed={markdownMode === "preview"}
+                  className={cn(
+                    "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                    markdownMode === "preview" && "bg-white shadow",
+                  )}
+                  onClick={() => setMarkdownMode("preview")}
+                >
+                  预览
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={markdownMode === "source"}
+                  className={cn(
+                    "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                    markdownMode === "source" && "bg-white shadow",
+                  )}
+                  onClick={() => setMarkdownMode("source")}
+                >
+                  源格式
+                </button>
+              </div>
             )}
             <Button variant="ghost" size="sm" onClick={onClose}>
               <PanelLeftClose size={14} />
@@ -2443,37 +2456,6 @@ function PasteViewer({
               {copyStatus.status}
             </span>
           </div>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
-          <Badge>{paste.language}</Badge>
-          <PasteBadges paste={paste} />
-          {paste.format === "markdown" && (
-            <div className="ml-0 flex rounded-md border border-zinc-200 bg-zinc-50 p-1 sm:ml-auto" role="group" aria-label="Markdown 显示模式">
-              <button
-                type="button"
-                aria-pressed={markdownMode === "preview"}
-                className={cn(
-                  "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
-                  markdownMode === "preview" && "bg-white shadow",
-                )}
-                onClick={() => setMarkdownMode("preview")}
-              >
-                预览
-              </button>
-              <button
-                type="button"
-                aria-pressed={markdownMode === "source"}
-                className={cn(
-                  "h-7 rounded px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
-                  markdownMode === "source" && "bg-white shadow",
-                )}
-                onClick={() => setMarkdownMode("source")}
-              >
-                源格式
-              </button>
-            </div>
-          )}
         </div>
         {copyError && (
           <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">
