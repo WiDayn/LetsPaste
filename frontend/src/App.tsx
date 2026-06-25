@@ -728,6 +728,21 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
     setError("复制失败，请手动选中助记码复制。");
   }
 
+  function updateMode(nextMode: "login" | "register") {
+    setMode(nextMode);
+    if (error) setError("");
+  }
+
+  function updateMnemonic(value: string) {
+    setMnemonic(value);
+    if (error) setError("");
+  }
+
+  function updateMnemonicSaved(checked: boolean) {
+    setMnemonicSaved(checked);
+    if (error) setError("");
+  }
+
   return (
     <>
       {showTrigger && (
@@ -759,7 +774,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "login" && "bg-white shadow")}
                 aria-pressed={mode === "login"}
                 disabled={busy || Boolean(generatedMnemonic)}
-                onClick={() => setMode("login")}
+                onClick={() => updateMode("login")}
               >
                 登录
               </button>
@@ -768,7 +783,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                 className={cn("h-9 flex-1 rounded px-3 text-sm", mode === "register" && "bg-white shadow")}
                 aria-pressed={mode === "register"}
                 disabled={busy || Boolean(generatedMnemonic)}
-                onClick={() => setMode("register")}
+                onClick={() => updateMode("register")}
               >
                 生成助记码
               </button>
@@ -785,7 +800,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
               </h2>
               {mode === "login" ? (
                 <>
-                  <Input aria-label="助记码" placeholder="输入你的助记码" value={mnemonic} disabled={busy} autoFocus onChange={(e) => setMnemonic(e.target.value)} />
+                  <Input aria-label="助记码" placeholder="输入你的助记码" value={mnemonic} disabled={busy} autoFocus onChange={(e) => updateMnemonic(e.target.value)} />
                   <p id="auth-dialog-description" className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
                 </>
               ) : (
@@ -808,7 +823,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
                       className="mt-1 h-4 w-4 shrink-0"
                       type="checkbox"
                       checked={mnemonicSaved}
-                      onChange={(e) => setMnemonicSaved(e.target.checked)}
+                      onChange={(e) => updateMnemonicSaved(e.target.checked)}
                     />
                     <span>我已经保存这组助记码，之后登录会用到它。</span>
                   </label>
@@ -931,6 +946,16 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
     }
   }
 
+  function updateUsername(value: string) {
+    setUsername(value);
+    if (error) setError("");
+  }
+
+  function updatePassword(value: string) {
+    setPassword(value);
+    if (error) setError("");
+  }
+
   return (
     <section className="mx-auto max-w-md rounded-md border border-zinc-200 bg-white p-6">
       <Shield className="mb-4 text-zinc-500" />
@@ -943,8 +968,8 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
           void submit();
         }}
       >
-        <Input aria-label="管理员用户名" placeholder="管理员用户名" value={username} disabled={busy} onChange={(e) => setUsername(e.target.value)} />
-        <Input aria-label="管理员密码" placeholder="管理员密码" type="password" value={password} disabled={busy} onChange={(e) => setPassword(e.target.value)} />
+        <Input aria-label="管理员用户名" placeholder="管理员用户名" value={username} disabled={busy} onChange={(e) => updateUsername(e.target.value)} />
+        <Input aria-label="管理员密码" placeholder="管理员密码" type="password" value={password} disabled={busy} onChange={(e) => updatePassword(e.target.value)} />
         {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
         <Button className="w-full" type="submit" disabled={busy || !username.trim() || !password}>
           {busy ? "登录中" : "登录后台"}
@@ -1014,6 +1039,20 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
     onLogout();
   }
 
+  function clearEditableMessage() {
+    if (!resultSecret || resultSecretSaved) setMessage("");
+  }
+
+  function updateCurrentSecret(value: string) {
+    setCurrentSecret(value);
+    clearEditableMessage();
+  }
+
+  function updateNewSecret(value: string) {
+    setNewSecret(value);
+    clearEditableMessage();
+  }
+
   return (
     <section className="mx-auto max-w-3xl rounded-md border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
@@ -1049,7 +1088,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             type={isAdmin ? "password" : "text"}
             value={currentSecret}
             disabled={busy}
-            onChange={(e) => setCurrentSecret(e.target.value)}
+            onChange={(e) => updateCurrentSecret(e.target.value)}
           />
           <Input
             aria-label={isAdmin ? "新管理员密码" : "新助记码"}
@@ -1057,7 +1096,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             type={isAdmin ? "password" : "text"}
             value={newSecret}
             disabled={busy}
-            onChange={(e) => setNewSecret(e.target.value)}
+            onChange={(e) => updateNewSecret(e.target.value)}
           />
           <p className="text-xs leading-5 text-zinc-500">留空时系统会自动生成一组新的登录凭据。</p>
           <Button type="submit" disabled={busy || !currentSecret.trim() || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
