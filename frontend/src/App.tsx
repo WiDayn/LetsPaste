@@ -490,9 +490,11 @@ export function App() {
           setView("explore");
           setSelected(null);
           setPastes([]);
+          setListError("");
+          showError(new Error("登录状态已失效，请重新登录。"));
+          return;
         }
       }
-      showError(e);
       setListError((e as Error).message);
       if (!sameListView) setPastes([]);
     } finally {
