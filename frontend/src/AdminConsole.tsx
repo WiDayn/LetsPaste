@@ -44,12 +44,14 @@ export default function AdminConsole({
   onOpen,
   openingPasteId,
   currentUser,
+  onUnsavedSettingsChange,
 }: {
   settings: SiteSettings;
   setSettings: (s: SiteSettings) => void;
   onOpen: (paste: Paste) => void;
   openingPasteId: string | null;
   currentUser: User;
+  onUnsavedSettingsChange: (unsaved: boolean) => void;
 }) {
   const [tab, setTab] = useState<AdminTab>("overview");
   const [stats, setStats] = useState<AdminStats>({});
@@ -105,6 +107,11 @@ export default function AdminConsole({
   useEffect(() => {
     setDraft(settings);
   }, [settings.allowAnonymousPaste, settings.siteName]);
+
+  useEffect(() => {
+    onUnsavedSettingsChange(settingsDirty);
+    return () => onUnsavedSettingsChange(false);
+  }, [onUnsavedSettingsChange, settingsDirty]);
 
   useEffect(() => {
     if (tab !== "pastes") return;

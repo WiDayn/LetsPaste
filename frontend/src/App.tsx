@@ -367,8 +367,10 @@ export function App() {
   const [deleteTarget, setDeleteTarget] = useState<Paste | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
+  const [adminSettingsUnsaved, setAdminSettingsUnsaved] = useState(false);
   const viewRef = useRef<View>(initialRouteRef.current?.view ?? "explore");
   const accountCredentialUnsavedRef = useRef(false);
+  const adminSettingsUnsavedRef = useRef(false);
   const listRequestId = useRef(0);
   const listViewRef = useRef<View | null>(null);
   const openRequestId = useRef(0);
@@ -418,6 +420,12 @@ export function App() {
   useEffect(() => {
     accountCredentialUnsavedRef.current = accountCredentialUnsaved;
   }, [accountCredentialUnsaved]);
+
+  useEffect(() => {
+    adminSettingsUnsavedRef.current = adminSettingsUnsaved;
+  }, [adminSettingsUnsaved]);
+
+  useBeforeUnloadWarning(adminSettingsUnsaved);
 
   async function refreshList() {
     const requestId = ++listRequestId.current;
@@ -541,6 +549,7 @@ export function App() {
   }
 
   function requestOpenPaste(paste: Paste, targetView: View = "explore") {
+    if (blockUnsavedNavigation(targetView)) return;
     setCreatedPasteId(null);
     if (paste.burnAfterReading) {
       setBurnOpenTarget({ paste, targetView });
@@ -551,7 +560,7 @@ export function App() {
 
   async function applyRoute(route: AppRoute) {
     const nextView = route.pasteId ? route.targetView ?? "explore" : route.view;
-    if (blockUnsavedCredentialNavigation(nextView)) return;
+    if (blockUnsavedNavigation(nextView)) return;
     clearMessage();
     if (route.pasteId) {
       await openPaste(route.pasteId, false, route.targetView ?? "explore");
@@ -579,7 +588,7 @@ export function App() {
   }
 
   function changeView(next: View) {
-    if (blockUnsavedCredentialNavigation(next)) return;
+    if (blockUnsavedNavigation(next)) return;
     if (next === view && !selected) {
       clearMessage();
       return;
@@ -604,6 +613,7 @@ export function App() {
     setSelected(null);
     setCreatedPasteId(null);
     setAccountCredentialUnsaved(false);
+    setAdminSettingsUnsaved(false);
     writeRoute(viewRoute("explore"), "replace");
   }
 
@@ -621,11 +631,18 @@ export function App() {
     setMessage((e as Error).message);
   }
 
-  function blockUnsavedCredentialNavigation(nextView: View) {
-    if (viewRef.current !== "account" || nextView === "account" || !accountCredentialUnsavedRef.current) return false;
-    showError(new Error("请先保存新的登录凭据，再离开用户信息。"));
-    writeRoute(viewRoute("account"), "replace");
-    return true;
+  function blockUnsavedNavigation(nextView: View) {
+    if (viewRef.current === "account" && nextView !== "account" && accountCredentialUnsavedRef.current) {
+      showError(new Error("请先保存新的登录凭据，再离开用户信息。"));
+      writeRoute(viewRoute("account"), "replace");
+      return true;
+    }
+    if (viewRef.current === "admin" && nextView !== "admin" && adminSettingsUnsavedRef.current) {
+      showError(new Error("请先保存或还原后台设置，再离开后台。"));
+      writeRoute(viewRoute("admin"), "replace");
+      return true;
+    }
+    return false;
   }
 
   return (
@@ -745,7 +762,7 @@ export function App() {
         {view === "account" && user && <AccountPanel user={user} onLogout={logout} onUnsavedCredentialChange={setAccountCredentialUnsaved} />}
         {view === "admin" && isAdmin && user && (
           <Suspense fallback={<ContentLoading />}>
-            <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} openingPasteId={openingPasteId} currentUser={user} />
+            <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} openingPasteId={openingPasteId} currentUser={user} onUnsavedSettingsChange={setAdminSettingsUnsaved} />
           </Suspense>
         )}
         {view === "admin" && !isAdmin && <AdminGate onAuth={setUser} />}
