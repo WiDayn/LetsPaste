@@ -1341,7 +1341,7 @@ function ConfirmDialog({
 }
 
 function AdminGate({ currentUser, onAuth }: { currentUser: User | null; onAuth: (u: User) => void }) {
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1428,6 +1428,7 @@ function AdminGate({ currentUser, onAuth }: { currentUser: User | null; onAuth: 
           placeholder="管理员用户名"
           value={username}
           disabled={busy}
+          autoFocus
           onChange={(e) => updateUsername(e.target.value)}
         />
         <SecretInput
