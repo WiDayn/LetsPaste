@@ -671,7 +671,7 @@ function AuthDialog({ onAuth, showTrigger = true }: { onAuth: (u: User) => void;
               </h2>
               {mode === "login" ? (
                 <>
-                  <Input placeholder="输入你的助记码" value={mnemonic} disabled={busy} autoFocus onChange={(e) => setMnemonic(e.target.value)} />
+                  <Input aria-label="助记码" placeholder="输入你的助记码" value={mnemonic} disabled={busy} autoFocus onChange={(e) => setMnemonic(e.target.value)} />
                   <p id="auth-dialog-description" className="text-xs leading-5 text-zinc-500">普通用户无需用户名和密码。保存好助记码，它就是你的登录凭据。</p>
                 </>
               ) : (
@@ -829,8 +829,8 @@ function AdminGate({ onAuth }: { onAuth: (u: User) => void }) {
           void submit();
         }}
       >
-        <Input placeholder="管理员用户名" value={username} disabled={busy} onChange={(e) => setUsername(e.target.value)} />
-        <Input placeholder="管理员密码" type="password" value={password} disabled={busy} onChange={(e) => setPassword(e.target.value)} />
+        <Input aria-label="管理员用户名" placeholder="管理员用户名" value={username} disabled={busy} onChange={(e) => setUsername(e.target.value)} />
+        <Input aria-label="管理员密码" placeholder="管理员密码" type="password" value={password} disabled={busy} onChange={(e) => setPassword(e.target.value)} />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button className="w-full" type="submit" disabled={busy || !username.trim() || !password}>
           {busy ? "登录中" : "登录后台"}
@@ -930,6 +930,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
         >
           <h2 className="font-semibold">{isAdmin ? "修改管理员密码" : "修改助记码"}</h2>
           <Input
+            aria-label={isAdmin ? "当前管理员密码" : "当前助记码"}
             placeholder={isAdmin ? "当前管理员密码" : "当前助记码"}
             type={isAdmin ? "password" : "text"}
             value={currentSecret}
@@ -937,6 +938,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             onChange={(e) => setCurrentSecret(e.target.value)}
           />
           <Input
+            aria-label={isAdmin ? "新管理员密码" : "新助记码"}
             placeholder={isAdmin ? "新管理员密码，留空则自动生成" : "新助记码，留空则自动生成"}
             type={isAdmin ? "password" : "text"}
             value={newSecret}
@@ -1388,7 +1390,7 @@ function PasteWorkspace({
           <div className="space-y-3 border-b border-zinc-200 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
-              <Input className="pl-9 pr-9" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input className="pl-9 pr-9" aria-label="搜索 Paste" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
               {hasSearch && (
                 <button
                   type="button"
@@ -1414,7 +1416,7 @@ function PasteWorkspace({
                 <div className="text-zinc-500">过期</div>
               </div>
             </div>
-            <Select className="w-full" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <Select className="w-full" aria-label="排序 Paste" value={sort} onChange={(e) => setSort(e.target.value)}>
               <option value="newest">最新优先</option>
               <option value="views">访问最多</option>
               <option value="title">标题 A-Z</option>
@@ -1535,7 +1537,7 @@ function PasteIndex({
                 {openingPasteId === paste.id && <div className="mt-2 text-xs font-medium text-sky-700">正在打开...</div>}
               </button>
               {onDelete && (
-                <Button className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700" variant="ghost" size="icon" title="删除 Paste" onClick={() => onDelete(paste)}>
+                <Button className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700" variant="ghost" size="icon" title="删除 Paste" aria-label={`删除 ${paste.title}`} onClick={() => onDelete(paste)}>
                   <Trash2 size={15} />
                 </Button>
               )}

@@ -61,6 +61,7 @@ export default function AdminConsole({
   const hasUserFilters = userFilters.search.trim().length > 0 || Boolean(userFilters.role);
   const settingsDirty = draft.siteName !== settings.siteName || draft.allowAnonymousPaste !== settings.allowAnonymousPaste;
   const settingsInvalid = draft.siteName.trim().length === 0;
+  const siteNameInputId = "admin-site-name";
 
   useEffect(() => {
     void loadStats();
@@ -255,6 +256,7 @@ export default function AdminConsole({
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
               <Input
                 className="pl-9 pr-9"
+                aria-label="搜索 Paste"
                 placeholder="搜索标题、ID 或作者"
                 value={pasteFilters.search}
                 onChange={(e) => setPasteFilters({ ...pasteFilters, search: e.target.value })}
@@ -270,24 +272,24 @@ export default function AdminConsole({
                 </button>
               )}
             </div>
-            <Select value={pasteFilters.visibility} onChange={(e) => setPasteFilters({ ...pasteFilters, visibility: e.target.value })}>
+            <Select aria-label="筛选可见性" value={pasteFilters.visibility} onChange={(e) => setPasteFilters({ ...pasteFilters, visibility: e.target.value })}>
               <option value="">全部可见性</option>
               <option value="public">公开</option>
               <option value="private">私密</option>
             </Select>
-            <Select value={pasteFilters.security} onChange={(e) => setPasteFilters({ ...pasteFilters, security: e.target.value })}>
+            <Select aria-label="筛选保护策略" value={pasteFilters.security} onChange={(e) => setPasteFilters({ ...pasteFilters, security: e.target.value })}>
               <option value="">全部策略</option>
               <option value="active">有效</option>
               <option value="expired">已过期</option>
               <option value="password">有密码</option>
               <option value="burn">阅后即焚</option>
             </Select>
-            <Select value={pasteFilters.format} onChange={(e) => setPasteFilters({ ...pasteFilters, format: e.target.value })}>
+            <Select aria-label="筛选内容格式" value={pasteFilters.format} onChange={(e) => setPasteFilters({ ...pasteFilters, format: e.target.value })}>
               <option value="">全部格式</option>
               <option value="code">代码</option>
               <option value="markdown">Markdown</option>
             </Select>
-            <Select value={pasteFilters.sort} onChange={(e) => setPasteFilters({ ...pasteFilters, sort: e.target.value })}>
+            <Select aria-label="排序 Paste" value={pasteFilters.sort} onChange={(e) => setPasteFilters({ ...pasteFilters, sort: e.target.value })}>
               <option value="newest">最新</option>
               <option value="views">访问量</option>
               <option value="title">标题</option>
@@ -328,6 +330,7 @@ export default function AdminConsole({
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
               <Input
                 className="pl-9 pr-9"
+                aria-label="搜索用户"
                 placeholder="搜索用户名"
                 value={userFilters.search}
                 onChange={(e) => setUserFilters({ ...userFilters, search: e.target.value })}
@@ -343,7 +346,7 @@ export default function AdminConsole({
                 </button>
               )}
             </div>
-            <Select value={userFilters.role} onChange={(e) => setUserFilters({ ...userFilters, role: e.target.value })}>
+            <Select aria-label="筛选用户角色" value={userFilters.role} onChange={(e) => setUserFilters({ ...userFilters, role: e.target.value })}>
               <option value="">全部角色</option>
               <option value="admin">管理员</option>
               <option value="user">用户</option>
@@ -380,8 +383,8 @@ export default function AdminConsole({
               <Badge tone={settingsDirty ? "amber" : "green"}>{settingsDirty ? "有未保存修改" : "已保存"}</Badge>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium">站点名称</label>
-              <Input value={draft.siteName} disabled={savingSettings} aria-invalid={settingsInvalid} onChange={(e) => setDraft({ ...draft, siteName: e.target.value })} />
+              <label className="mb-2 block text-sm font-medium" htmlFor={siteNameInputId}>站点名称</label>
+              <Input id={siteNameInputId} value={draft.siteName} disabled={savingSettings} aria-invalid={settingsInvalid} onChange={(e) => setDraft({ ...draft, siteName: e.target.value })} />
               {settingsInvalid && <p className="mt-2 text-xs text-red-600">站点名称不能为空。</p>}
             </div>
             <Toggle
@@ -788,7 +791,13 @@ function AdminUserTable({
             <tr key={user.id} className="hover:bg-zinc-50">
               <td className="px-4 py-3 font-medium">{user.username}</td>
               <td className="px-4 py-3">
-                <Select value={user.role} disabled={user.id === currentUserId} title={user.id === currentUserId ? "不能在这里修改自己的角色" : undefined} onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}>
+                <Select
+                  aria-label={`修改 ${user.username} 的角色`}
+                  value={user.role}
+                  disabled={user.id === currentUserId}
+                  title={user.id === currentUserId ? "不能在这里修改自己的角色" : undefined}
+                  onChange={(e) => onRoleChange(user.id, e.target.value as User["role"])}
+                >
                   <option value="user">用户</option>
                   <option value="admin">管理员</option>
                 </Select>
