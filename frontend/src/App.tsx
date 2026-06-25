@@ -216,7 +216,7 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#f4f5f2] text-zinc-950">
       <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-4 px-4 py-4">
           <button className="flex items-center gap-3" onClick={() => changeView("explore")}>
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-zinc-950 text-white">
               <Code2 size={20} />
@@ -244,7 +244,7 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-5">
+      <main className="mx-auto max-w-[1680px] px-4 py-4">
         {message && (
           <div className="mb-4 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <AlertTriangle size={16} />
@@ -384,29 +384,34 @@ function CreateStudio({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <section className="rounded-md border border-zinc-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
           <div>
             <h1 className="text-lg font-semibold">创建 Paste</h1>
-            <p className="text-sm text-zinc-500">编辑区优先，选项集中在右侧，发布前可直接预览。</p>
+            <p className="text-sm text-zinc-500">编辑器占据主画布，预览和设置不再挤压输入空间。</p>
           </div>
           <Button disabled={!canPost || !form.content.trim() || busy} onClick={submit}>
             <Plus size={16} />
             {busy ? "发布中" : "发布 Paste"}
           </Button>
         </div>
-        <div className="grid gap-4 p-4 lg:grid-cols-2">
-          <div className="space-y-3">
-            <Input placeholder="标题，例如：nginx 502 调试日志" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <Textarea placeholder="粘贴代码、日志或 Markdown..." value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
-          </div>
-          <div className="min-h-[28rem] overflow-hidden rounded-md border border-zinc-200 bg-zinc-950">
+        <div className="space-y-4 p-4">
+          <Input placeholder="标题，例如：nginx 502 调试日志" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <Textarea
+            className="min-h-[58vh]"
+            placeholder="粘贴代码、日志或 Markdown..."
+            value={form.content}
+            onChange={(e) => setForm({ ...form, content: e.target.value })}
+          />
+          <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-950">
             <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-xs text-zinc-300">
-              <span>实时预览</span>
+              <span>预览</span>
               <span>{form.format === "markdown" ? "Markdown" : form.language}</span>
             </div>
-            <PasteContent content={form.content || "预览会显示在这里。"} language={form.language} format={form.format as Paste["format"]} />
+            <div className="max-h-80 overflow-auto">
+              <PasteContent content={form.content || "预览会显示在这里。"} language={form.language} format={form.format as Paste["format"]} />
+            </div>
           </div>
         </div>
       </section>
@@ -492,45 +497,51 @@ function PasteWorkspace({
   const expiringCount = pastes.filter((paste) => paste.expiresAt).length;
 
   return (
-    <div className="space-y-4">
-      <section className="grid gap-3 md:grid-cols-3">
-        <MetricCard icon={<Database size={18} />} label={privateMode ? "我的记录" : "公开记录"} value={pastes.length} />
-        <MetricCard icon={<Lock size={18} />} label="带保护策略" value={protectedCount} />
-        <MetricCard icon={<Clock size={18} />} label="设置过期" value={expiringCount} />
-      </section>
-
-      <section className="rounded-md border border-zinc-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
-          <div>
-            <h1 className="text-lg font-semibold">{title}</h1>
-            <p className="text-sm text-zinc-500">浏览、搜索和快速打开 Paste。右侧用于查看内容或操作建议。</p>
-          </div>
-          <Button onClick={onCreate}>
-            <Plus size={16} />
-            新建 Paste
-          </Button>
+    <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
+        <div>
+          <h1 className="text-lg font-semibold">{title}</h1>
+          <p className="text-sm text-zinc-500">左侧是轻量索引，主要空间留给 Paste 内容本身。</p>
         </div>
-        <div className="grid min-h-[34rem] lg:grid-cols-[minmax(0,1fr)_440px]">
-          <div className="border-b border-zinc-200 lg:border-b-0 lg:border-r">
-            <div className="flex flex-wrap gap-2 border-b border-zinc-200 p-3">
-              <div className="relative min-w-64 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
-                <Input className="pl-9" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
-              </div>
-              <Select value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option value="newest">最新优先</option>
-                <option value="views">访问最多</option>
-                <option value="title">标题 A-Z</option>
-              </Select>
+        <Button onClick={onCreate}>
+          <Plus size={16} />
+          新建 Paste
+        </Button>
+      </div>
+      <div className="grid min-h-[calc(100vh-9.5rem)] lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="border-b border-zinc-200 bg-zinc-50 lg:border-b-0 lg:border-r">
+          <div className="space-y-3 border-b border-zinc-200 p-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
+              <Input className="pl-9" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <PasteTable pastes={filtered} selectedId={selected?.id} onOpen={onOpen} />
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-md border border-zinc-200 bg-white p-2">
+                <div className="font-semibold">{pastes.length}</div>
+                <div className="text-zinc-500">{privateMode ? "我的" : "公开"}</div>
+              </div>
+              <div className="rounded-md border border-zinc-200 bg-white p-2">
+                <div className="font-semibold">{protectedCount}</div>
+                <div className="text-zinc-500">保护</div>
+              </div>
+              <div className="rounded-md border border-zinc-200 bg-white p-2">
+                <div className="font-semibold">{expiringCount}</div>
+                <div className="text-zinc-500">过期</div>
+              </div>
+            </div>
+            <Select className="w-full" value={sort} onChange={(e) => setSort(e.target.value)}>
+              <option value="newest">最新优先</option>
+              <option value="views">访问最多</option>
+              <option value="title">标题 A-Z</option>
+            </Select>
           </div>
-          <div className="bg-zinc-50">
-            {selected ? <PasteViewer paste={selected} onUnlocked={onUnlocked} /> : <WorkspaceInsight pastes={pastes} onCreate={onCreate} onOpen={onOpen} />}
-          </div>
-        </div>
-      </section>
-    </div>
+          <PasteIndex pastes={filtered} selectedId={selected?.id} onOpen={onOpen} />
+        </aside>
+        <section className="min-w-0 bg-white">
+          {selected ? <PasteViewer paste={selected} onUnlocked={onUnlocked} /> : <WorkspaceInsight pastes={pastes} onCreate={onCreate} onOpen={onOpen} />}
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -544,52 +555,46 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
   );
 }
 
-function PasteTable({ pastes, selectedId, onOpen }: { pastes: Paste[]; selectedId?: string; onOpen: (id: string) => void }) {
+function PasteIndex({ pastes, selectedId, onOpen }: { pastes: Paste[]; selectedId?: string; onOpen: (id: string) => void }) {
   if (pastes.length === 0) {
     return (
-      <div className="grid min-h-72 place-items-center p-8 text-center">
+      <div className="grid min-h-72 place-items-center p-6 text-center">
         <div>
           <FileText className="mx-auto mb-3 text-zinc-400" />
           <p className="font-medium">没有匹配的 Paste</p>
-          <p className="text-sm text-zinc-500">调整搜索条件，或创建一个新的分享。</p>
+          <p className="text-sm text-zinc-500">调整搜索条件，或创建新的分享。</p>
         </div>
       </div>
     );
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[680px] text-left text-sm">
-        <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
-          <tr>
-            <th className="px-4 py-3 font-medium">Paste</th>
-            <th className="px-4 py-3 font-medium">类型</th>
-            <th className="px-4 py-3 font-medium">策略</th>
-            <th className="px-4 py-3 font-medium">访问</th>
-            <th className="px-4 py-3 font-medium">创建时间</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-200">
-          {pastes.map((paste) => (
-            <tr key={paste.id} className={cn("cursor-pointer hover:bg-zinc-50", selectedId === paste.id && "bg-sky-50")} onClick={() => onOpen(paste.id)}>
-              <td className="px-4 py-3">
-                <div className="max-w-[280px] truncate font-medium">{paste.title}</div>
-                <div className="text-xs text-zinc-500">{paste.id}</div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1">
-                  <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
-                  <Badge>{paste.language}</Badge>
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <PasteBadges paste={paste} />
-              </td>
-              <td className="px-4 py-3 text-zinc-600">{paste.views}</td>
-              <td className="px-4 py-3 text-zinc-500">{formatDate(paste.createdAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="max-h-[calc(100vh-19rem)] overflow-y-auto p-2">
+      <div className="space-y-2">
+        {pastes.map((paste) => (
+          <button
+            key={paste.id}
+            className={cn(
+              "w-full rounded-md border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-300 hover:bg-zinc-50",
+              selectedId === paste.id && "border-sky-300 bg-sky-50",
+            )}
+            onClick={() => onOpen(paste.id)}
+          >
+            <div className="line-clamp-2 text-sm font-medium leading-5">{paste.title}</div>
+            <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{paste.id}</div>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
+              <Badge>{paste.language}</Badge>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+              <span>{paste.views} views</span>
+              {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1">
+              <PasteBadges paste={paste} />
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -667,8 +672,8 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
   }
 
   return (
-    <article className="h-full">
-      <div className="border-b border-zinc-200 bg-white p-4">
+    <article className="h-full min-w-0">
+      <div className="sticky top-0 z-10 border-b border-zinc-200 bg-white p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="break-all text-lg font-semibold">{paste.title}</h2>
@@ -690,7 +695,7 @@ function PasteViewer({ paste, onUnlocked }: { paste: Paste; onUnlocked: (p: Past
           <PasteBadges paste={paste} />
         </div>
       </div>
-      <div className="max-h-[calc(100vh-18rem)] overflow-auto">
+      <div className="max-h-[calc(100vh-15rem)] overflow-auto">
         <PasteContent content={paste.content ?? ""} language={paste.language} format={paste.format} light />
       </div>
     </article>
