@@ -2036,9 +2036,9 @@ function PasteWorkspace({
           </Button>
         </div>
       </div>
-      <div className={cn("grid min-h-[calc(100vh-9.5rem)]", selected && indexCollapsed ? "lg:grid-cols-[minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)]")}>
-        <aside className={cn("border-b border-zinc-200 bg-zinc-50 lg:border-b-0 lg:border-r", selected && indexCollapsed && "hidden")}>
-          <div className="space-y-3 border-b border-zinc-200 p-3">
+      <div className={cn("grid lg:min-h-[calc(100vh-9.5rem)]", selected && indexCollapsed ? "lg:grid-cols-[minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)]")}>
+        <aside className={cn("min-h-0 border-b border-zinc-200 bg-zinc-50 lg:flex lg:flex-col lg:border-b-0 lg:border-r", selected && indexCollapsed && "hidden")}>
+          <div className="shrink-0 space-y-3 border-b border-zinc-200 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
               <Input className="pl-9 pr-9" aria-label="搜索 Paste" placeholder="搜索标题、ID、语言或作者" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -2101,7 +2101,7 @@ function PasteWorkspace({
             privateMode={privateMode}
           />
         </aside>
-        <section className="min-w-0 bg-white">
+        <section className="min-w-0 bg-white lg:min-h-0">
           {selected ? (
             <PasteViewer
               paste={selected}
@@ -2175,7 +2175,7 @@ function PasteIndex({
   const hiddenCount = pastes.length - visiblePastes.length;
 
   return (
-    <div className="max-h-[calc(100vh-19rem)] overflow-y-auto p-2">
+    <div className="min-h-0 p-2 lg:flex-1 lg:overflow-y-auto">
       {loading && (
         <div className="mb-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-500" role="status" aria-live="polite">
           正在刷新列表...
