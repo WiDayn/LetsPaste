@@ -2880,6 +2880,8 @@ function PasteViewer({
   const permalink = pastePermalink(paste.id);
   const canToggleWrap = paste.format !== "markdown" || markdownMode === "source";
   const hasSecondaryActions = canToggleWrap || Boolean(onDelete);
+  const unlockLabel = paste.burnAfterReading ? "解锁并销毁" : "解锁";
+  const unlockingLabel = paste.burnAfterReading ? "解锁并销毁中" : "解锁中";
 
   function focusActionsButton() {
     actionsRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
@@ -3159,7 +3161,7 @@ function PasteViewer({
               密码不会保存到浏览器，解锁后仅显示当前 Paste 内容。
             </p>
           </div>
-          <Button type="submit" disabled={unlocking} aria-busy={unlocking || undefined}>{unlocking ? "解锁中" : "解锁"}</Button>
+          <Button type="submit" disabled={unlocking} aria-busy={unlocking || undefined}>{unlocking ? unlockingLabel : unlockLabel}</Button>
           {error && <p id={passwordErrorId} className="text-sm text-red-600" role="alert">{error}</p>}
         </div>
       </form>
