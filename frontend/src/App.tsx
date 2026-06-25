@@ -2311,10 +2311,10 @@ function PasteViewer({
   }
 
   return (
-    <article className="h-full min-w-0">
-      <div className="sticky top-0 z-10 border-b border-zinc-200 bg-white p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+    <article className="flex h-full min-h-[calc(100vh-9.5rem)] min-w-0 flex-col">
+      <div className="shrink-0 border-b border-zinc-200 bg-white p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
             <h2
               ref={viewerHeadingRef}
               tabIndex={-1}
@@ -2329,7 +2329,7 @@ function PasteViewer({
               {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end">
             {indexCollapsed && (
               <Button variant="outline" size="sm" onClick={onRevealIndex}>
                 <PanelLeftOpen size={14} />
@@ -2353,12 +2353,12 @@ function PasteViewer({
             </span>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
           <Badge>{paste.language}</Badge>
           <PasteBadges paste={paste} />
           {paste.format === "markdown" && (
-            <div className="ml-auto flex rounded-md border border-zinc-200 bg-zinc-50 p-1" role="group" aria-label="Markdown 显示模式">
+            <div className="ml-0 flex rounded-md border border-zinc-200 bg-zinc-50 p-1 sm:ml-auto" role="group" aria-label="Markdown 显示模式">
               <button
                 type="button"
                 aria-pressed={markdownMode === "preview"}
@@ -2384,7 +2384,7 @@ function PasteViewer({
           </div>
         )}
       </div>
-      <div className="max-h-[calc(100vh-15rem)] overflow-auto">
+      <div className="min-h-[24rem] flex-1 overflow-auto">
         {paste.format === "markdown" && markdownMode === "source" ? (
           <pre className="m-0 min-h-full overflow-auto bg-white p-5 font-mono text-sm leading-6 text-zinc-900">
             <code>{paste.content ?? ""}</code>
