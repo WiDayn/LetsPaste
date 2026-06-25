@@ -1141,7 +1141,7 @@ function AccountPanel({ user, onLogout }: { user: User; onLogout: () => void }) 
             disabled={busy}
             onChange={(e) => updateNewSecret(e.target.value)}
           />
-          <p className="text-xs leading-5 text-zinc-500">留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">手动输入时不设最短长度；留空时系统会自动生成一组新的登录凭据。</p>
           <Button type="submit" disabled={busy || !currentSecret.trim() || (Boolean(resultSecret) && !resultSecretSaved)}>{busy ? "保存中" : "保存修改"}</Button>
           {message && (
             <div
@@ -1201,11 +1201,14 @@ function CreateStudio({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const titleInputId = "create-paste-title";
   const contentInputId = "create-paste-content";
+  const contentErrorId = "create-paste-content-error";
   const formatSelectId = "create-paste-format";
   const languageSelectId = "create-paste-language";
   const passwordInputId = "create-paste-password";
   const expiryInputId = "create-paste-expiry";
   const expiryErrorId = "create-paste-expiry-error";
+  const emptyContentError = "请输入内容后再发布。";
+  const expiryError = "自动销毁时间需要填写大于等于 1 的整数分钟。";
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
@@ -1217,7 +1220,8 @@ function CreateStudio({
   const invalidExpiry = hasExpiry && (!Number.isInteger(parsedExpiry) || parsedExpiry < 1);
   const hasBody = form.content.trim().length > 0;
   const hasFormInput = hasCreateDraft(form) || form.password.trim().length > 0;
-  const canAttemptSubmit = canPost && hasBody && !busy;
+  const canAttemptSubmit = canPost && !busy;
+  const contentError = error === emptyContentError;
   const protectionSummary = [
     form.password.trim() ? "访问密码" : "",
     form.burnAfterReading ? "阅后即焚" : "",
@@ -1296,12 +1300,14 @@ function CreateStudio({
       return;
     }
     if (!form.content.trim()) {
-      setError("请输入内容后再发布。");
+      setComposeMode("write");
+      setError(emptyContentError);
+      window.setTimeout(() => document.getElementById(contentInputId)?.focus(), 0);
       return;
     }
     if (invalidExpiry) {
       setSettingsOpen(true);
-      setError("自动销毁时间需要填写大于等于 1 的整数分钟。");
+      setError(expiryError);
       window.setTimeout(() => document.getElementById(expiryInputId)?.focus(), 0);
       return;
     }
@@ -1388,11 +1394,18 @@ function CreateStudio({
                 </div>
                 <Textarea
                   id={contentInputId}
-                  className="h-[calc(100vh-17rem)] min-h-[30rem] resize-none"
+                  className={cn("h-[calc(100vh-17rem)] min-h-[30rem] resize-none", contentError && "border-red-300 bg-red-50")}
                   placeholder="粘贴代码、日志或 Markdown..."
                   value={form.content}
+                  aria-invalid={contentError || undefined}
+                  aria-describedby={contentError ? contentErrorId : undefined}
                   onChange={(e) => updateCreateForm((current) => ({ ...current, content: e.target.value }))}
                 />
+                {contentError && (
+                  <p id={contentErrorId} className="mt-2 text-xs text-red-600" role="alert">
+                    {emptyContentError}
+                  </p>
+                )}
               </div>
             )}
             {showPreview && <DraftPreview content={deferredContent} language={form.language} format={form.format as Paste["format"]} pending={previewPending} />}
