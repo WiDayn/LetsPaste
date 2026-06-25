@@ -1,6 +1,7 @@
 import hljs from "highlight.js/lib/common";
 import { useMemo } from "react";
 import { cn } from "./lib";
+import { syntaxHighlightMaxCharacters } from "./rendering";
 
 export default function CodeContent({
   content,
@@ -15,6 +16,7 @@ export default function CodeContent({
 }) {
   const html = useMemo(() => {
     if (!content) return "";
+    if (content.length > syntaxHighlightMaxCharacters) return escapeHTML(content);
     try {
       if (language && language !== "plaintext" && hljs.getLanguage(language)) {
         return hljs.highlight(content, { language }).value;
