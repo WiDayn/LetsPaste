@@ -299,18 +299,19 @@ export function App() {
     } catch (e) {
       if (requestId !== openRequestId.current) return false;
       if (e instanceof ApiError && e.status === 423) {
+        const lockedPaste = e.body.paste ?? knownPaste;
         setSelected({
-          id,
-          title: knownPaste?.title ?? "需要密码",
-          language: knownPaste?.language ?? "plaintext",
-          format: knownPaste?.format ?? "code",
-          isPrivate: knownPaste?.isPrivate ?? false,
+          id: lockedPaste?.id ?? id,
+          title: lockedPaste?.title ?? "需要密码",
+          language: lockedPaste?.language ?? "plaintext",
+          format: lockedPaste?.format ?? "code",
+          isPrivate: lockedPaste?.isPrivate ?? false,
           hasPassword: true,
-          burnAfterReading: knownPaste?.burnAfterReading ?? false,
-          expiresAt: knownPaste?.expiresAt,
-          views: knownPaste?.views ?? 0,
-          ownerUsername: knownPaste?.ownerUsername,
-          createdAt: knownPaste?.createdAt ?? "",
+          burnAfterReading: lockedPaste?.burnAfterReading ?? false,
+          expiresAt: lockedPaste?.expiresAt,
+          views: lockedPaste?.views ?? 0,
+          ownerUsername: lockedPaste?.ownerUsername,
+          createdAt: lockedPaste?.createdAt ?? "",
         });
         setView(targetView);
         if (updateUrl) writeRoute(pasteRoute(id, targetView));
@@ -1676,6 +1677,11 @@ function PasteViewer({
         <div className="mx-auto max-w-sm space-y-3 py-4">
           <Lock className="text-zinc-500" />
           <h2 className="break-all font-semibold">{paste.title}</h2>
+          <div className="flex flex-wrap gap-2">
+            <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
+            <Badge>{paste.language}</Badge>
+            <PasteBadges paste={paste} />
+          </div>
           <p className="text-sm text-zinc-500">此 Paste 需要密码，输入访问密码后才能查看内容。</p>
           {paste.burnAfterReading && (
             <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">

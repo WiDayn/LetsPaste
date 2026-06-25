@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -107,5 +108,51 @@ func TestUpdateMySecretAllowsShortSecrets(t *testing.T) {
 				t.Fatal("old secret still works after update")
 			}
 		})
+	}
+}
+
+func TestGetPasteLockedIncludesSafeMetadata(t *testing.T) {
+	a := newTestApp(t)
+	hash, err := bcrypt.GenerateFromPassword([]byte("open-sesame"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	_, err = a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, password_hash, burn_after_reading)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?)`, "protected-direct", "Protected direct link", "secret content", "markdown", "markdown", 0, string(hash), 1)
+	if err != nil {
+		t.Fatalf("insert paste: %v", err)
+	}
+
+	router := chi.NewRouter()
+	router.Get("/api/pastes/{id}", a.getPaste)
+	req := httptest.NewRequest(http.MethodGet, "/api/pastes/protected-direct", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusLocked {
+		t.Fatalf("expected status 423, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	if bytes.Contains(rec.Body.Bytes(), []byte("secret content")) {
+		t.Fatal("locked response leaked paste content")
+	}
+	var payload struct {
+		RequiresPassword bool  `json:"requiresPassword"`
+		Paste            paste `json:"paste"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !payload.RequiresPassword {
+		t.Fatal("expected requiresPassword to be true")
+	}
+	if payload.Paste.ID != "protected-direct" || payload.Paste.Title != "Protected direct link" {
+		t.Fatalf("unexpected paste metadata: %+v", payload.Paste)
+	}
+	if payload.Paste.Content != "" {
+		t.Fatal("locked metadata should not include content")
+	}
+	if !payload.Paste.HasPassword || !payload.Paste.BurnAfterReading {
+		t.Fatalf("expected protected burn metadata, got hasPassword=%v burn=%v", payload.Paste.HasPassword, payload.Paste.BurnAfterReading)
 	}
 }

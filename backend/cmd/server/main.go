@@ -381,7 +381,7 @@ func (a *app) getPaste(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if protected {
-		writeJSON(w, http.StatusLocked, map[string]any{"id": id, "requiresPassword": true})
+		writeJSON(w, http.StatusLocked, map[string]any{"id": id, "requiresPassword": true, "paste": p})
 		return
 	}
 	writeJSON(w, http.StatusOK, p)

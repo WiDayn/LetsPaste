@@ -29,6 +29,9 @@ export type Settings = {
 
 type ApiErrorBody = {
   error?: string;
+  id?: string;
+  paste?: Paste;
+  requiresPassword?: boolean;
 };
 
 export class ApiError extends Error {
