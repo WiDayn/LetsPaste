@@ -403,6 +403,12 @@ export default function AdminConsole({
     selectTab("pastes");
   }
 
+  function showUsersWithFilters(patch: Partial<typeof defaultUserFilters>) {
+    setUserFilters({ ...defaultUserFilters, ...patch });
+    setUserError("");
+    selectTab("users");
+  }
+
   return (
     <section className="rounded-md border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
@@ -498,7 +504,13 @@ export default function AdminConsole({
                 ["限时有效", stats.activeExpiring ?? 0, () => showPastesWithFilters({ security: "expiring" })],
               ]}
             />
-            <AdminBreakdown title="用户角色" rows={[["管理员", stats.adminUsers ?? 0], ["普通用户", Math.max((stats.totalUsers ?? 0) - (stats.adminUsers ?? 0), 0)]]} />
+            <AdminBreakdown
+              title="用户角色"
+              rows={[
+                ["管理员", stats.adminUsers ?? 0, () => showUsersWithFilters({ role: "admin" })],
+                ["普通用户", Math.max((stats.totalUsers ?? 0) - (stats.adminUsers ?? 0), 0), () => showUsersWithFilters({ role: "user" })],
+              ]}
+            />
           </div>
         </div>
       )}
