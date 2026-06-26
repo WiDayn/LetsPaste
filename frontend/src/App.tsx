@@ -340,6 +340,20 @@ function SecretInput({
   );
 }
 
+function ReadonlyCredential({ label, value }: { label: string; value: string }) {
+  return (
+    <textarea
+      {...preciseCredentialInputProps}
+      className="mt-2 min-h-16 w-full resize-none rounded-md border border-amber-200 bg-white/80 p-2 font-mono text-sm leading-5 text-amber-950 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-700/15"
+      aria-label={label}
+      readOnly
+      rows={3}
+      value={value}
+      onFocus={(e) => e.currentTarget.select()}
+    />
+  );
+}
+
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
@@ -1239,7 +1253,7 @@ function AuthDialog({ onAuth, showTrigger = true, triggerLabel = "助记码登�
                       {mnemonicCopyStatus.status}
                     </span>
                   </div>
-                  <div className="mt-2 break-all font-mono text-sm text-amber-950">{generatedMnemonic}</div>
+                  <ReadonlyCredential label="生成的助记码" value={generatedMnemonic} />
                   <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
                     <input
                       id={mnemonicSavedId}
@@ -1785,7 +1799,7 @@ function AccountPanel({
                   {secretCopyStatus.status}
                 </span>
               </div>
-              <div className="mt-2 break-all font-mono text-sm text-amber-950">{resultSecret}</div>
+              <ReadonlyCredential label={isAdmin ? "新的管理员密码" : "新的助记码"} value={resultSecret} />
               <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
                 <input
                   id={resultSecretSavedInputId}
