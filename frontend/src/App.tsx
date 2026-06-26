@@ -403,6 +403,7 @@ export function App() {
   const [deleteTarget, setDeleteTarget] = useState<PasteDeleteTarget | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
   const [createPasswordUnsaved, setCreatePasswordUnsaved] = useState(false);
+  const [createPasswordFocusNonce, setCreatePasswordFocusNonce] = useState(0);
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
   const [adminSettingsUnsaved, setAdminSettingsUnsaved] = useState(false);
   const viewRef = useRef<View>(initialRouteRef.current?.view ?? "explore");
@@ -724,6 +725,7 @@ export function App() {
 
   function blockUnsavedNavigation(nextView: View) {
     if (viewRef.current === "create" && nextView !== "create" && createPasswordUnsavedRef.current) {
+      setCreatePasswordFocusNonce((value) => value + 1);
       showError(new Error("访问密码不会写入草稿，请先清空访问密码或发布 Paste，再离开创建页。"));
       writeRoute(viewRoute("create"), "replace");
       return true;
@@ -802,6 +804,7 @@ export function App() {
             authed={Boolean(user)}
             settings={settings}
             onAuth={setUser}
+            passwordFocusNonce={createPasswordFocusNonce}
             onCreated={(paste) => {
               const nextView = user ? "mine" : "explore";
               setSelected(paste);
@@ -1704,7 +1707,7 @@ function AccountPanel({
               onChange={(e) => updateNewSecret(e.target.value)}
             />
           )}
-          <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据会直接保存；留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据不设最小长度，会直接保存；留空时系统会自动生成一组新的登录凭据。</p>
           <Button
             type="submit"
             disabled={busy || (Boolean(resultSecret) && !resultSecretSaved)}
@@ -1762,12 +1765,14 @@ function CreateStudio({
   onAuth,
   onCreated,
   onUnsavedPasswordChange,
+  passwordFocusNonce,
 }: {
   settings: SiteSettings;
   authed: boolean;
   onAuth: (u: User) => void;
   onCreated: (p: Paste) => void;
   onUnsavedPasswordChange: (unsaved: boolean) => void;
+  passwordFocusNonce: number;
 }) {
   const [form, setForm] = useState<CreateFormState>(() => loadCreateDraft());
   const [draftRestored, setDraftRestored] = useState(() => hasCreateDraft(form));
@@ -1899,6 +1904,11 @@ function CreateStudio({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [settingsOpen, settingsRevealNonce]);
+
+  useEffect(() => {
+    if (passwordFocusNonce <= 0) return;
+    openSettingsPanel(passwordInputId);
+  }, [passwordFocusNonce]);
 
   function updateCreateForm(update: (current: CreateFormState) => CreateFormState) {
     setForm((current) => {
