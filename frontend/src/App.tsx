@@ -7,6 +7,7 @@ import {
   Code2,
   Columns2,
   Copy,
+  Download,
   Eye,
   EyeOff,
   FileText,
@@ -2956,8 +2957,9 @@ function PasteViewer({
   const emptyPasswordError = "请输入访问密码。";
   const lockedWithoutContent = paste.hasPassword && !paste.content;
   const permalink = pastePermalink(paste.id);
+  const canDownload = Boolean(paste.content);
   const canToggleWrap = paste.format !== "markdown" || markdownMode === "source";
-  const hasSecondaryActions = canToggleWrap || Boolean(onDelete);
+  const hasSecondaryActions = canDownload || canToggleWrap || Boolean(onDelete);
   const unlockLabel = paste.burnAfterReading ? "解锁并销毁" : "解锁";
   const unlockingLabel = paste.burnAfterReading ? "解锁并销毁中" : "解锁中";
 
@@ -3173,6 +3175,26 @@ function PasteViewer({
     await copyPasteData("content", paste.content ?? "", "Paste 内容已复制到剪贴板。", "复制内容失败，请手动选中内容复制。");
   }
 
+  function downloadContent() {
+    if (!paste.content) return;
+    try {
+      const blob = new Blob([paste.content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = pasteDownloadFilename(paste);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setCopyFeedback({ message: "Paste 内容已开始下载。", tone: "success" });
+      copyStatus.announce("Paste 内容已开始下载。");
+    } catch {
+      setCopyFeedback({ message: "下载失败，请复制内容后手动保存。", tone: "error" });
+      copyStatus.clear();
+    }
+  }
+
   if (lockedWithoutContent) {
     return (
       <form
@@ -3325,6 +3347,19 @@ function PasteViewer({
                   >
                     <button
                       type="button"
+                      role="menuitem"
+                      disabled={!canDownload}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-white"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        downloadContent();
+                      }}
+                    >
+                      <Download size={14} />
+                      下载原文
+                    </button>
+                    <button
+                      type="button"
                       role="menuitemcheckbox"
                       aria-checked={wrapLongLines}
                       className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25"
@@ -3446,4 +3481,45 @@ function formatViews(value: number) {
 function isExpired(value?: string | null) {
   if (!value) return false;
   return new Date(value).getTime() <= Date.now();
+}
+
+function pasteDownloadFilename(paste: Paste) {
+  const base = sanitizeDownloadName(paste.title || paste.id || "paste");
+  const extension = pasteDownloadExtension(paste);
+  if (extension === "Dockerfile") return base.toLowerCase() === "dockerfile" ? "Dockerfile" : `${base}.Dockerfile`;
+  return `${base}.${extension}`;
+}
+
+function sanitizeDownloadName(value: string) {
+  const normalized = value.trim().replace(/[<>:"/\\|?*\u0000-\u001f]+/g, "-").replace(/\s+/g, "-");
+  return normalized.replace(/^-+|-+$/g, "").slice(0, 80) || "paste";
+}
+
+function pasteDownloadExtension(paste: Paste) {
+  if (paste.format === "markdown") return "md";
+  const extensionByLanguage: Record<string, string> = {
+    bash: "sh",
+    c: "c",
+    cpp: "cpp",
+    csharp: "cs",
+    css: "css",
+    diff: "diff",
+    dockerfile: "Dockerfile",
+    go: "go",
+    html: "html",
+    java: "java",
+    javascript: "js",
+    json: "json",
+    markdown: "md",
+    php: "php",
+    plaintext: "txt",
+    python: "py",
+    ruby: "rb",
+    rust: "rs",
+    sql: "sql",
+    typescript: "ts",
+    xml: "xml",
+    yaml: "yml",
+  };
+  return extensionByLanguage[paste.language] ?? "txt";
 }
