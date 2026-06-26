@@ -385,6 +385,13 @@ export default function AdminConsole({
     clearSuccessNotice();
   }
 
+  function showUserPastes(user: User) {
+    if ((user.pasteCount ?? 0) <= 0) return;
+    setPasteFilters({ ...defaultPasteFilters, search: user.username });
+    setPasteError("");
+    selectTab("pastes");
+  }
+
   return (
     <section className="rounded-md border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
@@ -616,6 +623,7 @@ export default function AdminConsole({
             currentUserId={currentUser.id}
             roleUpdatingUserIds={roleUpdatingUserIds}
             onDelete={setUserToDelete}
+            onShowUserPastes={showUserPastes}
             onRoleChange={(user, role) => setRoleChangeTarget({ user, role })}
           />
         </div>
@@ -1243,6 +1251,7 @@ function AdminUserTable({
   currentUserId,
   roleUpdatingUserIds,
   onDelete,
+  onShowUserPastes,
   onRoleChange,
 }: {
   users: User[];
@@ -1254,6 +1263,7 @@ function AdminUserTable({
   currentUserId: number;
   roleUpdatingUserIds: Set<number>;
   onDelete: (user: User) => void;
+  onShowUserPastes: (user: User) => void;
   onRoleChange: (user: User, role: User["role"]) => void;
 }) {
   const hasError = error.length > 0;
@@ -1307,6 +1317,23 @@ function AdminUserTable({
         <Trash2 size={14} />
         删除
       </Button>
+    );
+  }
+
+  function renderPasteCount(user: User) {
+    const pasteCount = user.pasteCount ?? 0;
+    if (pasteCount <= 0) return <span className="font-medium text-zinc-500">0</span>;
+    return (
+      <button
+        type="button"
+        className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-900 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        aria-label={`查看 ${user.username} 的 ${pasteCount} 条 Paste`}
+        title="查看该用户的 Paste"
+        onClick={() => onShowUserPastes(user)}
+      >
+        <span>{pasteCount}</span>
+        <span className="text-zinc-500">查看</span>
+      </button>
     );
   }
 
@@ -1377,7 +1404,7 @@ function AdminUserTable({
                   <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <dt className="text-zinc-500">Paste</dt>
-                      <dd className="mt-0.5 font-medium text-zinc-800">{user.pasteCount ?? 0}</dd>
+                      <dd className="mt-0.5">{renderPasteCount(user)}</dd>
                     </div>
                   </dl>
                   {userActions && <div className="mt-3">{userActions}</div>}
@@ -1413,7 +1440,7 @@ function AdminUserTable({
                   <tr key={user.id} className="hover:bg-zinc-50">
                     <td className="max-w-[240px] break-all px-4 py-3 font-medium">{user.username}</td>
                     <td className="px-4 py-3">{renderRoleSelect(user, roleUpdating, selfRow)}</td>
-                    <td className="px-4 py-3 font-medium text-zinc-800">{user.pasteCount ?? 0}</td>
+                    <td className="px-4 py-3">{renderPasteCount(user)}</td>
                     <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
                     <td className="px-4 py-3">{renderUserActions(user)}</td>
                   </tr>
