@@ -693,6 +693,7 @@ export function App() {
       showInfo("Paste 已删除");
     } catch (e) {
       showError(e);
+      throw e;
     }
   }
 
@@ -1308,22 +1309,30 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const confirmInFlightRef = useRef(false);
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
+  const titleId = "confirm-dialog-title";
+  const descriptionId = "confirm-dialog-description";
+  const errorId = "confirm-dialog-error";
+  const describedBy = error ? `${descriptionId} ${errorId}` : descriptionId;
 
   useEffect(() => {
-    if (open) {
-      confirmInFlightRef.current = false;
-      setBusy(false);
-    }
+    if (!open) return;
+    confirmInFlightRef.current = false;
+    setBusy(false);
+    setError("");
   }, [open]);
 
   async function confirm() {
     if (busy || confirmInFlightRef.current) return;
     confirmInFlightRef.current = true;
     setBusy(true);
+    setError("");
     try {
       await onConfirm();
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       confirmInFlightRef.current = false;
       setBusy(false);
@@ -1346,8 +1355,8 @@ function ConfirmDialog({
         className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby="confirm-dialog-description"
+        aria-labelledby={titleId}
+        aria-describedby={describedBy}
         tabIndex={-1}
         onKeyDown={(e) => {
           if (e.key === "Escape" && !busy) onCancel();
@@ -1364,12 +1373,17 @@ function ConfirmDialog({
         >
           <Icon size={18} />
         </div>
-        <h2 id="confirm-dialog-title" className="text-base font-semibold">
+        <h2 id={titleId} className="text-base font-semibold">
           {title}
         </h2>
-        <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-zinc-500">
+        <p id={descriptionId} className="mt-2 text-sm leading-6 text-zinc-500">
           {description}
         </p>
+        {error && (
+          <div id={errorId} className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900" role="alert">
+            {error}
+          </div>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={busy} autoFocus>
             取消
