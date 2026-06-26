@@ -484,7 +484,9 @@ func (a *app) adminPastes(w http.ResponseWriter, r *http.Request) {
 		like := "%" + search + "%"
 		args = append(args, like, like, like)
 	}
-	if owner := strings.TrimSpace(q.Get("owner")); owner != "" {
+	if owner := strings.TrimSpace(q.Get("owner")); owner == "__anonymous" {
+		where = append(where, "p.owner_id IS NULL")
+	} else if owner != "" {
 		where = append(where, "u.username = ?")
 		args = append(args, owner)
 	}
@@ -499,6 +501,9 @@ func (a *app) adminPastes(w http.ResponseWriter, r *http.Request) {
 		where = append(where, "p.password_hash IS NOT NULL")
 	case "burn":
 		where = append(where, "p.burn_after_reading = 1")
+	case "expiring":
+		where = append(where, "p.expires_at IS NOT NULL AND p.expires_at > ?")
+		args = append(args, time.Now().UTC().Format(time.RFC3339))
 	case "expired":
 		where = append(where, "p.expires_at IS NOT NULL AND p.expires_at <= ?")
 		args = append(args, time.Now().UTC().Format(time.RFC3339))

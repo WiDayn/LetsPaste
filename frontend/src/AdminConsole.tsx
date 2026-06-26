@@ -26,6 +26,7 @@ import { cn, copyText, pastePermalink } from "./lib";
 type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
 type RoleChangeTarget = { user: User; role: User["role"] };
+type AdminBreakdownRow = [label: string, value: number, onSelect?: () => void];
 const defaultPasteFilters = { search: "", owner: "", visibility: "", security: "", format: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
@@ -96,6 +97,7 @@ export default function AdminConsole({
   const saveSettingsLabel = savingSettings ? "保存中" : settingsInvalid ? "检查站点名称" : "保存设置";
   const totalPastes = stats.totalPastes ?? pastes.length;
   const totalUsers = stats.totalUsers ?? users.length;
+  const pasteOwnerFilterLabel = pasteFilters.owner === "__anonymous" ? "匿名" : pasteFilters.owner;
   const pasteStatusText = hasPasteFilters
     ? pastes.length >= adminServerListLimit
       ? `当前筛选返回前 ${adminServerListLimit} 条 Paste，请继续收窄筛选定位更多结果`
@@ -388,13 +390,17 @@ export default function AdminConsole({
 
   function showUserPastes(user: User) {
     if ((user.pasteCount ?? 0) <= 0) return;
-    setPasteFilters({ ...defaultPasteFilters, owner: user.username });
-    setPasteError("");
-    selectTab("pastes");
+    showPastesWithFilters({ owner: user.username });
   }
 
   function filterPastesByOwner(owner: string) {
     updatePasteFilters({ owner });
+  }
+
+  function showPastesWithFilters(patch: Partial<typeof defaultPasteFilters>) {
+    setPasteFilters({ ...defaultPasteFilters, ...patch });
+    setPasteError("");
+    selectTab("pastes");
   }
 
   return (
@@ -469,9 +475,29 @@ export default function AdminConsole({
             <MetricCard icon={<Clock size={18} />} label="24h 新增" value={stats.createdToday ?? 0} />
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <AdminBreakdown title="可见性" rows={[["公开", stats.publicPastes ?? 0], ["私密", stats.privatePastes ?? 0], ["匿名", stats.anonymousPastes ?? 0]]} />
-            <AdminBreakdown title="保护策略" rows={[["密码", stats.passwordPastes ?? 0], ["阅后即焚", stats.burnPastes ?? 0], ["已过期", stats.expiredPastes ?? 0]]} />
-            <AdminBreakdown title="内容类型" rows={[["Markdown", stats.markdownPastes ?? 0], ["限时有效", stats.activeExpiring ?? 0]]} />
+            <AdminBreakdown
+              title="可见性"
+              rows={[
+                ["公开", stats.publicPastes ?? 0, () => showPastesWithFilters({ visibility: "public" })],
+                ["私密", stats.privatePastes ?? 0, () => showPastesWithFilters({ visibility: "private" })],
+                ["匿名", stats.anonymousPastes ?? 0, () => showPastesWithFilters({ owner: "__anonymous" })],
+              ]}
+            />
+            <AdminBreakdown
+              title="保护策略"
+              rows={[
+                ["密码", stats.passwordPastes ?? 0, () => showPastesWithFilters({ security: "password" })],
+                ["阅后即焚", stats.burnPastes ?? 0, () => showPastesWithFilters({ security: "burn" })],
+                ["已过期", stats.expiredPastes ?? 0, () => showPastesWithFilters({ security: "expired" })],
+              ]}
+            />
+            <AdminBreakdown
+              title="内容类型"
+              rows={[
+                ["Markdown", stats.markdownPastes ?? 0, () => showPastesWithFilters({ format: "markdown" })],
+                ["限时有效", stats.activeExpiring ?? 0, () => showPastesWithFilters({ security: "expiring" })],
+              ]}
+            />
             <AdminBreakdown title="用户角色" rows={[["管理员", stats.adminUsers ?? 0], ["普通用户", Math.max((stats.totalUsers ?? 0) - (stats.adminUsers ?? 0), 0)]]} />
           </div>
         </div>
@@ -508,6 +534,7 @@ export default function AdminConsole({
             <Select className="w-full lg:w-auto" aria-label="筛选保护策略" value={pasteFilters.security} onChange={(e) => updatePasteFilters({ security: e.target.value })}>
               <option value="">全部策略</option>
               <option value="active">有效</option>
+              <option value="expiring">限时有效</option>
               <option value="expired">已过期</option>
               <option value="password">有密码</option>
               <option value="burn">阅后即焚</option>
@@ -539,12 +566,12 @@ export default function AdminConsole({
                 <button
                   type="button"
                   className="inline-flex max-w-full items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-medium text-sky-800 hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700/25"
-                  aria-label={`清除作者 ${pasteFilters.owner} 的筛选`}
+                  aria-label={`清除作者 ${pasteOwnerFilterLabel} 的筛选`}
                   title="清除作者筛选"
                   onClick={() => updatePasteFilters({ owner: "" })}
                 >
                   <span className="shrink-0 text-sky-600">作者</span>
-                  <span className="min-w-0 truncate">{pasteFilters.owner}</span>
+                  <span className="min-w-0 truncate">{pasteOwnerFilterLabel}</span>
                   <X className="shrink-0" size={12} />
                 </button>
               )}
@@ -970,17 +997,30 @@ function AdminTabButton({ active, icon, label, onClick, tab }: { active: boolean
   );
 }
 
-function AdminBreakdown({ title, rows }: { title: string; rows: [string, number][] }) {
+function AdminBreakdown({ title, rows }: { title: string; rows: AdminBreakdownRow[] }) {
   return (
     <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
       <h2 className="mb-3 font-semibold">{title}</h2>
       <div className="space-y-2">
-        {rows.map(([label, value]) => (
-          <div className="flex items-center justify-between text-sm" key={label}>
-            <span className="text-zinc-600">{label}</span>
-            <span className="font-semibold">{value}</span>
-          </div>
-        ))}
+        {rows.map(([label, value, onSelect]) =>
+          onSelect ? (
+            <button
+              key={label}
+              type="button"
+              className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-sm hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
+              aria-label={`查看${label} Paste，共 ${value} 条`}
+              onClick={onSelect}
+            >
+              <span className="text-zinc-700">{label}</span>
+              <span className="font-semibold">{value}</span>
+            </button>
+          ) : (
+            <div className="flex items-center justify-between px-2 py-1 text-sm" key={label}>
+              <span className="text-zinc-600">{label}</span>
+              <span className="font-semibold">{value}</span>
+            </div>
+          ),
+        )}
       </div>
     </div>
   );

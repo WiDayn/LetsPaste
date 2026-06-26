@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -231,5 +232,79 @@ func TestAdminPastesOwnerFilterMatchesExactOwnerOnly(t *testing.T) {
 	}
 	if pastes[0].OwnerUsername == nil || *pastes[0].OwnerUsername != "bob" {
 		t.Fatalf("expected owner bob, got %+v", pastes[0].OwnerUsername)
+	}
+}
+
+func TestAdminPastesOwnerFilterSupportsAnonymous(t *testing.T) {
+	a := newTestApp(t)
+	owner := insertTestUser(t, a, "owner", "owner-secret", "user")
+	_, err := a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, owner_id)
+		VALUES
+		(?, ?, ?, ?, ?, ?, NULL),
+		(?, ?, ?, ?, ?, ?, ?)`,
+		"anonymous-paste", "Anonymous Paste", "anonymous content", "plaintext", "code", 0,
+		"owned-paste", "Owned Paste", "owned content", "plaintext", "code", 0, owner.ID,
+	)
+	if err != nil {
+		t.Fatalf("insert pastes: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/pastes?owner=__anonymous", nil)
+	rec := httptest.NewRecorder()
+
+	a.adminPastes(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	var pastes []paste
+	if err := json.Unmarshal(rec.Body.Bytes(), &pastes); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(pastes) != 1 {
+		t.Fatalf("expected exactly one anonymous paste, got %d: %+v", len(pastes), pastes)
+	}
+	if pastes[0].ID != "anonymous-paste" {
+		t.Fatalf("expected anonymous-paste, got %s", pastes[0].ID)
+	}
+	if pastes[0].OwnerUsername != nil {
+		t.Fatalf("expected anonymous owner, got %+v", *pastes[0].OwnerUsername)
+	}
+}
+
+func TestAdminPastesSecurityFilterSupportsActiveExpiring(t *testing.T) {
+	a := newTestApp(t)
+	activeExpiry := time.Now().UTC().Add(time.Hour).Format(time.RFC3339)
+	expired := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	_, err := a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, expires_at)
+		VALUES
+		(?, ?, ?, ?, ?, ?, ?),
+		(?, ?, ?, ?, ?, ?, ?),
+		(?, ?, ?, ?, ?, ?, NULL)`,
+		"active-expiring", "Active Expiring", "active", "plaintext", "code", 0, activeExpiry,
+		"expired-paste", "Expired Paste", "expired", "plaintext", "code", 0, expired,
+		"permanent-paste", "Permanent Paste", "permanent", "plaintext", "code", 0,
+	)
+	if err != nil {
+		t.Fatalf("insert pastes: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/pastes?security=expiring", nil)
+	rec := httptest.NewRecorder()
+
+	a.adminPastes(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	var pastes []paste
+	if err := json.Unmarshal(rec.Body.Bytes(), &pastes); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(pastes) != 1 {
+		t.Fatalf("expected exactly one active expiring paste, got %d: %+v", len(pastes), pastes)
+	}
+	if pastes[0].ID != "active-expiring" {
+		t.Fatalf("expected active-expiring, got %s", pastes[0].ID)
 	}
 }
