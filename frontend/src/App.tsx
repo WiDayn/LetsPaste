@@ -2797,6 +2797,7 @@ function PasteIndex({
       <div className="space-y-2" role="list" aria-label="Paste 索引">
         {visiblePastes.map((paste, index) => {
           const nextAfterDelete = visiblePastes[index + 1] ?? visiblePastes[index - 1] ?? null;
+          const compactTypeLabel = paste.format === "markdown" ? "Markdown" : paste.language;
           return (
             <div
               key={paste.id}
@@ -2830,8 +2831,14 @@ function PasteIndex({
                 )}
               </div>
               <div className={cn("flex flex-wrap items-center gap-1.5", compact ? "mt-2" : "mt-3")}>
-                <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
-                <Badge>{paste.language}</Badge>
+                {compact ? (
+                  <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{compactTypeLabel}</Badge>
+                ) : (
+                  <>
+                    <Badge tone={paste.format === "markdown" ? "blue" : "neutral"}>{paste.format}</Badge>
+                    <Badge>{paste.language}</Badge>
+                  </>
+                )}
               </div>
               <div className={cn("flex flex-wrap items-center gap-2 text-xs text-zinc-500", compact ? "mt-1.5" : "mt-2")}>
                 <span>{formatViews(paste.views)}</span>
