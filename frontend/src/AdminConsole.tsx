@@ -963,6 +963,10 @@ function ConfirmDialog({
   const [error, setError] = useState("");
   const confirmInFlightRef = useRef(false);
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
+  const titleId = "admin-confirm-dialog-title";
+  const descriptionId = "admin-confirm-dialog-description";
+  const errorId = "admin-confirm-dialog-error";
+  const describedBy = error ? `${descriptionId} ${errorId}` : descriptionId;
 
   useEffect(() => {
     if (!open) return;
@@ -1001,8 +1005,8 @@ function ConfirmDialog({
         className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="admin-confirm-dialog-title"
-        aria-describedby="admin-confirm-dialog-description"
+        aria-labelledby={titleId}
+        aria-describedby={describedBy}
         tabIndex={-1}
         onKeyDown={(e) => {
           if (e.key === "Escape" && !busy) onCancel();
@@ -1012,14 +1016,14 @@ function ConfirmDialog({
         <div className={cn("mb-4 flex h-10 w-10 items-center justify-center rounded-md", intent === "role" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600")}>
           <Icon size={18} />
         </div>
-        <h2 id="admin-confirm-dialog-title" className="text-base font-semibold">
+        <h2 id={titleId} className="text-base font-semibold">
           {title}
         </h2>
-        <p id="admin-confirm-dialog-description" className="mt-2 text-sm leading-6 text-zinc-500">
+        <p id={descriptionId} className="mt-2 text-sm leading-6 text-zinc-500">
           {description}
         </p>
         {error && (
-          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900" role="alert">
+          <div id={errorId} className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900" role="alert">
             {error}
           </div>
         )}
