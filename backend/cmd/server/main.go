@@ -34,6 +34,7 @@ type user struct {
 	PasswordHash string `json:"-"`
 	Role         string `json:"role"`
 	CreatedAt    string `json:"createdAt"`
+	PasteCount   int    `json:"pasteCount,omitempty"`
 }
 
 type paste struct {
@@ -543,14 +544,18 @@ func (a *app) adminUsers(w http.ResponseWriter, r *http.Request) {
 	where := []string{"1 = 1"}
 	args := []any{}
 	if search := strings.TrimSpace(q.Get("search")); search != "" {
-		where = append(where, "username LIKE ?")
+		where = append(where, "u.username LIKE ?")
 		args = append(args, "%"+search+"%")
 	}
 	if role := q.Get("role"); role == "admin" || role == "user" {
-		where = append(where, "role = ?")
+		where = append(where, "u.role = ?")
 		args = append(args, role)
 	}
-	rows, err := a.db.Query(`SELECT id, username, '', role, created_at FROM users WHERE `+strings.Join(where, " AND ")+` ORDER BY created_at DESC LIMIT 250`, args...)
+	rows, err := a.db.Query(`SELECT u.id, u.username, '', u.role, u.created_at, COUNT(p.id)
+		FROM users u LEFT JOIN pastes p ON p.owner_id = u.id
+		WHERE `+strings.Join(where, " AND ")+`
+		GROUP BY u.id
+		ORDER BY u.created_at DESC LIMIT 250`, args...)
 	if err != nil {
 		errorJSON(w, http.StatusInternalServerError, "读取失败")
 		return
@@ -559,7 +564,7 @@ func (a *app) adminUsers(w http.ResponseWriter, r *http.Request) {
 	users := []user{}
 	for rows.Next() {
 		var u user
-		rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt)
+		rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt, &u.PasteCount)
 		users = append(users, u)
 	}
 	writeJSON(w, http.StatusOK, users)

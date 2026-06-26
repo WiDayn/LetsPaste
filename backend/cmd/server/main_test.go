@@ -156,3 +156,42 @@ func TestGetPasteLockedIncludesSafeMetadata(t *testing.T) {
 		t.Fatalf("expected protected burn metadata, got hasPassword=%v burn=%v", payload.Paste.HasPassword, payload.Paste.BurnAfterReading)
 	}
 }
+
+func TestAdminUsersIncludesPasteCount(t *testing.T) {
+	a := newTestApp(t)
+	owner := insertTestUser(t, a, "paste-owner", "owner-secret", "user")
+	other := insertTestUser(t, a, "no-pastes", "other-secret", "user")
+	_, err := a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, owner_id)
+		VALUES
+		(?, ?, ?, ?, ?, ?, ?),
+		(?, ?, ?, ?, ?, ?, ?)`,
+		"owner-paste-1", "Owner Paste 1", "content", "plaintext", "code", 0, owner.ID,
+		"owner-paste-2", "Owner Paste 2", "content", "markdown", "markdown", 0, owner.ID,
+	)
+	if err != nil {
+		t.Fatalf("insert pastes: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users", nil)
+	rec := httptest.NewRecorder()
+
+	a.adminUsers(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	var users []user
+	if err := json.Unmarshal(rec.Body.Bytes(), &users); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	counts := map[int64]int{}
+	for _, u := range users {
+		counts[u.ID] = u.PasteCount
+	}
+	if counts[owner.ID] != 2 {
+		t.Fatalf("expected owner paste count 2, got %d", counts[owner.ID])
+	}
+	if counts[other.ID] != 0 {
+		t.Fatalf("expected other paste count 0, got %d", counts[other.ID])
+	}
+}

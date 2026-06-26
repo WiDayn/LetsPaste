@@ -698,7 +698,7 @@ export default function AdminConsole({
       <ConfirmDialog
         open={Boolean(userToDelete)}
         title="删除用户"
-        description={`确定删除用户「${userToDelete?.username ?? ""}」？该用户的 Paste 会保留为匿名。`}
+        description={`确定删除用户「${userToDelete?.username ?? ""}」？该用户名下 ${userToDelete?.pasteCount ?? 0} 条 Paste 会保留为匿名。`}
         confirmLabel="删除用户"
         onCancel={() => setUserToDelete(null)}
         onConfirm={async () => {
@@ -1374,6 +1374,12 @@ function AdminUserTable({
                     <label className="mb-1 block text-xs font-medium text-zinc-600">角色</label>
                     {renderRoleSelect(user, roleUpdating, selfRow)}
                   </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <dt className="text-zinc-500">Paste</dt>
+                      <dd className="mt-0.5 font-medium text-zinc-800">{user.pasteCount ?? 0}</dd>
+                    </div>
+                  </dl>
                   {userActions && <div className="mt-3">{userActions}</div>}
                 </article>
               );
@@ -1389,6 +1395,7 @@ function AdminUserTable({
             <tr>
               <th className="px-4 py-3 font-medium">用户</th>
               <th className="px-4 py-3 font-medium">角色</th>
+              <th className="px-4 py-3 font-medium">Paste</th>
               <th className="px-4 py-3 font-medium">创建时间</th>
               <th className="px-4 py-3 font-medium">操作</th>
             </tr>
@@ -1396,7 +1403,7 @@ function AdminUserTable({
           <tbody className="divide-y divide-zinc-200">
             {users.length === 0 ? (
               <tr>
-                <td colSpan={4}>{renderEmptyState()}</td>
+                <td colSpan={5}>{renderEmptyState()}</td>
               </tr>
             ) : (
               visibleUsers.map((user) => {
@@ -1406,6 +1413,7 @@ function AdminUserTable({
                   <tr key={user.id} className="hover:bg-zinc-50">
                     <td className="max-w-[240px] break-all px-4 py-3 font-medium">{user.username}</td>
                     <td className="px-4 py-3">{renderRoleSelect(user, roleUpdating, selfRow)}</td>
+                    <td className="px-4 py-3 font-medium text-zinc-800">{user.pasteCount ?? 0}</td>
                     <td className="px-4 py-3 text-zinc-500">{formatDate(user.createdAt)}</td>
                     <td className="px-4 py-3">{renderUserActions(user)}</td>
                   </tr>
@@ -1414,7 +1422,7 @@ function AdminUserTable({
             )}
             {hiddenCount > 0 && (
               <tr>
-                <td colSpan={4}>{renderMoreButton()}</td>
+                <td colSpan={5}>{renderMoreButton()}</td>
               </tr>
             )}
           </tbody>

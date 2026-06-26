@@ -5,6 +5,7 @@ export type User = {
   username: string;
   role: "admin" | "user";
   createdAt?: string;
+  pasteCount?: number;
 };
 
 export type Paste = {
