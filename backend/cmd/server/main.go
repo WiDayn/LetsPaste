@@ -484,6 +484,10 @@ func (a *app) adminPastes(w http.ResponseWriter, r *http.Request) {
 		like := "%" + search + "%"
 		args = append(args, like, like, like)
 	}
+	if owner := strings.TrimSpace(q.Get("owner")); owner != "" {
+		where = append(where, "u.username = ?")
+		args = append(args, owner)
+	}
 	switch q.Get("visibility") {
 	case "public":
 		where = append(where, "p.is_private = 0")

@@ -26,7 +26,7 @@ import { cn, copyText, pastePermalink } from "./lib";
 type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
 type RoleChangeTarget = { user: User; role: User["role"] };
-const defaultPasteFilters = { search: "", visibility: "", security: "", format: "", sort: "newest" };
+const defaultPasteFilters = { search: "", owner: "", visibility: "", security: "", format: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
 const adminServerListLimit = 250;
@@ -84,6 +84,7 @@ export default function AdminConsole({
   const userAbortRef = useRef<AbortController | null>(null);
   const hasPasteFilters =
     pasteFilters.search.trim().length > 0 ||
+    pasteFilters.owner.trim().length > 0 ||
     Boolean(pasteFilters.visibility) ||
     Boolean(pasteFilters.security) ||
     Boolean(pasteFilters.format) ||
@@ -146,7 +147,7 @@ export default function AdminConsole({
       void loadPastes();
     }, pasteFilters.search ? 300 : 0);
     return () => window.clearTimeout(timeout);
-  }, [tab, pasteFilters.search, pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.sort]);
+  }, [tab, pasteFilters.search, pasteFilters.owner, pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.sort]);
 
   useEffect(() => {
     if (tab !== "users") return;
@@ -192,7 +193,7 @@ export default function AdminConsole({
     try {
       const params = new URLSearchParams();
       Object.entries(pasteFilters).forEach(([key, value]) => {
-        const normalized = key === "search" ? value.trim() : value;
+        const normalized = key === "search" || key === "owner" ? value.trim() : value;
         if (normalized && normalized !== "newest") params.set(key, normalized);
       });
       const next = (await api<Paste[]>(`/api/admin/pastes?${params.toString()}`, { signal: controller.signal })) ?? [];
@@ -387,7 +388,7 @@ export default function AdminConsole({
 
   function showUserPastes(user: User) {
     if ((user.pasteCount ?? 0) <= 0) return;
-    setPasteFilters({ ...defaultPasteFilters, search: user.username });
+    setPasteFilters({ ...defaultPasteFilters, owner: user.username });
     setPasteError("");
     selectTab("pastes");
   }
@@ -526,9 +527,24 @@ export default function AdminConsole({
             )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
-            <span role="status" aria-live="polite" aria-atomic="true">
-              {pasteStatusText}
-            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span role="status" aria-live="polite" aria-atomic="true">
+                {pasteStatusText}
+              </span>
+              {pasteFilters.owner.trim() && (
+                <button
+                  type="button"
+                  className="inline-flex max-w-full items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-medium text-sky-800 hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700/25"
+                  aria-label={`清除作者 ${pasteFilters.owner} 的筛选`}
+                  title="清除作者筛选"
+                  onClick={() => updatePasteFilters({ owner: "" })}
+                >
+                  <span className="shrink-0 text-sky-600">作者</span>
+                  <span className="min-w-0 truncate">{pasteFilters.owner}</span>
+                  <X className="shrink-0" size={12} />
+                </button>
+              )}
+            </div>
             {hasPasteFilters && (
               <button
                 type="button"

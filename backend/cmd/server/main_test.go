@@ -195,3 +195,41 @@ func TestAdminUsersIncludesPasteCount(t *testing.T) {
 		t.Fatalf("expected other paste count 0, got %d", counts[other.ID])
 	}
 }
+
+func TestAdminPastesOwnerFilterMatchesExactOwnerOnly(t *testing.T) {
+	a := newTestApp(t)
+	alice := insertTestUser(t, a, "alice", "alice-secret", "user")
+	bob := insertTestUser(t, a, "bob", "bob-secret", "user")
+	_, err := a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, owner_id)
+		VALUES
+		(?, ?, ?, ?, ?, ?, ?),
+		(?, ?, ?, ?, ?, ?, ?)`,
+		"alice-paste", "bob appears in this title", "alice content", "plaintext", "code", 0, alice.ID,
+		"bob-paste", "Owned by Bob", "bob content", "plaintext", "code", 0, bob.ID,
+	)
+	if err != nil {
+		t.Fatalf("insert pastes: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/pastes?owner=bob", nil)
+	rec := httptest.NewRecorder()
+
+	a.adminPastes(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	var pastes []paste
+	if err := json.Unmarshal(rec.Body.Bytes(), &pastes); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(pastes) != 1 {
+		t.Fatalf("expected exactly one paste, got %d: %+v", len(pastes), pastes)
+	}
+	if pastes[0].ID != "bob-paste" {
+		t.Fatalf("expected bob-paste, got %s", pastes[0].ID)
+	}
+	if pastes[0].OwnerUsername == nil || *pastes[0].OwnerUsername != "bob" {
+		t.Fatalf("expected owner bob, got %+v", pastes[0].OwnerUsername)
+	}
+}
