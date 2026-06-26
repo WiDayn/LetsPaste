@@ -2147,15 +2147,13 @@ function CreateStudio({
               <ComposeModeButton active={composeMode === "split"} icon={<Columns2 size={14} />} label="并排" onClick={() => changeComposeMode("split")} />
               <ComposeModeButton active={composeMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => changeComposeMode("preview")} />
             </div>
+            <span className="shrink-0 text-xs text-zinc-500">{form.content.length} 字符</span>
           </div>
 
           <div className={cn("grid min-h-0 flex-1 gap-3", composeMode === "split" && "lg:grid-cols-2")}>
             {showEditor && (
               <div className="flex min-h-0 min-w-0 flex-col">
-                <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
-                  <label htmlFor={contentInputId}>正文</label>
-                  <span>{form.content.length} 字符</span>
-                </div>
+                <label className="sr-only" htmlFor={contentInputId}>Paste 正文</label>
                 <Textarea
                   id={contentInputId}
                   className={cn("min-h-[18rem] flex-1 resize-none md:min-h-[22rem] lg:min-h-[30rem]", contentError && "border-red-300 bg-red-50")}
