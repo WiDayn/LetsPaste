@@ -2218,7 +2218,7 @@ function CreateStudio({
                 <SecretInput
                   id={passwordInputId}
                   {...preciseCredentialInputProps}
-                  autoComplete="new-password"
+                  autoComplete="off"
                   aria-describedby={passwordHelpId}
                   placeholder="可留空"
                   revealLabel="访问密码"
