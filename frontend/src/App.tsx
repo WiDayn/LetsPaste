@@ -2474,10 +2474,12 @@ function PasteWorkspace({
   useEffect(() => {
     const nextSelectedId = selected?.id ?? null;
     const previousSelectedId = previousSelectedIdRef.current;
+    const switchedPaste = Boolean(nextSelectedId && previousSelectedId && nextSelectedId !== previousSelectedId);
+    const narrowViewport = window.matchMedia("(max-width: 1023px)").matches;
 
     if (!nextSelectedId) {
       setIndexCollapsed(false);
-    } else if (!previousSelectedId) {
+    } else if (!previousSelectedId || (switchedPaste && narrowViewport)) {
       setIndexCollapsed(true);
     }
 
