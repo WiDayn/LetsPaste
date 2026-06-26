@@ -2814,6 +2814,7 @@ function PasteAdjacentNav({
         variant="outline"
         size="sm"
         disabled={!previousPaste || opening}
+        aria-busy={(opening && Boolean(previousPaste)) || undefined}
         aria-keyshortcuts="Alt+Shift+ArrowLeft"
         aria-label={previousPaste ? `打开上一条 Paste：${previousPaste.title}` : "没有上一条 Paste"}
         onClick={() => previousPaste && onOpen(previousPaste)}
@@ -2825,6 +2826,7 @@ function PasteAdjacentNav({
         variant="outline"
         size="sm"
         disabled={!nextPaste || opening}
+        aria-busy={(opening && Boolean(nextPaste)) || undefined}
         aria-keyshortcuts="Alt+Shift+ArrowRight"
         aria-label={nextPaste ? `打开下一条 Paste：${nextPaste.title}` : "没有下一条 Paste"}
         onClick={() => nextPaste && onOpen(nextPaste)}
