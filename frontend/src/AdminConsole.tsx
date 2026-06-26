@@ -38,6 +38,9 @@ const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
 const adminServerListLimit = 250;
 const adminTabs: AdminTab[] = ["overview", "pastes", "users", "settings"];
+const adminTabPreferenceKey = "letspaste_admin_tab_v1";
+const adminPasteFiltersPreferenceKey = "letspaste_admin_paste_filters_v1";
+const adminUserFiltersPreferenceKey = "letspaste_admin_user_filters_v1";
 const pasteVisibilityLabels: Record<string, string> = { public: "公开", private: "私密" };
 const pasteSecurityLabels: Record<string, string> = { active: "有效", expiring: "限时有效", expired: "已过期", password: "有密码", burn: "阅后即焚" };
 const pasteFormatLabels: Record<string, string> = { code: "代码", markdown: "Markdown" };
@@ -51,6 +54,78 @@ function adminTabId(tab: AdminTab) {
 
 function adminPanelId(tab: AdminTab) {
   return `admin-panel-${tab}`;
+}
+
+function isAdminTab(value: unknown): value is AdminTab {
+  return typeof value === "string" && adminTabs.includes(value as AdminTab);
+}
+
+function loadAdminTabPreference(): AdminTab {
+  try {
+    const value = sessionStorage.getItem(adminTabPreferenceKey);
+    if (isAdminTab(value)) return value;
+  } catch {
+    // Session storage is a convenience only; the overview remains the default.
+  }
+  return "overview";
+}
+
+function saveAdminTabPreference(tab: AdminTab) {
+  try {
+    sessionStorage.setItem(adminTabPreferenceKey, tab);
+  } catch {
+    // Ignore storage restrictions; in-memory state remains authoritative.
+  }
+}
+
+function loadStoredObject(key: string) {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(key) ?? "null");
+    return value && typeof value === "object" ? value as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeObject(key: string, value: Record<string, string>) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage restrictions; in-memory state remains authoritative.
+  }
+}
+
+function safeString(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function loadAdminPasteFiltersPreference() {
+  const stored = loadStoredObject(adminPasteFiltersPreferenceKey);
+  if (!stored) return { ...defaultPasteFilters };
+  const visibility = safeString(stored.visibility);
+  const security = safeString(stored.security);
+  const format = safeString(stored.format);
+  const created = safeString(stored.created);
+  const sort = safeString(stored.sort);
+  return {
+    search: safeString(stored.search),
+    owner: safeString(stored.owner),
+    visibility: visibility in pasteVisibilityLabels ? visibility : "",
+    security: security in pasteSecurityLabels ? security : "",
+    format: format in pasteFormatLabels ? format : "",
+    created: created in pasteCreatedLabels ? created : "",
+    sort: sort in pasteSortLabels || sort === "newest" ? sort : "newest",
+  };
+}
+
+function loadAdminUserFiltersPreference() {
+  const stored = loadStoredObject(adminUserFiltersPreferenceKey);
+  if (!stored) return { ...defaultUserFilters };
+  const role = safeString(stored.role);
+  return {
+    search: safeString(stored.search),
+    role: role in userRoleLabels ? role : "",
+  };
 }
 
 export default function AdminConsole({
@@ -70,12 +145,12 @@ export default function AdminConsole({
   settingsFocusNonce: number;
   onUnsavedSettingsChange: (unsaved: boolean) => void;
 }) {
-  const [tab, setTab] = useState<AdminTab>("overview");
+  const [tab, setTab] = useState<AdminTab>(() => loadAdminTabPreference());
   const [stats, setStats] = useState<AdminStats>({});
   const [pastes, setPastes] = useState<Paste[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [pasteFilters, setPasteFilters] = useState(defaultPasteFilters);
-  const [userFilters, setUserFilters] = useState(defaultUserFilters);
+  const [pasteFilters, setPasteFilters] = useState(() => loadAdminPasteFiltersPreference());
+  const [userFilters, setUserFilters] = useState(() => loadAdminUserFiltersPreference());
   const [draft, setDraft] = useState(settings);
   const [savingSettings, setSavingSettings] = useState(false);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
@@ -411,6 +486,7 @@ export default function AdminConsole({
 
   function changeTab(nextTab: AdminTab) {
     setTab(nextTab);
+    saveAdminTabPreference(nextTab);
     clearSuccessNotice();
   }
 
@@ -440,12 +516,20 @@ export default function AdminConsole({
   }
 
   function updatePasteFilters(patch: Partial<typeof defaultPasteFilters>) {
-    setPasteFilters((current) => ({ ...current, ...patch }));
+    setPasteFilters((current) => {
+      const next = { ...current, ...patch };
+      storeObject(adminPasteFiltersPreferenceKey, next);
+      return next;
+    });
     clearSuccessNotice();
   }
 
   function updateUserFilters(patch: Partial<typeof defaultUserFilters>) {
-    setUserFilters((current) => ({ ...current, ...patch }));
+    setUserFilters((current) => {
+      const next = { ...current, ...patch };
+      storeObject(adminUserFiltersPreferenceKey, next);
+      return next;
+    });
     clearSuccessNotice();
   }
 
@@ -455,12 +539,16 @@ export default function AdminConsole({
   }
 
   function clearPasteFilters() {
-    setPasteFilters({ ...defaultPasteFilters });
+    const next = { ...defaultPasteFilters };
+    setPasteFilters(next);
+    storeObject(adminPasteFiltersPreferenceKey, next);
     clearSuccessNotice();
   }
 
   function clearUserFilters() {
-    setUserFilters({ ...defaultUserFilters });
+    const next = { ...defaultUserFilters };
+    setUserFilters(next);
+    storeObject(adminUserFiltersPreferenceKey, next);
     clearSuccessNotice();
   }
 
@@ -474,13 +562,17 @@ export default function AdminConsole({
   }
 
   function showPastesWithFilters(patch: Partial<typeof defaultPasteFilters>) {
-    setPasteFilters({ ...defaultPasteFilters, ...patch });
+    const next = { ...defaultPasteFilters, ...patch };
+    setPasteFilters(next);
+    storeObject(adminPasteFiltersPreferenceKey, next);
     setPasteError("");
     selectTab("pastes");
   }
 
   function showUsersWithFilters(patch: Partial<typeof defaultUserFilters>) {
-    setUserFilters({ ...defaultUserFilters, ...patch });
+    const next = { ...defaultUserFilters, ...patch };
+    setUserFilters(next);
+    storeObject(adminUserFiltersPreferenceKey, next);
     setUserError("");
     selectTab("users");
   }
