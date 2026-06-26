@@ -405,6 +405,7 @@ export function App() {
   const [createPasswordUnsaved, setCreatePasswordUnsaved] = useState(false);
   const [createPasswordFocusNonce, setCreatePasswordFocusNonce] = useState(0);
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
+  const [accountCredentialFocusNonce, setAccountCredentialFocusNonce] = useState(0);
   const [adminSettingsUnsaved, setAdminSettingsUnsaved] = useState(false);
   const viewRef = useRef<View>(initialRouteRef.current?.view ?? "explore");
   const createPasswordUnsavedRef = useRef(false);
@@ -731,7 +732,8 @@ export function App() {
       return true;
     }
     if (viewRef.current === "account" && nextView !== "account" && accountCredentialUnsavedRef.current) {
-      showError(new Error("请先保存新的登录凭据，再离开用户信息。"));
+      setAccountCredentialFocusNonce((value) => value + 1);
+      showError(new Error("请先保存、清空正在编辑的登录凭据，或确认已保存新的登录凭据，再离开用户信息。"));
       writeRoute(viewRoute("account"), "replace");
       return true;
     }
@@ -864,7 +866,14 @@ export function App() {
           />
         )}
 
-        {view === "account" && user && <AccountPanel user={user} onLogout={logout} onUnsavedCredentialChange={setAccountCredentialUnsaved} />}
+        {view === "account" && user && (
+          <AccountPanel
+            user={user}
+            credentialFocusNonce={accountCredentialFocusNonce}
+            onLogout={logout}
+            onUnsavedCredentialChange={setAccountCredentialUnsaved}
+          />
+        )}
         {view === "admin" && isAdmin && user && (
           <Suspense fallback={<ContentLoading />}>
             <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} openingPasteId={openingPasteId} currentUser={user} onUnsavedSettingsChange={setAdminSettingsUnsaved} />
@@ -1473,10 +1482,12 @@ function AdminGate({ currentUser, onAuth }: { currentUser: User | null; onAuth: 
 
 function AccountPanel({
   user,
+  credentialFocusNonce,
   onLogout,
   onUnsavedCredentialChange,
 }: {
   user: User;
+  credentialFocusNonce: number;
   onLogout: () => void;
   onUnsavedCredentialChange: (unsaved: boolean) => void;
 }) {
@@ -1496,17 +1507,31 @@ function AccountPanel({
   const isAdmin = user.role === "admin";
   const currentSecretInputId = "account-current-secret";
   const newSecretInputId = "account-new-secret";
+  const resultSecretSavedInputId = "account-result-secret-saved";
   const accountMessageId = "account-secret-message";
   const emptyCurrentSecretError = isAdmin ? "请输入当前管理员密码。" : "请输入当前助记码。";
   const currentSecretError = messageTone === "error" && (message === emptyCurrentSecretError || message === "当前密钥不正确");
+  const credentialDraftUnsaved = currentSecret.trim().length > 0 || newSecret.trim().length > 0;
   const resultSecretUnsaved = Boolean(resultSecret) && !resultSecretSaved;
+  const accountCredentialUnsaved = credentialDraftUnsaved || resultSecretUnsaved;
 
-  useBeforeUnloadWarning(resultSecretUnsaved);
+  useBeforeUnloadWarning(accountCredentialUnsaved);
 
   useEffect(() => {
-    onUnsavedCredentialChange(resultSecretUnsaved);
+    onUnsavedCredentialChange(accountCredentialUnsaved);
     return () => onUnsavedCredentialChange(false);
-  }, [onUnsavedCredentialChange, resultSecretUnsaved]);
+  }, [accountCredentialUnsaved, onUnsavedCredentialChange]);
+
+  useEffect(() => {
+    if (credentialFocusNonce <= 0) return;
+    if (resultSecretUnsaved) {
+      const target = document.getElementById(resultSecretSavedInputId);
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      return;
+    }
+    focusFieldById(currentSecret.trim() ? currentSecretInputId : newSecretInputId);
+  }, [credentialFocusNonce]);
 
   useEffect(() => {
     return () => {
@@ -1601,8 +1626,8 @@ function AccountPanel({
   }
 
   function handleLogout() {
-    if (resultSecretUnsaved) {
-      showErrorMessage("请先保存新的登录凭据，再退出登录。");
+    if (accountCredentialUnsaved) {
+      showErrorMessage("请先保存、清空正在编辑的登录凭据，或确认已保存新的登录凭据，再退出登录。");
       return;
     }
     onLogout();
@@ -1744,6 +1769,7 @@ function AccountPanel({
               <div className="mt-2 break-all font-mono text-sm text-amber-950">{resultSecret}</div>
               <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-900">
                 <input
+                  id={resultSecretSavedInputId}
                   className="mt-1 h-4 w-4 shrink-0"
                   type="checkbox"
                   checked={resultSecretSaved}
