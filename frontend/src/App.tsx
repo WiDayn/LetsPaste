@@ -2160,13 +2160,14 @@ function CreateStudio({
               aria-keyshortcuts="Control+Enter Meta+Enter"
               placeholder="标题，例如：nginx 502 调试日志"
               value={form.title}
+              disabled={busy}
               onChange={(e) => updateCreateForm((current) => ({ ...current, title: e.target.value }))}
               onKeyDown={submitFromShortcut}
             />
             <div className="flex rounded-md border border-zinc-200 bg-zinc-100 p-1" role="group" aria-label="编辑模式">
-              <ComposeModeButton active={composeMode === "write"} icon={<Code2 size={14} />} label="编辑" onClick={() => changeComposeMode("write")} />
-              <ComposeModeButton active={composeMode === "split"} icon={<Columns2 size={14} />} label="并排" onClick={() => changeComposeMode("split")} />
-              <ComposeModeButton active={composeMode === "preview"} icon={<Eye size={14} />} label="预览" onClick={() => changeComposeMode("preview")} />
+              <ComposeModeButton active={composeMode === "write"} disabled={busy} icon={<Code2 size={14} />} label="编辑" onClick={() => changeComposeMode("write")} />
+              <ComposeModeButton active={composeMode === "split"} disabled={busy} icon={<Columns2 size={14} />} label="并排" onClick={() => changeComposeMode("split")} />
+              <ComposeModeButton active={composeMode === "preview"} disabled={busy} icon={<Eye size={14} />} label="预览" onClick={() => changeComposeMode("preview")} />
             </div>
             <span className="shrink-0 text-xs text-zinc-500">{form.content.length} 字符</span>
           </div>
@@ -2180,6 +2181,7 @@ function CreateStudio({
                   className={cn("min-h-[18rem] flex-1 resize-none md:min-h-[22rem] lg:min-h-[30rem]", contentError && "border-red-300 bg-red-50")}
                   placeholder="粘贴代码、日志或 Markdown..."
                   value={form.content}
+                  disabled={busy}
                   aria-invalid={contentError || undefined}
                   aria-describedby={contentError ? contentErrorId : undefined}
                   aria-keyshortcuts="Control+Enter Meta+Enter"
@@ -2215,13 +2217,13 @@ function CreateStudio({
             </div>
             <div className="space-y-3">
               <Field label="内容格式" htmlFor={formatSelectId}>
-                <Select id={formatSelectId} value={form.format} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
+                <Select id={formatSelectId} value={form.format} disabled={busy} onChange={(e) => updateFormat(e.target.value as Paste["format"])}>
                   <option value="code">代码</option>
                   <option value="markdown">Markdown</option>
                 </Select>
               </Field>
               <Field label="代码语言" htmlFor={languageSelectId}>
-                <Select id={languageSelectId} value={form.language} disabled={form.format === "markdown"} onChange={(e) => updateLanguage(e.target.value)}>
+                <Select id={languageSelectId} value={form.language} disabled={busy || form.format === "markdown"} onChange={(e) => updateLanguage(e.target.value)}>
                   {languages.map((language) => (
                     <option key={language}>{language}</option>
                   ))}
@@ -2237,6 +2239,7 @@ function CreateStudio({
                   placeholder="可留空"
                   revealLabel="访问密码"
                   value={form.password}
+                  disabled={busy}
                   onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))}
                 />
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -2244,7 +2247,7 @@ function CreateStudio({
                     访问密码只随本次发布提交，不会写入浏览器草稿。
                   </p>
                   {hasPassword && (
-                    <Button type="button" variant="ghost" size="sm" onClick={clearAccessPassword}>
+                    <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={clearAccessPassword}>
                       <X size={14} />
                       清空密码
                     </Button>
@@ -2262,6 +2265,7 @@ function CreateStudio({
                   aria-describedby={invalidExpiry ? expiryErrorId : undefined}
                   className={cn(invalidExpiry && "border-red-300 bg-red-50")}
                   value={form.expiresInMinutes}
+                  disabled={busy}
                   onChange={(e) => updateCreateForm((current) => ({ ...current, expiresInMinutes: e.target.value }))}
                 />
               </Field>
@@ -2276,8 +2280,8 @@ function CreateStudio({
           <section className="rounded-md border border-zinc-200 bg-white p-4">
             <h2 className="mb-3 font-semibold">访问策略</h2>
             <div className="space-y-3 text-sm">
-              <Toggle checked={form.isPrivate} onChange={(checked) => updateCreateForm((current) => ({ ...current, isPrivate: checked }))} label="私密，不出现在公开库" />
-              <Toggle checked={form.burnAfterReading} onChange={(checked) => updateCreateForm((current) => ({ ...current, burnAfterReading: checked }))} label="阅后即焚" />
+              <Toggle checked={form.isPrivate} disabled={busy} onChange={(checked) => updateCreateForm((current) => ({ ...current, isPrivate: checked }))} label="私密，不出现在公开库" />
+              <Toggle checked={form.burnAfterReading} disabled={busy} onChange={(checked) => updateCreateForm((current) => ({ ...current, burnAfterReading: checked }))} label="阅后即焚" />
               <div className="rounded-md bg-zinc-100 p-3 text-xs leading-5 text-zinc-600">
                 {authed
                   ? "当前 Paste 会归属到你的账号，匿名发布开关不会影响已登录用户。"
@@ -2349,11 +2353,13 @@ function SummaryRow({ label, value, tone }: { label: string; value: string; tone
 
 function ComposeModeButton({
   active,
+  disabled = false,
   icon,
   label,
   onClick,
 }: {
   active: boolean;
+  disabled?: boolean;
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
@@ -2364,8 +2370,10 @@ function ComposeModeButton({
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded px-2.5 text-xs font-medium text-zinc-600 transition hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
         active && "bg-white text-zinc-950 shadow-sm",
+        disabled && "cursor-not-allowed opacity-50 hover:text-zinc-600",
       )}
       aria-pressed={active}
+      disabled={disabled}
       onClick={onClick}
     >
       {icon}
@@ -2405,11 +2413,11 @@ function DraftPreview({ content, language, format, pending = false }: { content:
   );
 }
 
-function Toggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+function Toggle({ checked, disabled = false, label, onChange }: { checked: boolean; disabled?: boolean; label: string; onChange: (checked: boolean) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-zinc-200 px-3 py-2">
+    <label className={cn("flex cursor-pointer items-center justify-between gap-3 rounded-md border border-zinc-200 px-3 py-2", disabled && "cursor-not-allowed opacity-60")}>
       <span>{label}</span>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     </label>
   );
 }
