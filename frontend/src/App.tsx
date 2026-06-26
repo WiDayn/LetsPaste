@@ -3502,22 +3502,24 @@ function PasteViewer({
                       <Download size={14} />
                       下载原文
                     </button>
-                    <button
-                      type="button"
-                      role="menuitemcheckbox"
-                      aria-checked={wrapLongLines}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25"
-                      onClick={() => {
-                        setWrapLongLines((current) => !current);
-                        setActionsOpen(false);
-                      }}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <TextWrap size={14} />
-                        长行换行
-                      </span>
-                      {wrapLongLines && <Check size={14} />}
-                    </button>
+                    {canToggleWrap && (
+                      <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={wrapLongLines}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25"
+                        onClick={() => {
+                          setWrapLongLines((current) => !current);
+                          setActionsOpen(false);
+                        }}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <TextWrap size={14} />
+                          长行换行
+                        </span>
+                        {wrapLongLines && <Check size={14} />}
+                      </button>
+                    )}
                     {onDelete && (
                       <button
                         type="button"
