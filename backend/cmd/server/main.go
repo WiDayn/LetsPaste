@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -138,6 +140,7 @@ func (a *app) migrate() error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			username TEXT NOT NULL UNIQUE,
 			password_hash TEXT NOT NULL,
+			secret_lookup TEXT,
 			role TEXT NOT NULL DEFAULT 'user',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
@@ -169,7 +172,44 @@ func (a *app) migrate() error {
 			return err
 		}
 	}
+	if err := a.ensureColumn("users", "secret_lookup", "TEXT"); err != nil {
+		return err
+	}
+	if _, err := a.db.Exec(`CREATE INDEX IF NOT EXISTS idx_users_secret_lookup ON users(secret_lookup);`); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (a *app) ensureColumn(table, column, definition string) error {
+	rows, err := a.db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var cid int
+		var name, dataType string
+		var notNull int
+		var defaultValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		if name == column {
+			rows.Close()
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	_, err = a.db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + column + ` ` + definition)
+	return err
 }
 
 func (a *app) ensureAdmin() error {
@@ -186,7 +226,7 @@ func (a *app) ensureAdmin() error {
 	if err != nil {
 		return err
 	}
-	_, err = a.db.Exec(`INSERT INTO users(username, password_hash, role) VALUES(?, ?, 'admin')`, username, string(hash))
+	_, err = a.db.Exec(`INSERT INTO users(username, password_hash, secret_lookup, role) VALUES(?, ?, ?, 'admin')`, username, string(hash), a.secretLookup(password))
 	return err
 }
 
@@ -207,7 +247,7 @@ func (a *app) register(w http.ResponseWriter, r *http.Request) {
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(mnemonic), bcrypt.DefaultCost)
 	username := "user-" + randomID(3)
-	res, err := a.db.Exec(`INSERT INTO users(username, password_hash, role) VALUES(?, ?, 'user')`, username, string(hash))
+	res, err := a.db.Exec(`INSERT INTO users(username, password_hash, secret_lookup, role) VALUES(?, ?, ?, 'user')`, username, string(hash), a.secretLookup(mnemonic))
 	if err != nil {
 		errorJSON(w, http.StatusInternalServerError, "注册失败")
 		return
@@ -284,7 +324,7 @@ func (a *app) updateMySecret(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, http.StatusInternalServerError, "更新失败")
 		return
 	}
-	if _, err := a.db.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, string(hash), u.ID); err != nil {
+	if _, err := a.db.Exec(`UPDATE users SET password_hash = ?, secret_lookup = ? WHERE id = ?`, string(hash), a.secretLookup(newSecret), u.ID); err != nil {
 		errorJSON(w, http.StatusInternalServerError, "更新失败")
 		return
 	}
@@ -786,7 +826,47 @@ func (a *app) findUserBySecret(secret string, includeAdmins bool) (*user, error)
 	if secret == "" {
 		return nil, errors.New("missing secret")
 	}
+	lookup := a.secretLookup(secret)
+	if lookup != "" {
+		if u, err := a.findUserBySecretLookup(lookup, secret, includeAdmins); err == nil {
+			return u, nil
+		}
+	}
 	rows, err := a.db.Query(`SELECT id, username, password_hash, role, created_at FROM users ORDER BY id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	var matched *user
+	for rows.Next() {
+		var u user
+		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.CreatedAt); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if !includeAdmins && u.Role == "admin" {
+			continue
+		}
+		if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(secret)) == nil {
+			matched = &u
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	if matched != nil {
+		if lookup != "" {
+			_ = a.storeUserSecretLookup(matched.ID, lookup)
+		}
+		return matched, nil
+	}
+	return nil, errors.New("invalid secret")
+}
+
+func (a *app) findUserBySecretLookup(lookup, secret string, includeAdmins bool) (*user, error) {
+	rows, err := a.db.Query(`SELECT id, username, password_hash, role, created_at FROM users WHERE secret_lookup = ? ORDER BY id ASC`, lookup)
 	if err != nil {
 		return nil, err
 	}
@@ -803,7 +883,29 @@ func (a *app) findUserBySecret(secret string, includeAdmins bool) (*user, error)
 			return &u, nil
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return nil, errors.New("invalid secret")
+}
+
+func (a *app) storeUserSecretLookup(userID int64, lookup string) error {
+	if lookup == "" {
+		return nil
+	}
+	_, err := a.db.Exec(`UPDATE users SET secret_lookup = ? WHERE id = ?`, lookup, userID)
+	return err
+}
+
+func (a *app) secretLookup(secret string) string {
+	if secret == "" {
+		return ""
+	}
+	mac := hmac.New(sha256.New, a.jwtSecret)
+	mac.Write([]byte("letspaste-secret-lookup-v1"))
+	mac.Write([]byte{0})
+	mac.Write([]byte(secret))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func (a *app) token(id int64, username, role string) (string, error) {

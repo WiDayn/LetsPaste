@@ -34,6 +34,55 @@ func newTestApp(t *testing.T) *app {
 	return a
 }
 
+func TestMigrateAddsSecretLookupColumnToExistingUsersTable(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("close database: %v", err)
+		}
+	})
+	if _, err := db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		password_hash TEXT NOT NULL,
+		role TEXT NOT NULL DEFAULT 'user',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);`); err != nil {
+		t.Fatalf("create legacy users table: %v", err)
+	}
+	a := &app{db: db, jwtSecret: []byte("test-secret")}
+	if err := a.migrate(); err != nil {
+		t.Fatalf("migrate legacy database: %v", err)
+	}
+
+	rows, err := db.Query(`PRAGMA table_info(users)`)
+	if err != nil {
+		t.Fatalf("inspect users table: %v", err)
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid int
+		var name, dataType string
+		var notNull int
+		var defaultValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			t.Fatalf("scan users column: %v", err)
+		}
+		if name == "secret_lookup" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected secret_lookup column to be added")
+	}
+}
+
 func insertTestUser(t *testing.T, a *app, username, secret, role string) *user {
 	t.Helper()
 
@@ -54,6 +103,59 @@ func insertTestUser(t *testing.T, a *app, username, secret, role string) *user {
 		t.Fatalf("find user: %v", err)
 	}
 	return u
+}
+
+func TestRegisterStoresSecretLookup(t *testing.T) {
+	a := newTestApp(t)
+	body, err := json.Marshal(map[string]string{"mnemonic": "river stone maple"})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	a.register(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		User     user   `json:"user"`
+		Mnemonic string `json:"mnemonic"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Mnemonic != "river-stone-maple" {
+		t.Fatalf("expected normalized mnemonic, got %q", payload.Mnemonic)
+	}
+	var lookup string
+	if err := a.db.QueryRow(`SELECT secret_lookup FROM users WHERE id = ?`, payload.User.ID).Scan(&lookup); err != nil {
+		t.Fatalf("read secret lookup: %v", err)
+	}
+	if lookup != a.secretLookup(payload.Mnemonic) {
+		t.Fatal("registered user did not store mnemonic lookup")
+	}
+}
+
+func TestFindUserBySecretBackfillsLegacyLookup(t *testing.T) {
+	a := newTestApp(t)
+	u := insertTestUser(t, a, "legacy-user", "legacy-secret", "user")
+
+	found, err := a.findUserBySecret("legacy-secret", false)
+	if err != nil {
+		t.Fatalf("find legacy user by secret: %v", err)
+	}
+	if found.ID != u.ID {
+		t.Fatalf("expected user %d, got %d", u.ID, found.ID)
+	}
+	var lookup sql.NullString
+	if err := a.db.QueryRow(`SELECT secret_lookup FROM users WHERE id = ?`, u.ID).Scan(&lookup); err != nil {
+		t.Fatalf("read backfilled lookup: %v", err)
+	}
+	if !lookup.Valid || lookup.String != a.secretLookup("legacy-secret") {
+		t.Fatalf("expected backfilled lookup, got %+v", lookup)
+	}
 }
 
 func TestUpdateMySecretAllowsShortSecrets(t *testing.T) {
@@ -107,6 +209,13 @@ func TestUpdateMySecretAllowsShortSecrets(t *testing.T) {
 			}
 			if err := bcrypt.CompareHashAndPassword([]byte(updated.PasswordHash), []byte(tc.oldSecret)); err == nil {
 				t.Fatal("old secret still works after update")
+			}
+			var lookup sql.NullString
+			if err := a.db.QueryRow(`SELECT secret_lookup FROM users WHERE id = ?`, u.ID).Scan(&lookup); err != nil {
+				t.Fatalf("read updated secret lookup: %v", err)
+			}
+			if !lookup.Valid || lookup.String != a.secretLookup(tc.newSecret) {
+				t.Fatalf("expected updated lookup for new secret, got %+v", lookup)
 			}
 		})
 	}
