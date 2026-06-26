@@ -393,6 +393,10 @@ export default function AdminConsole({
     selectTab("pastes");
   }
 
+  function filterPastesByOwner(owner: string) {
+    updatePasteFilters({ owner });
+  }
+
   return (
     <section className="rounded-md border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
@@ -570,6 +574,7 @@ export default function AdminConsole({
             onRetry={loadPastes}
             onOpen={onOpen}
             onDelete={setPasteToDelete}
+            onFilterOwner={filterPastesByOwner}
           />
         </div>
       )}
@@ -991,6 +996,7 @@ function AdminPasteTable({
   onRetry,
   onOpen,
   onDelete,
+  onFilterOwner,
 }: {
   pastes: Paste[];
   loading: boolean;
@@ -1001,6 +1007,7 @@ function AdminPasteTable({
   onRetry: () => void;
   onOpen: (paste: Paste) => void;
   onDelete: (paste: Paste) => void;
+  onFilterOwner: (owner: string) => void;
 }) {
   const hasError = error.length > 0;
   const emptyTitle = loading ? "正在加载 Paste..." : hasError ? "Paste 加载失败" : filtersActive ? "没有符合筛选的 Paste" : "还没有 Paste";
@@ -1096,6 +1103,21 @@ function AdminPasteTable({
     );
   }
 
+  function renderOwner(owner?: string | null) {
+    if (!owner) return <span className="font-medium text-zinc-500">匿名</span>;
+    return (
+      <button
+        type="button"
+        className="inline-flex max-w-full items-center rounded-md border border-zinc-200 bg-white px-2 py-1 text-left text-xs font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        aria-label={`按作者 ${owner} 筛选 Paste`}
+        title="按该作者筛选"
+        onClick={() => onFilterOwner(owner)}
+      >
+        <span className="min-w-0 truncate">{owner}</span>
+      </button>
+    );
+  }
+
   function renderEmptyState() {
     return (
       <div className="px-4 py-12 text-center">
@@ -1179,7 +1201,7 @@ function AdminPasteTable({
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <dt className="text-zinc-500">作者</dt>
-                    <dd className="mt-0.5 break-all font-medium text-zinc-800">{paste.ownerUsername ?? "匿名"}</dd>
+                    <dd className="mt-0.5 min-w-0">{renderOwner(paste.ownerUsername)}</dd>
                   </div>
                   <div>
                     <dt className="text-zinc-500">访问</dt>
@@ -1231,7 +1253,7 @@ function AdminPasteTable({
                     </button>
                     <div className="text-xs text-zinc-500">{paste.id}</div>
                   </td>
-                  <td className="max-w-[180px] break-all px-4 py-3 text-zinc-600">{paste.ownerUsername ?? "匿名"}</td>
+                  <td className="max-w-[180px] px-4 py-3">{renderOwner(paste.ownerUsername)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       <Badge>{paste.language}</Badge>
