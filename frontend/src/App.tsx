@@ -546,7 +546,7 @@ export function App() {
     }
   }
 
-  async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste, routeMode: "push" | "replace" = "push") {
+  async function openPaste(id: string, updateUrl = true, targetView: View = "explore", knownPaste?: Paste, routeMode: "push" | "replace" = "push", throwOnError = false) {
     if (openingPasteIdRef.current === id) return false;
     if (knownPaste) preloadPasteContent(knownPaste.format);
     const requestId = ++openRequestId.current;
@@ -594,6 +594,7 @@ export function App() {
         return true;
       }
       setSelected(null);
+      if (throwOnError) throw e;
       showError(e);
       return false;
     } finally {
@@ -616,8 +617,8 @@ export function App() {
   async function confirmBurnOpen() {
     if (!burnOpenTarget) return;
     const target = burnOpenTarget;
-    setBurnOpenTarget(null);
-    await openPaste(target.paste.id, true, target.targetView, target.paste);
+    const opened = await openPaste(target.paste.id, true, target.targetView, target.paste, "push", true);
+    if (opened) setBurnOpenTarget(null);
   }
 
   function handleUnlockedPaste(paste: Paste) {
