@@ -59,6 +59,7 @@ export default function AdminConsole({
   onOpen,
   openingPasteId,
   currentUser,
+  settingsFocusNonce,
   onUnsavedSettingsChange,
 }: {
   settings: SiteSettings;
@@ -66,6 +67,7 @@ export default function AdminConsole({
   onOpen: (paste: Paste) => void;
   openingPasteId: string | null;
   currentUser: User;
+  settingsFocusNonce: number;
   onUnsavedSettingsChange: (unsaved: boolean) => void;
 }) {
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -95,6 +97,7 @@ export default function AdminConsole({
   const statsAbortRef = useRef<AbortController | null>(null);
   const pasteAbortRef = useRef<AbortController | null>(null);
   const userAbortRef = useRef<AbortController | null>(null);
+  const settingsFocusRequestedRef = useRef(false);
   const hasPasteFilters =
     pasteFilters.search.trim().length > 0 ||
     pasteFilters.owner.trim().length > 0 ||
@@ -158,6 +161,7 @@ export default function AdminConsole({
       : `共 ${totalUsers} 个用户`;
   const siteNameInputId = "admin-site-name";
   const siteNameErrorId = "admin-site-name-error";
+  const saveSettingsButtonId = "admin-save-settings";
 
   useEffect(() => {
     void loadStats();
@@ -186,6 +190,31 @@ export default function AdminConsole({
     onUnsavedSettingsChange(settingsDirty);
     return () => onUnsavedSettingsChange(false);
   }, [onUnsavedSettingsChange, settingsDirty]);
+
+  useEffect(() => {
+    if (settingsFocusNonce <= 0) return;
+    settingsFocusRequestedRef.current = true;
+    selectTab("settings");
+  }, [settingsFocusNonce]);
+
+  useEffect(() => {
+    if (!settingsFocusRequestedRef.current || tab !== "settings") return;
+    settingsFocusRequestedRef.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      const panel = document.getElementById(adminPanelId("settings"));
+      const saveButton = document.getElementById(saveSettingsButtonId);
+      const target = settingsInvalid
+        ? document.getElementById(siteNameInputId)
+        : saveButton && !saveButton.hasAttribute("disabled")
+          ? saveButton
+          : panel;
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [settingsInvalid, tab, settingsFocusNonce]);
 
   useEffect(() => {
     if (tab !== "pastes") return;
@@ -772,7 +801,7 @@ export default function AdminConsole({
               description="关闭后，访客仍可浏览公开内容，但创建 Paste 前需要登录。"
             />
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" disabled={!canAttemptSaveSettings} aria-busy={savingSettings || undefined}>
+              <Button id={saveSettingsButtonId} type="submit" disabled={!canAttemptSaveSettings} aria-busy={savingSettings || undefined}>
                 <Save size={16} />
                 {saveSettingsLabel}
               </Button>

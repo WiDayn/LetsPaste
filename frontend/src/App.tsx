@@ -422,6 +422,7 @@ export function App() {
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
   const [accountCredentialFocusNonce, setAccountCredentialFocusNonce] = useState(0);
   const [adminSettingsUnsaved, setAdminSettingsUnsaved] = useState(false);
+  const [adminSettingsFocusNonce, setAdminSettingsFocusNonce] = useState(0);
   const viewRef = useRef<View>(initialRouteRef.current?.view ?? "explore");
   const createPasswordUnsavedRef = useRef(false);
   const accountCredentialUnsavedRef = useRef(false);
@@ -755,6 +756,7 @@ export function App() {
       return true;
     }
     if (viewRef.current === "admin" && nextView !== "admin" && adminSettingsUnsavedRef.current) {
+      setAdminSettingsFocusNonce((value) => value + 1);
       showError(new Error("请先保存或还原后台设置，再离开后台。"));
       writeRoute(viewRoute("admin"), "replace");
       return true;
@@ -893,7 +895,15 @@ export function App() {
         )}
         {view === "admin" && isAdmin && user && (
           <Suspense fallback={<ContentLoading />}>
-            <AdminConsole settings={settings} setSettings={setSettings} onOpen={(paste) => requestOpenPaste(paste, "explore")} openingPasteId={openingPasteId} currentUser={user} onUnsavedSettingsChange={setAdminSettingsUnsaved} />
+            <AdminConsole
+              settings={settings}
+              setSettings={setSettings}
+              onOpen={(paste) => requestOpenPaste(paste, "explore")}
+              openingPasteId={openingPasteId}
+              currentUser={user}
+              settingsFocusNonce={adminSettingsFocusNonce}
+              onUnsavedSettingsChange={setAdminSettingsUnsaved}
+            />
           </Suspense>
         )}
         {view === "admin" && !isAdmin && <AdminGate currentUser={user} onAuth={setUser} />}
