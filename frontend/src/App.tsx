@@ -1013,7 +1013,17 @@ function useBeforeUnloadWarning(enabled: boolean) {
   }, [enabled]);
 }
 
-function AuthDialog({ onAuth, showTrigger = true, triggerLabel = "助记码登录" }: { onAuth: (u: User) => void; showTrigger?: boolean; triggerLabel?: string }) {
+function AuthDialog({
+  onAuth,
+  showTrigger = true,
+  triggerLabel = "助记码登录",
+  triggerId,
+}: {
+  onAuth: (u: User) => void;
+  showTrigger?: boolean;
+  triggerLabel?: string;
+  triggerId?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [mnemonic, setMnemonic] = useState("");
@@ -1155,7 +1165,7 @@ function AuthDialog({ onAuth, showTrigger = true, triggerLabel = "助记码登�
   return (
     <>
       {showTrigger && (
-        <Button variant="outline" onClick={() => setOpen(true)}>
+        <Button id={triggerId} variant="outline" onClick={() => setOpen(true)}>
           <KeyRound size={16} />
           {triggerLabel}
         </Button>
@@ -1876,6 +1886,8 @@ function CreateStudio({
   const expiryInputId = "create-paste-expiry";
   const expiryErrorId = "create-paste-expiry-error";
   const settingsPanelId = "create-paste-settings-panel";
+  const anonymousAuthPromptId = "create-paste-auth-required";
+  const anonymousAuthTriggerId = "create-paste-auth-trigger";
   const emptyContentError = "请输入内容后再发布。";
   const expiryError = "自动销毁时间需要填写大于等于 1 的整数分钟。";
   const anonymousBlockedError = "管理员已关闭匿名发布，请登录后再发布。";
@@ -1891,7 +1903,7 @@ function CreateStudio({
   const hasBody = form.content.trim().length > 0;
   const hasPassword = form.password.trim().length > 0;
   const hasFormInput = hasCreateDraft(form) || form.password.trim().length > 0;
-  const canAttemptSubmit = canPost && !busy;
+  const canAttemptSubmit = !busy;
   const contentError = error === emptyContentError;
   const protectionSummary = [
     hasPassword ? "访问密码" : "",
@@ -2064,10 +2076,23 @@ function CreateStudio({
     setSettingsOpen(false);
   }
 
+  function focusAnonymousAuthPrompt() {
+    window.requestAnimationFrame(() => {
+      const trigger = document.getElementById(anonymousAuthTriggerId);
+      const prompt = document.getElementById(anonymousAuthPromptId);
+      const focusTarget = trigger ?? prompt;
+      if (!focusTarget) return;
+      focusTarget.focus({ preventScroll: true });
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      focusTarget.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
+    });
+  }
+
   async function submit() {
     if (busy || submitInFlightRef.current) return;
     if (!canPost) {
       setError(anonymousBlockedError);
+      focusAnonymousAuthPrompt();
       return;
     }
     if (!form.content.trim()) {
@@ -2142,7 +2167,12 @@ function CreateStudio({
                 {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
                 <span className="hidden sm:inline">{settingsOpen ? "收起设置" : "设置"}</span>
               </Button>
-              <Button disabled={!canAttemptSubmit} aria-busy={busy || undefined} onClick={submit}>
+              <Button
+                disabled={!canAttemptSubmit}
+                aria-busy={busy || undefined}
+                aria-describedby={!canPost ? anonymousAuthPromptId : undefined}
+                onClick={submit}
+              >
                 <Plus size={16} />
                 {publishLabel}
               </Button>
@@ -2160,12 +2190,16 @@ function CreateStudio({
           </div>
         )}
         {!canPost && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
+          <div
+            id={anonymousAuthPromptId}
+            className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+            role="status"
+          >
             <span className="inline-flex min-w-0 items-start gap-2">
               <AlertTriangle className="mt-0.5 shrink-0" size={16} />
               <span className="min-w-0">管理员已关闭匿名发布。你可以先编辑草稿，登录或生成助记码后继续发布。</span>
             </span>
-            <AuthDialog onAuth={onAuth} triggerLabel="登录或生成助记码" />
+            <AuthDialog onAuth={onAuth} triggerId={anonymousAuthTriggerId} triggerLabel="登录或生成助记码" />
           </div>
         )}
         <div className="flex min-h-0 flex-1 flex-col p-4">
@@ -2328,7 +2362,13 @@ function CreateStudio({
                 阅后即焚会在首次成功查看内容后删除该 Paste。
               </p>
             )}
-            <Button className="mt-4 w-full" disabled={!canAttemptSubmit} aria-busy={busy || undefined} onClick={submit}>
+            <Button
+              className="mt-4 w-full"
+              disabled={!canAttemptSubmit}
+              aria-busy={busy || undefined}
+              aria-describedby={!canPost ? anonymousAuthPromptId : undefined}
+              onClick={submit}
+            >
               <Plus size={16} />
               {publishLabel}
             </Button>
