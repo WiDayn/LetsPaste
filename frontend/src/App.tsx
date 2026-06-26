@@ -2091,18 +2091,25 @@ function CreateStudio({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-lg font-semibold">创建 Paste</h1>
-              <p className="text-sm text-zinc-500">默认专注编辑，需要时再打开设置或并排预览。</p>
+              <p className="hidden text-sm text-zinc-500 sm:block">默认专注编辑，需要时再打开设置或并排预览。</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {hasFormInput && (
-                <Button variant="ghost" onClick={requestResetDraft} disabled={busy}>
+                <Button variant="ghost" onClick={requestResetDraft} disabled={busy} title="清空草稿" aria-label="清空草稿">
                   <RotateCcw size={16} />
-                  清空草稿
+                  <span className="hidden sm:inline">清空草稿</span>
                 </Button>
               )}
-              <Button variant="outline" aria-expanded={settingsOpen} aria-controls={settingsPanelId} onClick={toggleSettingsPanel}>
+              <Button
+                variant="outline"
+                aria-label={settingsOpen ? "收起设置" : "打开设置"}
+                aria-expanded={settingsOpen}
+                aria-controls={settingsPanelId}
+                title={settingsOpen ? "收起设置" : "设置"}
+                onClick={toggleSettingsPanel}
+              >
                 {settingsOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-                {settingsOpen ? "收起设置" : "设置"}
+                <span className="hidden sm:inline">{settingsOpen ? "收起设置" : "设置"}</span>
               </Button>
               <Button disabled={!canAttemptSubmit} aria-busy={busy || undefined} onClick={submit}>
                 <Plus size={16} />
@@ -3294,9 +3301,9 @@ function PasteViewer({
                 删除
               </Button>
             )}
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} title="返回列表" aria-label="返回列表">
               <PanelLeftClose size={14} />
-              返回列表
+              <span className="hidden sm:inline">返回列表</span>
             </Button>
           </div>
         </div>
@@ -3389,9 +3396,9 @@ function PasteViewer({
                 <ComposeModeButton active={markdownMode === "source"} icon={<Code2 size={14} />} label="源格式" onClick={() => setMarkdownMode("source")} />
               </div>
             )}
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={onClose} title="返回列表" aria-label="返回列表">
               <PanelLeftClose size={14} />
-              返回列表
+              <span className="hidden sm:inline">返回列表</span>
             </Button>
             <Button variant="outline" size="sm" onClick={copyLink} disabled={Boolean(copying)} aria-busy={copying === "link" || undefined}>
               {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
@@ -3402,9 +3409,11 @@ function PasteViewer({
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="更多操作"
                   aria-haspopup="menu"
                   aria-expanded={actionsOpen}
                   aria-controls={actionsMenuId}
+                  title="更多"
                   onClick={() => {
                     actionsInitialFocusRef.current = "first";
                     setActionsOpen((open) => !open);
@@ -3412,7 +3421,7 @@ function PasteViewer({
                   onKeyDown={handleActionsButtonKeyDown}
                 >
                   <MoreHorizontal size={14} />
-                  更多
+                  <span className="hidden sm:inline">更多</span>
                 </Button>
                 {actionsOpen && (
                   <div
