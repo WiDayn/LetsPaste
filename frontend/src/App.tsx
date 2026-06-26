@@ -1725,7 +1725,7 @@ function AccountPanel({
               id={newSecretInputId}
               {...preciseCredentialInputProps}
               aria-label="新管理员密码"
-              autoComplete="new-password"
+              autoComplete="off"
               placeholder="新管理员密码，留空则自动生成"
               revealLabel="新管理员密码"
               value={newSecret}
@@ -1745,7 +1745,7 @@ function AccountPanel({
               onChange={(e) => updateNewSecret(e.target.value)}
             />
           )}
-          <p className="text-xs leading-5 text-zinc-500">可以手动输入新的登录凭据；留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">可以手动输入任意非空的新登录凭据；留空时系统会自动生成一组新的登录凭据。</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="submit"
