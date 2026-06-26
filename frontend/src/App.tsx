@@ -3398,10 +3398,6 @@ function PasteViewer({
               {linkCopied.active ? <Check size={14} /> : <Copy size={14} />}
               {copying === "link" ? "复制中" : linkCopied.active ? "已复制" : "复制链接"}
             </Button>
-            <Button variant="outline" size="sm" onClick={copyContent} disabled={!paste.content || Boolean(copying)} aria-busy={copying === "content" || undefined}>
-              {contentCopied.active ? <Check size={14} /> : <Copy size={14} />}
-              {copying === "content" ? "复制中" : contentCopied.active ? "已复制" : "复制内容"}
-            </Button>
             {hasSecondaryActions && (
               <div ref={actionsRef} className="relative">
                 <Button
@@ -3427,6 +3423,19 @@ function PasteViewer({
                     role="menu"
                     onKeyDown={handleActionsMenuKeyDown}
                   >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={!paste.content || Boolean(copying)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-white"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        void copyContent();
+                      }}
+                    >
+                      {contentCopied.active ? <Check size={14} /> : <Copy size={14} />}
+                      {copying === "content" ? "复制中" : contentCopied.active ? "内容已复制" : "复制内容"}
+                    </button>
                     <button
                       type="button"
                       role="menuitem"
