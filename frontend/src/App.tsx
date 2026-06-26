@@ -3047,9 +3047,10 @@ function PasteViewer({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const linkCopied = useTransientFlag();
+  const idCopied = useTransientFlag();
   const contentCopied = useTransientFlag();
   const [copyFeedback, setCopyFeedback] = useState<{ message: string; tone: "success" | "error" } | null>(null);
-  const [copying, setCopying] = useState<"content" | "link" | null>(null);
+  const [copying, setCopying] = useState<"content" | "id" | "link" | null>(null);
   const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
   const [wrapLongLines, setWrapLongLines] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -3139,6 +3140,7 @@ function PasteViewer({
     setPassword("");
     setError("");
     linkCopied.clear();
+    idCopied.clear();
     contentCopied.clear();
     setCopyFeedback(null);
     setCopying(null);
@@ -3251,7 +3253,7 @@ function PasteViewer({
     }
   }
 
-  async function copyPasteData(kind: "content" | "link", value: string, successMessage: string, failureMessage: string) {
+  async function copyPasteData(kind: "content" | "id" | "link", value: string, successMessage: string, failureMessage: string) {
     if (copyInFlightRef.current) return;
     copyInFlightRef.current = true;
     const requestId = ++copyRequestId.current;
@@ -3263,6 +3265,8 @@ function PasteViewer({
         if (requestId !== copyRequestId.current) return;
         if (kind === "content") {
           contentCopied.show();
+        } else if (kind === "id") {
+          idCopied.show();
         } else {
           linkCopied.show();
         }
@@ -3283,6 +3287,10 @@ function PasteViewer({
 
   async function copyLink() {
     await copyPasteData("link", permalink, "链接已复制到剪贴板。", "复制链接失败，请手动复制浏览器地址栏。");
+  }
+
+  async function copyId() {
+    await copyPasteData("id", paste.id, "Paste ID 已复制到剪贴板。", "复制 ID 失败，请手动选中 ID 复制。");
   }
 
   async function copyContent() {
@@ -3395,7 +3403,18 @@ function PasteViewer({
               {paste.title}
             </h2>
             <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-xs text-zinc-500">
-              <span>{paste.id}</span>
+              <button
+                type="button"
+                className="inline-flex max-w-full items-center gap-1 rounded-sm font-mono hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={Boolean(copying)}
+                aria-busy={copying === "id" || undefined}
+                aria-label={`复制 Paste ID ${paste.id}`}
+                title="复制 Paste ID"
+                onClick={copyId}
+              >
+                <span className="truncate">{paste.id}</span>
+                {idCopied.active ? <Check className="shrink-0" size={12} /> : <Copy className="shrink-0" size={12} />}
+              </button>
               <span>{formatViews(paste.views)}</span>
               <span>{formatDate(paste.createdAt)}</span>
               {paste.ownerUsername && <span>@{paste.ownerUsername}</span>}
