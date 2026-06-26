@@ -1914,6 +1914,7 @@ function CreateStudio({
   function resetDraft() {
     clearCreateDraft();
     const emptyForm = freshCreateForm();
+    lastCodeLanguageRef.current = defaultCreateForm.language;
     formRef.current = emptyForm;
     setForm(emptyForm);
     setDraftSaved(false);
@@ -1979,6 +1980,7 @@ function CreateStudio({
       const paste = await api<Paste>("/api/pastes", { method: "POST", body: JSON.stringify(payload) });
       clearCreateDraft();
       const emptyForm = freshCreateForm();
+      lastCodeLanguageRef.current = defaultCreateForm.language;
       formRef.current = emptyForm;
       setForm(emptyForm);
       setDraftSaved(false);
