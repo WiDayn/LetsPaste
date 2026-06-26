@@ -2816,7 +2816,10 @@ function PasteIndex({
                   aria-label={`打开 ${paste.title}`}
                   onClick={() => onOpen(paste)}
                 >
-                  <div className={cn("break-words text-sm font-medium leading-5", compact ? "line-clamp-1" : "line-clamp-2")}>{paste.title}</div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className={cn("min-w-0 break-words text-sm font-medium leading-5", compact ? "line-clamp-1" : "line-clamp-2")}>{paste.title}</span>
+                    {selectedId === paste.id && <Badge tone="blue">当前打开</Badge>}
+                  </div>
                   <div className={cn("truncate font-mono text-[11px] text-zinc-500", compact ? "mt-0.5" : "mt-1")}>{paste.id}</div>
                   {openingPasteId === paste.id && <div className={cn("text-xs font-medium text-sky-700", compact ? "mt-1" : "mt-2")}>正在打开...</div>}
                 </button>
