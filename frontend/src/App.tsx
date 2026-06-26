@@ -2395,6 +2395,7 @@ function PasteWorkspace({
   const previousPaste = selectedIndex > 0 ? filtered[selectedIndex - 1] : null;
   const nextPaste = selectedIndex >= 0 && selectedIndex < filtered.length - 1 ? filtered[selectedIndex + 1] : null;
   const nextAfterSelectedDelete = nextPaste ?? previousPaste ?? null;
+  const indexRegionId = privateMode ? "paste-workspace-private-index" : "paste-workspace-public-index";
 
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -2409,7 +2410,13 @@ function PasteWorkspace({
             {loading ? "刷新中" : "刷新"}
           </Button>
           {selected && (
-            <Button variant="outline" size="sm" onClick={() => setIndexCollapsed((current) => !current)}>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-controls={indexRegionId}
+              aria-expanded={!indexCollapsed}
+              onClick={() => setIndexCollapsed((current) => !current)}
+            >
               {indexCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
               {indexCollapsed ? "显示索引" : "隐藏索引"}
             </Button>
@@ -2433,7 +2440,7 @@ function PasteWorkspace({
         </div>
       )}
       <div className={cn("grid lg:min-h-[calc(100vh-9.5rem)]", workspaceGridColumns)}>
-        <aside className={cn("min-h-0 border-b border-zinc-200 bg-zinc-50 lg:flex lg:flex-col lg:border-b-0 lg:border-r", selected && indexCollapsed && "hidden")}>
+        <aside id={indexRegionId} className={cn("min-h-0 border-b border-zinc-200 bg-zinc-50 lg:flex lg:flex-col lg:border-b-0 lg:border-r", selected && indexCollapsed && "hidden")}>
           <div className="shrink-0 space-y-3 border-b border-zinc-200 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-2.5 text-zinc-400" size={16} />
