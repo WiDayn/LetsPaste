@@ -1119,6 +1119,7 @@ function AuthDialog({
     if (busy) return;
     if (generatedMnemonicUnsaved) {
       setError("请先保存助记码，再点击“我已保存”。");
+      focusGeneratedMnemonicSavedCheckbox();
       return;
     }
     setOpen(false);
@@ -1130,6 +1131,16 @@ function AuthDialog({
     setCopyingMnemonic(false);
     copiedMnemonic.clear();
     mnemonicCopyStatus.clear();
+  }
+
+  function focusGeneratedMnemonicSavedCheckbox() {
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(mnemonicSavedId);
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
+    });
   }
 
   async function copyGeneratedMnemonic() {
