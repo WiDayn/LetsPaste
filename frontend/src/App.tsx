@@ -3147,6 +3147,11 @@ function PasteViewer({
     actionsRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
   }
 
+  function closeActionsMenu(restoreFocus = false) {
+    setActionsOpen(false);
+    if (restoreFocus) window.setTimeout(focusActionsButton, 0);
+  }
+
   function getActionMenuItems() {
     return Array.from(actionsMenuRef.current?.querySelectorAll<HTMLButtonElement>(menuItemSelector) ?? []).filter((item) => !item.disabled);
   }
@@ -3168,8 +3173,7 @@ function PasteViewer({
   function handleActionsMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
       event.preventDefault();
-      setActionsOpen(false);
-      focusActionsButton();
+      closeActionsMenu(true);
       return;
     }
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
@@ -3270,8 +3274,7 @@ function PasteViewer({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      setActionsOpen(false);
-      focusActionsButton();
+      closeActionsMenu(true);
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -3547,7 +3550,7 @@ function PasteViewer({
                       disabled={!paste.content || Boolean(copying)}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-white"
                       onClick={() => {
-                        setActionsOpen(false);
+                        closeActionsMenu(true);
                         void copyContent();
                       }}
                     >
@@ -3560,7 +3563,7 @@ function PasteViewer({
                       disabled={!canDownload}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:hover:bg-white"
                       onClick={() => {
-                        setActionsOpen(false);
+                        closeActionsMenu(true);
                         downloadContent();
                       }}
                     >
@@ -3575,7 +3578,7 @@ function PasteViewer({
                         className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25"
                         onClick={() => {
                           setWrapLongLines((current) => !current);
-                          setActionsOpen(false);
+                          closeActionsMenu(true);
                         }}
                       >
                         <span className="inline-flex items-center gap-2">
