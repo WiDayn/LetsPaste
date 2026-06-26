@@ -92,6 +92,7 @@ func main() {
 	r.Post("/api/auth/register", a.register)
 	r.Post("/api/auth/login", a.login)
 	r.Get("/api/settings", a.publicSettings)
+	r.Get("/api/pastes/{id}/meta", a.getPasteMeta)
 	r.Get("/api/pastes/{id}", a.getPaste)
 	r.Post("/api/pastes/{id}/unlock", a.unlockPaste)
 
@@ -388,6 +389,16 @@ func (a *app) getPaste(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, p)
 }
 
+func (a *app) getPasteMeta(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	p, err := a.loadPaste(id, false)
+	if err != nil || a.deleteExpiredPaste(p) {
+		errorJSON(w, http.StatusNotFound, "Paste 不存在或已过期")
+		return
+	}
+	writeJSON(w, http.StatusOK, p)
+}
+
 func (a *app) unlockPaste(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Password string `json:"password"`
@@ -414,12 +425,8 @@ func (a *app) viewPaste(id, password string) (*paste, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	if p.ExpiresAt != nil {
-		expires, err := time.Parse(time.RFC3339, *p.ExpiresAt)
-		if err == nil && time.Now().UTC().After(expires) {
-			a.db.Exec(`DELETE FROM pastes WHERE id = ?`, id)
-			return nil, false, errors.New("expired")
-		}
+	if a.deleteExpiredPaste(p) {
+		return nil, false, errors.New("expired")
 	}
 	if passwordHash.Valid {
 		if password == "" || bcrypt.CompareHashAndPassword([]byte(passwordHash.String), []byte(password)) != nil {
@@ -433,6 +440,18 @@ func (a *app) viewPaste(id, password string) (*paste, bool, error) {
 		a.db.Exec(`DELETE FROM pastes WHERE id = ?`, id)
 	}
 	return p, false, nil
+}
+
+func (a *app) deleteExpiredPaste(p *paste) bool {
+	if p == nil || p.ExpiresAt == nil {
+		return false
+	}
+	expires, err := time.Parse(time.RFC3339, *p.ExpiresAt)
+	if err != nil || !time.Now().UTC().After(expires) {
+		return false
+	}
+	a.db.Exec(`DELETE FROM pastes WHERE id = ?`, p.ID)
+	return true
 }
 
 func (a *app) listPastes(w http.ResponseWriter, r *http.Request) {

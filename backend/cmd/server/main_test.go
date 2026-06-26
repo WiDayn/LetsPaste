@@ -158,6 +158,50 @@ func TestGetPasteLockedIncludesSafeMetadata(t *testing.T) {
 	}
 }
 
+func TestGetPasteMetaDoesNotBurnAfterReading(t *testing.T) {
+	a := newTestApp(t)
+	_, err := a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, burn_after_reading)
+		VALUES(?, ?, ?, ?, ?, ?, ?)`, "burn-meta", "Burn meta", "secret content", "go", "code", 0, 1)
+	if err != nil {
+		t.Fatalf("insert paste: %v", err)
+	}
+
+	router := chi.NewRouter()
+	router.Get("/api/pastes/{id}/meta", a.getPasteMeta)
+	req := httptest.NewRequest(http.MethodGet, "/api/pastes/burn-meta/meta", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	if bytes.Contains(rec.Body.Bytes(), []byte("secret content")) {
+		t.Fatal("metadata response leaked paste content")
+	}
+	var payload paste
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.ID != "burn-meta" || !payload.BurnAfterReading {
+		t.Fatalf("unexpected paste metadata: %+v", payload)
+	}
+	if payload.Content != "" {
+		t.Fatal("metadata should not include content")
+	}
+
+	var count, views int
+	if err := a.db.QueryRow(`SELECT COUNT(*), COALESCE(MAX(views), 0) FROM pastes WHERE id = ?`, "burn-meta").Scan(&count, &views); err != nil {
+		t.Fatalf("read paste state: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("metadata request should not delete burn paste, count=%d", count)
+	}
+	if views != 0 {
+		t.Fatalf("metadata request should not increment views, got %d", views)
+	}
+}
+
 func TestAdminUsersIncludesPasteCount(t *testing.T) {
 	a := newTestApp(t)
 	owner := insertTestUser(t, a, "paste-owner", "owner-secret", "user")

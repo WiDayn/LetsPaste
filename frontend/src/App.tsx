@@ -46,6 +46,12 @@ type AppRoute = {
   targetView?: "explore" | "mine";
 };
 type PasteDeleteTarget = { paste: Paste; nextPaste?: Paste | null };
+type BurnOpenTarget = {
+  paste: Paste;
+  targetView: View;
+  routeMode?: "push" | "replace";
+  returnToListOnCancel?: boolean;
+};
 type PasteDeleteHandler = (paste: Paste, nextPaste?: Paste | null) => void;
 
 const routeViews: View[] = ["explore", "create", "mine", "account", "admin"];
@@ -416,7 +422,7 @@ export function App() {
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const [deleteTarget, setDeleteTarget] = useState<PasteDeleteTarget | null>(null);
-  const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
+  const [burnOpenTarget, setBurnOpenTarget] = useState<BurnOpenTarget | null>(null);
   const [createPasswordUnsaved, setCreatePasswordUnsaved] = useState(false);
   const [createPasswordFocusNonce, setCreatePasswordFocusNonce] = useState(0);
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
@@ -618,8 +624,19 @@ export function App() {
   async function confirmBurnOpen() {
     if (!burnOpenTarget) return;
     const target = burnOpenTarget;
-    const opened = await openPaste(target.paste.id, true, target.targetView, target.paste, "push", true);
+    const opened = await openPaste(target.paste.id, true, target.targetView, target.paste, target.routeMode ?? "push", true);
     if (opened) setBurnOpenTarget(null);
+  }
+
+  function cancelBurnOpen() {
+    const target = burnOpenTarget;
+    setBurnOpenTarget(null);
+    if (!target?.returnToListOnCancel) return;
+    cancelOpenRequest();
+    setSelected(null);
+    setCreatedPasteId(null);
+    setView(target.targetView);
+    writeRoute(viewRoute(target.targetView), "replace");
   }
 
   function handleUnlockedPaste(paste: Paste) {
@@ -659,7 +676,22 @@ export function App() {
     if (blockUnsavedNavigation(nextView)) return;
     clearMessage();
     if (route.pasteId) {
-      await openPaste(route.pasteId, false, route.targetView ?? "explore");
+      const targetView = route.targetView ?? "explore";
+      try {
+        const meta = await api<Paste>(`/api/pastes/${route.pasteId}/meta`);
+        if (meta.burnAfterReading) {
+          preloadPasteContent(meta.format);
+          cancelOpenRequest();
+          setSelected(null);
+          setCreatedPasteId(null);
+          setView(targetView);
+          setBurnOpenTarget({ paste: meta, targetView, routeMode: "replace", returnToListOnCancel: true });
+          return;
+        }
+      } catch {
+        // Let the normal open path surface not-found and password-state errors consistently.
+      }
+      await openPaste(route.pasteId, false, targetView);
       return;
     }
     cancelOpenRequest();
@@ -927,7 +959,7 @@ export function App() {
         title="查看阅后即焚 Paste"
         description={`打开「${burnOpenTarget?.paste.title ?? ""}」会在首次成功查看内容后销毁。确认现在查看吗？`}
         confirmLabel="查看并销毁"
-        onCancel={() => setBurnOpenTarget(null)}
+        onCancel={cancelBurnOpen}
         onConfirm={confirmBurnOpen}
       />
     </div>
