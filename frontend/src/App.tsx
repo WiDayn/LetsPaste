@@ -1122,6 +1122,17 @@ function AuthDialog({
     };
   }, []);
 
+  function resetCredentialState() {
+    setMnemonic("");
+    setGeneratedMnemonic("");
+    setMnemonicSaved(false);
+    setCopyingMnemonic(false);
+    copiedMnemonic.clear();
+    mnemonicCopyStatus.clear();
+    mnemonicCopyRequestId.current += 1;
+    mnemonicCopyInFlightRef.current = false;
+  }
+
   async function submit() {
     if (busy || authSubmitInFlightRef.current) return;
     if (generatedMnemonic) {
@@ -1154,6 +1165,7 @@ function AuthDialog({
         mnemonicCopyStatus.clear();
       } else {
         setOpen(false);
+        resetCredentialState();
       }
       setError("");
     } catch (e) {
@@ -1173,13 +1185,7 @@ function AuthDialog({
     }
     setOpen(false);
     setError("");
-    mnemonicCopyRequestId.current += 1;
-    mnemonicCopyInFlightRef.current = false;
-    setGeneratedMnemonic("");
-    setMnemonicSaved(false);
-    setCopyingMnemonic(false);
-    copiedMnemonic.clear();
-    mnemonicCopyStatus.clear();
+    resetCredentialState();
   }
 
   function focusGeneratedMnemonicSavedCheckbox() {
