@@ -845,7 +845,7 @@ function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "default" | "outline" | "ghost" | "danger" | "soft";
-  size?: "default" | "sm" | "icon";
+  size?: "default" | "sm" | "icon" | "smIcon";
 }) {
   return (
     <button
@@ -854,6 +854,7 @@ function Button({
         size === "default" && "h-10 px-4 text-sm",
         size === "sm" && "h-8 px-3 text-xs",
         size === "icon" && "h-9 w-9",
+        size === "smIcon" && "h-8 w-8 text-xs",
         variant === "default" && "bg-zinc-950 text-white hover:bg-zinc-800",
         variant === "outline" && "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50",
         variant === "ghost" && "text-zinc-700 hover:bg-zinc-100",
@@ -1200,35 +1201,40 @@ function AdminPasteTable({
     }
   }
 
-  function renderPasteActions(paste: Paste) {
+  function renderPasteActions(paste: Paste, compact = false) {
     const opening = openingPasteId === paste.id;
+    const openLabel = opening ? "打开中" : "打开";
+    const copyLabel = copyingPasteId === paste.id ? "复制中" : copiedPasteId === paste.id ? "已复制" : "复制链接";
+    const compactLabelClass = compact ? "sr-only" : undefined;
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className={cn("flex flex-wrap", compact ? "gap-1.5" : "gap-2")}>
         <Button
           variant="outline"
-          size="sm"
+          size={compact ? "smIcon" : "sm"}
           aria-label={`打开 Paste ${paste.title}`}
           aria-busy={opening || undefined}
           disabled={opening}
+          title={openLabel}
           onClick={() => onOpen(paste)}
         >
           <Eye size={14} />
-          {opening ? "打开中" : "打开"}
+          <span className={compactLabelClass}>{openLabel}</span>
         </Button>
         <Button
           variant="outline"
-          size="sm"
+          size={compact ? "smIcon" : "sm"}
           aria-label={`复制 Paste ${paste.title} 链接`}
           aria-busy={copyingPasteId === paste.id || undefined}
           disabled={copyBusy}
+          title={copyLabel}
           onClick={() => void copyPasteLink(paste)}
         >
           {copiedPasteId === paste.id ? <Check size={14} /> : <Copy size={14} />}
-          {copyingPasteId === paste.id ? "复制中" : copiedPasteId === paste.id ? "已复制" : "复制链接"}
+          <span className={compactLabelClass}>{copyLabel}</span>
         </Button>
-        <Button variant="danger" size="sm" aria-label={`删除 Paste ${paste.title}`} onClick={() => onDelete(paste)}>
+        <Button variant="danger" size={compact ? "smIcon" : "sm"} aria-label={`删除 Paste ${paste.title}`} title="删除" onClick={() => onDelete(paste)}>
           <Trash2 size={14} />
-          删除
+          <span className={compactLabelClass}>删除</span>
         </Button>
       </div>
     );
@@ -1343,7 +1349,7 @@ function AdminPasteTable({
                     <dd className="mt-0.5 text-zinc-800">{paste.expiresAt ? formatDate(paste.expiresAt) : "永久"}</dd>
                   </div>
                 </dl>
-                <div className="mt-3">{renderPasteActions(paste)}</div>
+                <div className="mt-3">{renderPasteActions(paste, true)}</div>
               </article>
             ))}
           </div>
