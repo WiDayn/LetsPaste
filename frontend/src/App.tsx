@@ -1648,6 +1648,18 @@ function AccountPanel({
     clearEditableMessage();
   }
 
+  function clearCredentialDraft() {
+    if (!credentialDraftUnsaved) return;
+    setCurrentSecret("");
+    setNewSecret("");
+    if (resultSecretUnsaved) {
+      showErrorMessage("已清空正在编辑的输入；请确认已保存新的登录凭据。");
+    } else {
+      showInfo("已清空正在编辑的登录凭据。");
+    }
+    focusFieldById(currentSecretInputId);
+  }
+
   return (
     <section className="mx-auto max-w-3xl rounded-md border border-zinc-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3">
@@ -1734,13 +1746,19 @@ function AccountPanel({
             />
           )}
           <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据不设最小长度，会直接保存；留空时系统会自动生成一组新的登录凭据。</p>
-          <Button
-            type="submit"
-            disabled={busy || (Boolean(resultSecret) && !resultSecretSaved)}
-            aria-busy={busy || undefined}
-          >
-            {busy ? "保存中" : "保存修改"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="submit"
+              disabled={busy || (Boolean(resultSecret) && !resultSecretSaved)}
+              aria-busy={busy || undefined}
+            >
+              {busy ? "保存中" : "保存修改"}
+            </Button>
+            <Button type="button" variant="outline" disabled={busy || !credentialDraftUnsaved} onClick={clearCredentialDraft}>
+              <X size={14} />
+              清空编辑
+            </Button>
+          </div>
           {message && (
             <div
               id={accountMessageId}
@@ -1969,6 +1987,12 @@ function CreateStudio({
     updateCreateForm((current) => ({ ...current, language }));
   }
 
+  function clearAccessPassword() {
+    if (!hasPassword) return;
+    updateCreateForm((current) => ({ ...current, password: "" }));
+    focusFieldById(passwordInputId);
+  }
+
   function resetDraft() {
     clearCreateDraft();
     const emptyForm = freshCreateForm();
@@ -2195,9 +2219,17 @@ function CreateStudio({
                   value={form.password}
                   onChange={(e) => updateCreateForm((current) => ({ ...current, password: e.target.value }))}
                 />
-                <p id={passwordHelpId} className="text-xs leading-5 text-zinc-500">
-                  访问密码只随本次发布提交，不会写入浏览器草稿。
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p id={passwordHelpId} className="min-w-0 flex-1 text-xs leading-5 text-zinc-500">
+                    访问密码只随本次发布提交，不会写入浏览器草稿。
+                  </p>
+                  {hasPassword && (
+                    <Button type="button" variant="ghost" size="sm" onClick={clearAccessPassword}>
+                      <X size={14} />
+                      清空密码
+                    </Button>
+                  )}
+                </div>
               </Field>
               <Field label="自动销毁" htmlFor={expiryInputId}>
                 <Input
