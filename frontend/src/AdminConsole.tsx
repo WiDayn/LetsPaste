@@ -510,7 +510,7 @@ export default function AdminConsole({
               <option value="views">访问量</option>
               <option value="title">标题</option>
             </Select>
-            <Button className="w-full sm:w-auto" variant="outline" onClick={loadPastes} disabled={loadingPastes}>{loadingPastes ? "筛选中" : "刷新"}</Button>
+            <Button className="w-full sm:w-auto" variant="outline" onClick={loadPastes} disabled={loadingPastes} aria-busy={loadingPastes || undefined}>{loadingPastes ? "筛选中" : "刷新"}</Button>
             {hasPasteFilters && (
               <Button className="w-full sm:w-auto" variant="ghost" onClick={clearPasteFilters}>
                 <X size={14} />
@@ -579,7 +579,7 @@ export default function AdminConsole({
               <option value="admin">管理员</option>
               <option value="user">用户</option>
             </Select>
-            <Button className="w-full sm:w-auto" variant="outline" onClick={loadUsers} disabled={loadingUsers}>{loadingUsers ? "筛选中" : "刷新"}</Button>
+            <Button className="w-full sm:w-auto" variant="outline" onClick={loadUsers} disabled={loadingUsers} aria-busy={loadingUsers || undefined}>{loadingUsers ? "筛选中" : "刷新"}</Button>
             {hasUserFilters && (
               <Button className="w-full sm:w-auto" variant="ghost" onClick={clearUserFilters}>
                 <X size={14} />
