@@ -35,7 +35,7 @@ import { ApiError, api } from "./api";
 import type { Paste, Settings as SiteSettings, User } from "./api";
 import { trapDialogTab, useDialogFocus } from "./dialogFocus";
 import { cn, copyText, pastePermalink } from "./lib";
-import { preloadPasteContentRenderer } from "./rendering";
+import { preloadPasteContentRenderer, syntaxHighlightMaxCharacters } from "./rendering";
 
 type View = "explore" | "create" | "mine" | "account" | "admin";
 type ComposeMode = "write" | "split" | "preview";
@@ -2603,6 +2603,12 @@ function ComposeModeButton({
 
 function DraftPreview({ content, language, format, pending = false }: { content: string; language: string; format: Paste["format"]; pending?: boolean }) {
   const hasContent = content.trim().length > 0;
+  const [renderLargePreview, setRenderLargePreview] = useState(false);
+  const previewTooLarge = hasContent && content.length > syntaxHighlightMaxCharacters && !renderLargePreview;
+
+  useEffect(() => {
+    setRenderLargePreview(false);
+  }, [content, format, language]);
 
   return (
     <div className="flex min-h-[18rem] min-w-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white md:min-h-[22rem] lg:min-h-[30rem]">
@@ -2614,7 +2620,21 @@ function DraftPreview({ content, language, format, pending = false }: { content:
         </span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
-        {hasContent ? (
+        {previewTooLarge ? (
+          <div className="grid h-full place-items-center p-6 text-center text-sm text-zinc-500">
+            <div className="max-w-sm">
+              <AlertTriangle className="mx-auto mb-3 text-amber-500" size={24} />
+              <div className="font-medium text-zinc-800">内容较大，已暂停实时预览</div>
+              <div className="mt-1 leading-6">
+                超过 {syntaxHighlightMaxCharacters.toLocaleString()} 字符，实时渲染可能影响编辑流畅度。可以继续编辑、发布后查看，或手动预览一次。
+              </div>
+              <Button className="mt-4" variant="outline" size="sm" onClick={() => setRenderLargePreview(true)}>
+                <Eye size={14} />
+                仍然预览
+              </Button>
+            </div>
+          </div>
+        ) : hasContent ? (
           <Suspense fallback={<ContentLoading />}>
             <PasteContent content={content} language={language} format={format} light />
           </Suspense>
