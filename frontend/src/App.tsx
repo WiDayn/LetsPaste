@@ -1768,6 +1768,7 @@ function CreateStudio({
   const settingsFocusTargetIdRef = useRef<string | null>(null);
   const settingsOpenRequestedRef = useRef(false);
   const submitInFlightRef = useRef(false);
+  const lastCodeLanguageRef = useRef(form.format === "code" && form.language !== "markdown" ? form.language : defaultCreateForm.language);
   const titleInputId = "create-paste-title";
   const contentInputId = "create-paste-content";
   const contentErrorId = "create-paste-content-error";
@@ -1895,11 +1896,19 @@ function CreateStudio({
 
   function updateFormat(format: Paste["format"]) {
     if (composeMode !== "write" && hasBody) preloadPasteContent(format);
-    updateCreateForm((current) => ({
-      ...current,
-      format,
-      language: format === "markdown" ? "markdown" : current.language === "markdown" ? "plaintext" : current.language,
-    }));
+    updateCreateForm((current) => {
+      if (format === "markdown") {
+        if (current.format !== "markdown" && current.language !== "markdown") lastCodeLanguageRef.current = current.language;
+        return { ...current, format, language: "markdown" };
+      }
+      const language = current.language === "markdown" ? lastCodeLanguageRef.current : current.language;
+      return { ...current, format, language };
+    });
+  }
+
+  function updateLanguage(language: string) {
+    if (language !== "markdown") lastCodeLanguageRef.current = language;
+    updateCreateForm((current) => ({ ...current, language }));
   }
 
   function resetDraft() {
@@ -2108,7 +2117,7 @@ function CreateStudio({
                 </Select>
               </Field>
               <Field label="代码语言" htmlFor={languageSelectId}>
-                <Select id={languageSelectId} value={form.language} disabled={form.format === "markdown"} onChange={(e) => updateCreateForm((current) => ({ ...current, language: e.target.value }))}>
+                <Select id={languageSelectId} value={form.language} disabled={form.format === "markdown"} onChange={(e) => updateLanguage(e.target.value)}>
                   {languages.map((language) => (
                     <option key={language}>{language}</option>
                   ))}
