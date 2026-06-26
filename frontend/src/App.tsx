@@ -39,6 +39,7 @@ import { preloadPasteContentRenderer, syntaxHighlightMaxCharacters } from "./ren
 
 type View = "explore" | "create" | "mine" | "account" | "admin";
 type ComposeMode = "write" | "split" | "preview";
+type MarkdownViewMode = "preview" | "source";
 type AppRoute = {
   app: "letspaste";
   view: View;
@@ -171,6 +172,8 @@ const createSettingsOpenPreferenceKey = "letspaste_create_settings_open_v1";
 const pasteIndexBatchSize = 80;
 const publicPasteListLimit = 50;
 const pasteIndexPreferenceKey = "letspaste_paste_index_collapsed_v1";
+const markdownViewModePreferenceKey = "letspaste_markdown_view_mode_v1";
+const contentWrapPreferenceKey = "letspaste_content_wrap_v1";
 const preciseCredentialInputProps = {
   autoCapitalize: "none",
   autoCorrect: "off",
@@ -326,6 +329,40 @@ function loadPasteIndexCollapsedPreference() {
 function savePasteIndexCollapsedPreference(collapsed: boolean) {
   try {
     localStorage.setItem(pasteIndexPreferenceKey, collapsed ? "collapsed" : "expanded");
+  } catch {
+    // Non-critical reading preference; the current in-memory state still works.
+  }
+}
+
+function loadMarkdownViewModePreference(): MarkdownViewMode {
+  try {
+    return localStorage.getItem(markdownViewModePreferenceKey) === "source" ? "source" : "preview";
+  } catch {
+    // Non-critical reading preference; preview remains the default.
+  }
+  return "preview";
+}
+
+function saveMarkdownViewModePreference(mode: MarkdownViewMode) {
+  try {
+    localStorage.setItem(markdownViewModePreferenceKey, mode);
+  } catch {
+    // Non-critical reading preference; the current in-memory state still works.
+  }
+}
+
+function loadContentWrapPreference() {
+  try {
+    return localStorage.getItem(contentWrapPreferenceKey) === "wrap";
+  } catch {
+    // Non-critical reading preference; unwrapped content remains the default.
+  }
+  return false;
+}
+
+function saveContentWrapPreference(wrap: boolean) {
+  try {
+    localStorage.setItem(contentWrapPreferenceKey, wrap ? "wrap" : "nowrap");
   } catch {
     // Non-critical reading preference; the current in-memory state still works.
   }
@@ -3308,8 +3345,8 @@ function PasteViewer({
   const contentCopied = useTransientFlag();
   const [copyFeedback, setCopyFeedback] = useState<{ message: string; tone: "success" | "error" } | null>(null);
   const [copying, setCopying] = useState<"content" | "id" | "link" | null>(null);
-  const [markdownMode, setMarkdownMode] = useState<"preview" | "source">("preview");
-  const [wrapLongLines, setWrapLongLines] = useState(false);
+  const [markdownMode, setMarkdownMode] = useState<MarkdownViewMode>(() => loadMarkdownViewModePreference());
+  const [wrapLongLines, setWrapLongLines] = useState(() => loadContentWrapPreference());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const copyStatus = useTransientStatus();
@@ -3406,7 +3443,8 @@ function PasteViewer({
     setCopyFeedback(null);
     setCopying(null);
     copyStatus.clear();
-    setMarkdownMode("preview");
+    setMarkdownMode(paste.format === "markdown" ? loadMarkdownViewModePreference() : "preview");
+    setWrapLongLines(loadContentWrapPreference());
     setActionsOpen(false);
     setUnlocking(false);
   }, [paste.id]);
@@ -3557,6 +3595,20 @@ function PasteViewer({
     await copyPasteData("content", paste.content ?? "", "Paste 内容已复制到剪贴板。", "复制内容失败，请手动选中内容复制。");
   }
 
+  function changeMarkdownMode(nextMode: MarkdownViewMode) {
+    if (nextMode === "preview") preloadPasteContent("markdown");
+    setMarkdownMode(nextMode);
+    saveMarkdownViewModePreference(nextMode);
+  }
+
+  function toggleWrapLongLines() {
+    setWrapLongLines((current) => {
+      const next = !current;
+      saveContentWrapPreference(next);
+      return next;
+    });
+  }
+
   function downloadContent() {
     if (!paste.content) return;
     try {
@@ -3693,12 +3745,9 @@ function PasteViewer({
                   active={markdownMode === "preview"}
                   icon={<Eye size={14} />}
                   label="预览"
-                  onClick={() => {
-                    preloadPasteContent("markdown");
-                    setMarkdownMode("preview");
-                  }}
+                  onClick={() => changeMarkdownMode("preview")}
                 />
-                <ComposeModeButton active={markdownMode === "source"} icon={<Code2 size={14} />} label="源格式" onClick={() => setMarkdownMode("source")} />
+                <ComposeModeButton active={markdownMode === "source"} icon={<Code2 size={14} />} label="源格式" onClick={() => changeMarkdownMode("source")} />
               </div>
             )}
             <Button variant="ghost" size="sm" onClick={onClose} title="返回列表" aria-label="返回列表">
@@ -3769,7 +3818,7 @@ function PasteViewer({
                         aria-checked={wrapLongLines}
                         className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-950/25"
                         onClick={() => {
-                          setWrapLongLines((current) => !current);
+                          toggleWrapLongLines();
                           closeActionsMenu(true);
                         }}
                       >
