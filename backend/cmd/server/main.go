@@ -470,7 +470,7 @@ func (a *app) myPastes(w http.ResponseWriter, r *http.Request) {
 	u, _ := currentUser(r)
 	rows, err := a.db.Query(`SELECT p.id, p.title, '', p.language, p.format, p.is_private, p.password_hash IS NOT NULL, p.burn_after_reading,
 		p.expires_at, p.views, p.owner_id, u.username, p.created_at FROM pastes p LEFT JOIN users u ON p.owner_id = u.id
-		WHERE p.owner_id = ? ORDER BY p.created_at DESC`, u.ID)
+		WHERE p.owner_id = ? AND (p.expires_at IS NULL OR p.expires_at > ?) ORDER BY p.created_at DESC`, u.ID, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
 		errorJSON(w, http.StatusInternalServerError, "读取失败")
 		return

@@ -241,6 +241,56 @@ func TestAdminUsersIncludesPasteCount(t *testing.T) {
 	}
 }
 
+func TestMyPastesOmitsExpiredPastes(t *testing.T) {
+	a := newTestApp(t)
+	owner := insertTestUser(t, a, "active-owner", "owner-secret", "user")
+	activeExpiry := time.Now().UTC().Add(time.Hour).Format(time.RFC3339)
+	expired := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	_, err := a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, owner_id, expires_at)
+		VALUES
+		(?, ?, ?, ?, ?, ?, ?, ?),
+		(?, ?, ?, ?, ?, ?, ?, ?),
+		(?, ?, ?, ?, ?, ?, ?, NULL)`,
+		"owned-active-expiring", "Owned Active Expiring", "active expiring content", "plaintext", "code", 1, owner.ID, activeExpiry,
+		"owned-expired", "Owned Expired", "expired content", "plaintext", "code", 1, owner.ID, expired,
+		"owned-permanent", "Owned Permanent", "permanent content", "plaintext", "code", 1, owner.ID,
+	)
+	if err != nil {
+		t.Fatalf("insert pastes: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/my/pastes", nil)
+	rec := httptest.NewRecorder()
+
+	a.myPastes(rec, req.WithContext(withUser(req.Context(), owner)))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	if bytes.Contains(rec.Body.Bytes(), []byte("active expiring content")) ||
+		bytes.Contains(rec.Body.Bytes(), []byte("expired content")) ||
+		bytes.Contains(rec.Body.Bytes(), []byte("permanent content")) {
+		t.Fatal("my paste list should not include paste content")
+	}
+	var pastes []paste
+	if err := json.Unmarshal(rec.Body.Bytes(), &pastes); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(pastes) != 2 {
+		t.Fatalf("expected exactly two active pastes, got %d: %+v", len(pastes), pastes)
+	}
+	ids := map[string]bool{}
+	for _, p := range pastes {
+		ids[p.ID] = true
+	}
+	if ids["owned-expired"] {
+		t.Fatal("expired paste should not appear in my paste list")
+	}
+	if !ids["owned-active-expiring"] || !ids["owned-permanent"] {
+		t.Fatalf("expected active and permanent pastes, got %+v", ids)
+	}
+}
+
 func TestAdminPastesOwnerFilterMatchesExactOwnerOnly(t *testing.T) {
 	a := newTestApp(t)
 	alice := insertTestUser(t, a, "alice", "alice-secret", "user")
