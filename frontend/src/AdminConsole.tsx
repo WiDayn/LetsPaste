@@ -27,11 +27,23 @@ type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
 type RoleChangeTarget = { user: User; role: User["role"] };
 type AdminBreakdownRow = [label: string, value: number, onSelect?: () => void];
+type ActiveFilterChipItem = {
+  label: string;
+  value: string;
+  tone?: "neutral" | "sky" | "emerald" | "amber" | "blue";
+  onClear: () => void;
+};
 const defaultPasteFilters = { search: "", owner: "", visibility: "", security: "", format: "", created: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
 const adminServerListLimit = 250;
 const adminTabs: AdminTab[] = ["overview", "pastes", "users", "settings"];
+const pasteVisibilityLabels: Record<string, string> = { public: "公开", private: "私密" };
+const pasteSecurityLabels: Record<string, string> = { active: "有效", expiring: "限时有效", expired: "已过期", password: "有密码", burn: "阅后即焚" };
+const pasteFormatLabels: Record<string, string> = { code: "代码", markdown: "Markdown" };
+const pasteCreatedLabels: Record<string, string> = { "24h": "24h 新增" };
+const pasteSortLabels: Record<string, string> = { views: "访问量", title: "标题" };
+const userRoleLabels: Record<string, string> = { admin: "管理员", user: "普通用户" };
 
 function adminTabId(tab: AdminTab) {
   return `admin-tab-${tab}`;
@@ -99,7 +111,37 @@ export default function AdminConsole({
   const totalPastes = stats.totalPastes ?? pastes.length;
   const totalUsers = stats.totalUsers ?? users.length;
   const pasteOwnerFilterLabel = pasteFilters.owner === "__anonymous" ? "匿名" : pasteFilters.owner;
-  const pasteCreatedFilterLabel = pasteFilters.created === "24h" ? "24h 新增" : "";
+  const pasteFilterChips = [
+    pasteFilters.search.trim()
+      ? { label: "搜索", value: pasteFilters.search.trim(), onClear: () => updatePasteFilters({ search: "" }) }
+      : null,
+    pasteFilters.owner.trim()
+      ? { label: "作者", value: pasteOwnerFilterLabel, tone: "sky", onClear: () => updatePasteFilters({ owner: "" }) }
+      : null,
+    pasteFilters.visibility
+      ? { label: "可见性", value: pasteVisibilityLabels[pasteFilters.visibility] ?? pasteFilters.visibility, tone: "blue", onClear: () => updatePasteFilters({ visibility: "" }) }
+      : null,
+    pasteFilters.security
+      ? { label: "策略", value: pasteSecurityLabels[pasteFilters.security] ?? pasteFilters.security, tone: "amber", onClear: () => updatePasteFilters({ security: "" }) }
+      : null,
+    pasteFilters.format
+      ? { label: "格式", value: pasteFormatLabels[pasteFilters.format] ?? pasteFilters.format, tone: "emerald", onClear: () => updatePasteFilters({ format: "" }) }
+      : null,
+    pasteFilters.created
+      ? { label: "创建", value: pasteCreatedLabels[pasteFilters.created] ?? pasteFilters.created, tone: "emerald", onClear: () => updatePasteFilters({ created: "" }) }
+      : null,
+    pasteFilters.sort !== "newest"
+      ? { label: "排序", value: pasteSortLabels[pasteFilters.sort] ?? pasteFilters.sort, onClear: () => updatePasteFilters({ sort: "newest" }) }
+      : null,
+  ].filter(Boolean) as ActiveFilterChipItem[];
+  const userFilterChips = [
+    userFilters.search.trim()
+      ? { label: "搜索", value: userFilters.search.trim(), onClear: () => updateUserFilters({ search: "" }) }
+      : null,
+    userFilters.role
+      ? { label: "角色", value: userRoleLabels[userFilters.role] ?? userFilters.role, tone: userFilters.role === "admin" ? "amber" : "blue", onClear: () => updateUserFilters({ role: "" }) }
+      : null,
+  ].filter(Boolean) as ActiveFilterChipItem[];
   const pasteStatusText = hasPasteFilters
     ? pastes.length >= adminServerListLimit
       ? `当前筛选返回前 ${adminServerListLimit} 条 Paste，请继续收窄筛选定位更多结果`
@@ -576,32 +618,9 @@ export default function AdminConsole({
               <span role="status" aria-live="polite" aria-atomic="true">
                 {pasteStatusText}
               </span>
-              {pasteFilters.owner.trim() && (
-                <button
-                  type="button"
-                  className="inline-flex max-w-full items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-medium text-sky-800 hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700/25"
-                  aria-label={`清除作者 ${pasteOwnerFilterLabel} 的筛选`}
-                  title="清除作者筛选"
-                  onClick={() => updatePasteFilters({ owner: "" })}
-                >
-                  <span className="shrink-0 text-sky-600">作者</span>
-                  <span className="min-w-0 truncate">{pasteOwnerFilterLabel}</span>
-                  <X className="shrink-0" size={12} />
-                </button>
-              )}
-              {pasteCreatedFilterLabel && (
-                <button
-                  type="button"
-                  className="inline-flex max-w-full items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-medium text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700/25"
-                  aria-label={`清除创建时间 ${pasteCreatedFilterLabel} 的筛选`}
-                  title="清除创建时间筛选"
-                  onClick={() => updatePasteFilters({ created: "" })}
-                >
-                  <span className="shrink-0 text-emerald-600">创建</span>
-                  <span className="min-w-0 truncate">{pasteCreatedFilterLabel}</span>
-                  <X className="shrink-0" size={12} />
-                </button>
-              )}
+              {pasteFilterChips.map((chip) => (
+                <ActiveFilterChip key={`${chip.label}-${chip.value}`} {...chip} />
+              ))}
             </div>
             {hasPasteFilters && (
               <button
@@ -670,9 +689,14 @@ export default function AdminConsole({
             )}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500">
-            <span role="status" aria-live="polite" aria-atomic="true">
-              {userStatusText}
-            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span role="status" aria-live="polite" aria-atomic="true">
+                {userStatusText}
+              </span>
+              {userFilterChips.map((chip) => (
+                <ActiveFilterChip key={`${chip.label}-${chip.value}`} {...chip} />
+              ))}
+            </div>
             {hasUserFilters && (
               <button
                 type="button"
@@ -1067,6 +1091,29 @@ function AdminBreakdown({ title, rows }: { title: string; rows: AdminBreakdownRo
         )}
       </div>
     </div>
+  );
+}
+
+function ActiveFilterChip({ label, onClear, tone = "neutral", value }: ActiveFilterChipItem) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 font-medium transition focus-visible:outline-none focus-visible:ring-2",
+        tone === "neutral" && "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 focus-visible:ring-zinc-950/25",
+        tone === "sky" && "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 focus-visible:ring-sky-700/25",
+        tone === "emerald" && "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 focus-visible:ring-emerald-700/25",
+        tone === "amber" && "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 focus-visible:ring-amber-700/25",
+        tone === "blue" && "border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 focus-visible:ring-blue-700/25",
+      )}
+      aria-label={`清除${label} ${value} 的筛选`}
+      title={`清除${label}筛选`}
+      onClick={onClear}
+    >
+      <span className="shrink-0 opacity-75">{label}</span>
+      <span className="min-w-0 truncate">{value}</span>
+      <X className="shrink-0 opacity-75" size={12} />
+    </button>
   );
 }
 
