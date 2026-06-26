@@ -221,6 +221,35 @@ func TestUpdateMySecretAllowsShortSecrets(t *testing.T) {
 	}
 }
 
+func TestCreatePasteRejectsInvalidBearerBeforeAnonymousFallback(t *testing.T) {
+	a := newTestApp(t)
+	body, err := json.Marshal(map[string]any{
+		"title":    "Should not become anonymous",
+		"content":  "secret draft",
+		"language": "go",
+		"format":   "code",
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/pastes", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer invalid-token")
+	rec := httptest.NewRecorder()
+
+	a.optionalAuth(http.HandlerFunc(a.createPaste)).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	var count int
+	if err := a.db.QueryRow(`SELECT COUNT(*) FROM pastes`).Scan(&count); err != nil {
+		t.Fatalf("count pastes: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("invalid bearer should not create anonymous paste, count=%d", count)
+	}
+}
+
 func TestGetPasteLockedIncludesSafeMetadata(t *testing.T) {
 	a := newTestApp(t)
 	hash, err := bcrypt.GenerateFromPassword([]byte("open-sesame"), bcrypt.DefaultCost)

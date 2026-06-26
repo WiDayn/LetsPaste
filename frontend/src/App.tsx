@@ -774,6 +774,13 @@ export function App() {
     writeRoute(viewRoute("explore"), "replace");
   }
 
+  function expireSession() {
+    localStorage.removeItem("letspaste_token");
+    setUser(null);
+    setAccountCredentialUnsaved(false);
+    setAdminSettingsUnsaved(false);
+  }
+
   function clearMessage() {
     setMessage("");
   }
@@ -871,6 +878,7 @@ export function App() {
             authed={Boolean(user)}
             settings={settings}
             onAuth={setUser}
+            onSessionExpired={expireSession}
             passwordFocusNonce={createPasswordFocusNonce}
             onCreated={(paste) => {
               cancelRouteRequest();
@@ -1925,6 +1933,7 @@ function CreateStudio({
   settings,
   authed,
   onAuth,
+  onSessionExpired,
   onCreated,
   onUnsavedPasswordChange,
   passwordFocusNonce,
@@ -1932,6 +1941,7 @@ function CreateStudio({
   settings: SiteSettings;
   authed: boolean;
   onAuth: (u: User) => void;
+  onSessionExpired: () => void;
   onCreated: (p: Paste) => void;
   onUnsavedPasswordChange: (unsaved: boolean) => void;
   passwordFocusNonce: number;
@@ -1967,6 +1977,9 @@ function CreateStudio({
   const emptyContentError = "请输入内容后再发布。";
   const expiryError = "自动销毁时间需要填写大于等于 1 的整数分钟。";
   const anonymousBlockedError = "管理员已关闭匿名发布，请登录后再发布。";
+  const sessionExpiredError = settings.allowAnonymousPaste
+    ? "登录状态已失效。重新登录可发布到账号；再次发布会以匿名身份创建。"
+    : "登录状态已失效，请重新登录后再发布。";
   const canPost = authed || settings.allowAnonymousPaste;
   const showEditor = composeMode !== "preview";
   const showPreview = composeMode !== "write";
@@ -2012,7 +2025,8 @@ function CreateStudio({
 
   useEffect(() => {
     if (canPost && error === anonymousBlockedError) setError("");
-  }, [anonymousBlockedError, canPost, error]);
+    if (authed && error === sessionExpiredError) setError("");
+  }, [anonymousBlockedError, authed, canPost, error, sessionExpiredError]);
 
   useEffect(() => {
     onUnsavedPasswordChange(hasPassword);
@@ -2200,6 +2214,12 @@ function CreateStudio({
       setDraftRestored(false);
       onCreated(paste);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        onSessionExpired();
+        setError(sessionExpiredError);
+        if (!settings.allowAnonymousPaste) window.requestAnimationFrame(focusAnonymousAuthPrompt);
+        return;
+      }
       setError((e as Error).message);
     } finally {
       submitInFlightRef.current = false;

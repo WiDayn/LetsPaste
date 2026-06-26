@@ -357,6 +357,10 @@ func (a *app) updateSettings(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) createPaste(w http.ResponseWriter, r *http.Request) {
 	u, authed := currentUser(r)
+	if failed, ok := authFailed(r); ok && failed {
+		errorJSON(w, http.StatusUnauthorized, "登录状态已失效，请重新登录")
+		return
+	}
 	if !authed && !a.settingBool("allow_anonymous_paste", true) {
 		errorJSON(w, http.StatusForbidden, "管理员已关闭匿名 Paste")
 		return
@@ -918,6 +922,8 @@ func (a *app) optionalAuth(next http.Handler) http.Handler {
 		if token := bearer(r); token != "" {
 			if u, err := a.userFromToken(token); err == nil {
 				r = r.WithContext(withUser(r.Context(), u))
+			} else {
+				r = r.WithContext(withAuthFailed(r.Context()))
 			}
 		}
 		next.ServeHTTP(w, r)
@@ -964,9 +970,18 @@ func withUser(ctx context.Context, u *user) context.Context {
 	return context.WithValue(ctx, contextKey("user"), u)
 }
 
+func withAuthFailed(ctx context.Context) context.Context {
+	return context.WithValue(ctx, contextKey("authFailed"), true)
+}
+
 func currentUser(r *http.Request) (*user, bool) {
 	u, ok := r.Context().Value(contextKey("user")).(*user)
 	return u, ok
+}
+
+func authFailed(r *http.Request) (bool, bool) {
+	failed, ok := r.Context().Value(contextKey("authFailed")).(bool)
+	return failed, ok
 }
 
 func bearer(r *http.Request) string {
