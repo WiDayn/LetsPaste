@@ -166,6 +166,8 @@ const languages = [
 
 const createDraftKey = "letspaste_create_draft_v1";
 const createDraftSaveDelayMs = 500;
+const createComposeModePreferenceKey = "letspaste_create_compose_mode_v1";
+const createSettingsOpenPreferenceKey = "letspaste_create_settings_open_v1";
 const pasteIndexBatchSize = 80;
 const publicPasteListLimit = 50;
 const pasteIndexPreferenceKey = "letspaste_paste_index_collapsed_v1";
@@ -266,6 +268,47 @@ function clearCreateDraft() {
     sessionStorage.removeItem(createDraftKey);
   } catch {
     // Ignore storage restrictions; the in-memory form is still authoritative.
+  }
+}
+
+function loadCreateComposeModePreference() {
+  try {
+    const value = localStorage.getItem(createComposeModePreferenceKey);
+    if (value === "write" || value === "split" || value === "preview") return value;
+  } catch {
+    // Storage may be unavailable in strict/private browser modes.
+  }
+  return null;
+}
+
+function saveCreateComposeModePreference(mode: ComposeMode) {
+  try {
+    localStorage.setItem(createComposeModePreferenceKey, mode);
+  } catch {
+    // Non-critical editor preference; the current in-memory state still works.
+  }
+}
+
+function initialCreateComposeMode(form: CreateFormState): ComposeMode {
+  const preferred = loadCreateComposeModePreference();
+  if (preferred === "preview" && !form.content.trim()) return "write";
+  return preferred ?? "write";
+}
+
+function loadCreateSettingsOpenPreference() {
+  try {
+    return localStorage.getItem(createSettingsOpenPreferenceKey) === "open";
+  } catch {
+    // Storage may be unavailable in strict/private browser modes.
+  }
+  return false;
+}
+
+function saveCreateSettingsOpenPreference(open: boolean) {
+  try {
+    localStorage.setItem(createSettingsOpenPreferenceKey, open ? "open" : "closed");
+  } catch {
+    // Non-critical editor preference; the current in-memory state still works.
   }
 }
 
@@ -1972,8 +2015,8 @@ function CreateStudio({
   const [draftReset, setDraftReset] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [composeMode, setComposeMode] = useState<ComposeMode>("write");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [composeMode, setComposeMode] = useState<ComposeMode>(() => initialCreateComposeMode(form));
+  const [settingsOpen, setSettingsOpen] = useState(() => loadCreateSettingsOpenPreference());
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [settingsRevealNonce, setSettingsRevealNonce] = useState(0);
   const formRef = useRef(form);
@@ -2120,6 +2163,7 @@ function CreateStudio({
   function changeComposeMode(nextMode: ComposeMode) {
     if (nextMode !== "write" && hasBody) preloadPasteContent(form.format);
     setComposeMode(nextMode);
+    saveCreateComposeModePreference(nextMode);
   }
 
   function updateFormat(format: Paste["format"]) {
@@ -2174,16 +2218,18 @@ function CreateStudio({
 
   function toggleSettingsPanel() {
     if (settingsOpen) {
-      closeSettingsPanel();
+      closeSettingsPanel(true);
       return;
     }
     openSettingsPanel();
+    saveCreateSettingsOpenPreference(true);
   }
 
-  function closeSettingsPanel() {
+  function closeSettingsPanel(savePreference = false) {
     settingsOpenRequestedRef.current = false;
     settingsFocusTargetIdRef.current = null;
     setSettingsOpen(false);
+    if (savePreference) saveCreateSettingsOpenPreference(false);
   }
 
   function focusAnonymousAuthPrompt() {
@@ -2377,7 +2423,7 @@ function CreateStudio({
           <section className="rounded-md border border-zinc-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="font-semibold">元数据</h2>
-              <Button variant="ghost" size="sm" onClick={closeSettingsPanel}>
+              <Button variant="ghost" size="sm" onClick={() => closeSettingsPanel(true)}>
                 <PanelRightClose size={14} />
                 收起
               </Button>
