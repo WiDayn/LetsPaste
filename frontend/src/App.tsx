@@ -436,6 +436,7 @@ export function App() {
   const listRequestId = useRef(0);
   const listViewRef = useRef<View | null>(null);
   const openRequestId = useRef(0);
+  const routeRequestId = useRef(0);
   const openingPasteIdRef = useRef<string | null>(null);
   const listAbortRef = useRef<AbortController | null>(null);
   const openAbortRef = useRef<AbortController | null>(null);
@@ -467,6 +468,7 @@ export function App() {
       openRequestId.current += 1;
       openAbortRef.current?.abort();
       openAbortRef.current = null;
+      routeRequestId.current += 1;
       openingPasteIdRef.current = null;
     };
   }, []);
@@ -621,6 +623,10 @@ export function App() {
     setOpeningPasteId(null);
   }
 
+  function cancelRouteRequest() {
+    routeRequestId.current += 1;
+  }
+
   async function confirmBurnOpen() {
     if (!burnOpenTarget) return;
     const target = burnOpenTarget;
@@ -661,6 +667,7 @@ export function App() {
   }
 
   function requestOpenPaste(paste: Paste, targetView: View = "explore") {
+    cancelRouteRequest();
     if (blockUnsavedNavigation(targetView)) return;
     preloadPasteContent(paste.format);
     setCreatedPasteId(null);
@@ -672,6 +679,7 @@ export function App() {
   }
 
   async function applyRoute(route: AppRoute) {
+    const requestId = ++routeRequestId.current;
     const nextView = route.pasteId ? route.targetView ?? "explore" : route.view;
     if (blockUnsavedNavigation(nextView)) return;
     clearMessage();
@@ -679,6 +687,7 @@ export function App() {
       const targetView = route.targetView ?? "explore";
       try {
         const meta = await api<Paste>(`/api/pastes/${route.pasteId}/meta`);
+        if (requestId !== routeRequestId.current) return;
         if (meta.burnAfterReading) {
           preloadPasteContent(meta.format);
           cancelOpenRequest();
@@ -689,8 +698,10 @@ export function App() {
           return;
         }
       } catch {
+        if (requestId !== routeRequestId.current) return;
         // Let the normal open path surface not-found and password-state errors consistently.
       }
+      if (requestId !== routeRequestId.current) return;
       await openPaste(route.pasteId, false, targetView);
       return;
     }
@@ -701,6 +712,7 @@ export function App() {
   }
 
   async function deleteMyPaste(paste: Paste, nextPaste?: Paste | null) {
+    cancelRouteRequest();
     try {
       await api<void>(`/api/my/pastes/${paste.id}`, { method: "DELETE" });
       setPastes((current) => current.filter((item) => item.id !== paste.id));
@@ -732,6 +744,7 @@ export function App() {
   }
 
   function changeView(next: View) {
+    cancelRouteRequest();
     if (blockUnsavedNavigation(next)) return;
     if (next === view && !selected) {
       clearMessage();
@@ -746,6 +759,7 @@ export function App() {
   }
 
   function logout() {
+    cancelRouteRequest();
     cancelOpenRequest();
     listAbortRef.current?.abort();
     listAbortRef.current = null;
@@ -859,6 +873,7 @@ export function App() {
             onAuth={setUser}
             passwordFocusNonce={createPasswordFocusNonce}
             onCreated={(paste) => {
+              cancelRouteRequest();
               const nextView = user ? "mine" : "explore";
               setSelected(paste);
               setCreatedPasteId(paste.id);
@@ -886,6 +901,7 @@ export function App() {
             justCreated={selected?.id === createdPasteId}
             onDismissCreatedNotice={() => setCreatedPasteId(null)}
             onClose={() => {
+              cancelRouteRequest();
               setSelected(null);
               setCreatedPasteId(null);
               writeRoute(viewRoute("explore"));
@@ -908,6 +924,7 @@ export function App() {
             justCreated={selected?.id === createdPasteId}
             onDismissCreatedNotice={() => setCreatedPasteId(null)}
             onClose={() => {
+              cancelRouteRequest();
               setSelected(null);
               setCreatedPasteId(null);
               writeRoute(viewRoute("mine"));
