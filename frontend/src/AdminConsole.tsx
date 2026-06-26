@@ -335,6 +335,7 @@ export default function AdminConsole({
       setNotice({ message: "Paste 已删除", tone: "success" });
     } catch (e) {
       setNotice({ message: (e as Error).message, tone: "error" });
+      throw e;
     }
   }
 
@@ -348,6 +349,7 @@ export default function AdminConsole({
       setNotice({ message: "用户已删除", tone: "success" });
     } catch (e) {
       setNotice({ message: (e as Error).message, tone: "error" });
+      throw e;
     }
   }
 
@@ -365,6 +367,7 @@ export default function AdminConsole({
     } catch (e) {
       setNotice({ message: (e as Error).message, tone: "error" });
       await loadUsers();
+      throw e;
     } finally {
       const next = new Set(roleUpdatingUserIdsRef.current);
       next.delete(id);
@@ -957,19 +960,26 @@ function ConfirmDialog({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const confirmInFlightRef = useRef(false);
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
 
   useEffect(() => {
-    if (open) setBusy(false);
+    if (!open) return;
+    confirmInFlightRef.current = false;
+    setBusy(false);
+    setError("");
   }, [open]);
 
   async function confirm() {
     if (busy || confirmInFlightRef.current) return;
     confirmInFlightRef.current = true;
     setBusy(true);
+    setError("");
     try {
       await onConfirm();
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       confirmInFlightRef.current = false;
       setBusy(false);
@@ -1008,6 +1018,11 @@ function ConfirmDialog({
         <p id="admin-confirm-dialog-description" className="mt-2 text-sm leading-6 text-zinc-500">
           {description}
         </p>
+        {error && (
+          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900" role="alert">
+            {error}
+          </div>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={busy} autoFocus>
             取消
