@@ -1879,18 +1879,17 @@ function CreateStudio({
     : draftReset
       ? "草稿已清空。"
       : "";
-  const summaryBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
-    { label: hasBody ? `${form.content.length} 字符` : "正文为空", tone: hasBody ? "neutral" : "red" },
-    ...(draftRestored && !draftSaved ? [{ label: "草稿已恢复", tone: "blue" as const }] : []),
-    ...(draftSaved ? [{ label: "草稿已保存", tone: "blue" as const }] : []),
+  const statusBadges: Array<{ label: string; tone: "neutral" | "green" | "amber" | "red" | "blue" }> = [
+    ...(draftRestored ? [{ label: "草稿已恢复", tone: "blue" as const }] : []),
     ...(hasPassword ? [{ label: "草稿不含密码", tone: "amber" as const }] : []),
     ...(draftReset ? [{ label: "草稿已清空", tone: "neutral" as const }] : []),
-    { label: form.isPrivate ? "私密链接" : "公开库可见", tone: form.isPrivate ? "amber" : "green" },
-    { label: identitySummary, tone: identityTone },
-    { label: form.format === "markdown" ? "Markdown" : form.language, tone: form.format === "markdown" ? "blue" : "neutral" },
-    { label: protectionSummary.length ? protectionSummary.join("、") : "无额外保护", tone: protectionSummary.length ? "amber" : "neutral" },
-    { label: lifecycleSummary, tone: invalidExpiry ? "red" : hasExpiry ? "blue" : "neutral" },
+    ...(form.isPrivate ? [{ label: "私密链接", tone: "amber" as const }] : []),
+    ...(!canPost ? [{ label: identitySummary, tone: identityTone }] : []),
+    ...(form.format === "markdown" ? [{ label: "Markdown", tone: "blue" as const }] : form.language !== defaultCreateForm.language ? [{ label: form.language, tone: "neutral" as const }] : []),
+    ...(protectionSummary.length ? [{ label: protectionSummary.join("、"), tone: "amber" as const }] : []),
+    ...(invalidExpiry || hasExpiry ? [{ label: lifecycleSummary, tone: invalidExpiry ? "red" as const : "blue" as const }] : []),
   ];
+  const showStatusStrip = statusBadges.length > 0 || Boolean(error);
 
   useEffect(() => {
     if (canPost && error === anonymousBlockedError) setError("");
@@ -2086,6 +2085,9 @@ function CreateStudio({
     <div className={cn("grid items-start gap-4", settingsOpen && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
       <section className="flex flex-col rounded-md border border-zinc-200 bg-white lg:min-h-[calc(100vh-9.5rem)]">
         <div className="shrink-0 border-b border-zinc-200 px-4 py-3">
+          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {draftStatusMessage}
+          </span>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-lg font-semibold">创建 Paste</h1>
@@ -2109,17 +2111,16 @@ function CreateStudio({
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-zinc-50 px-4 py-2">
-          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {draftStatusMessage}
-          </span>
-          {summaryBadges.map((item) => (
-            <Badge key={item.label} tone={item.tone}>
-              {item.label}
-            </Badge>
-          ))}
-          {error && <span className="shrink-0 text-xs font-medium text-red-600" role="alert">{error}</span>}
-        </div>
+        {showStatusStrip && (
+          <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+            {statusBadges.map((item) => (
+              <Badge key={item.label} tone={item.tone}>
+                {item.label}
+              </Badge>
+            ))}
+            {error && <span className="shrink-0 text-xs font-medium text-red-600" role="alert">{error}</span>}
+          </div>
+        )}
         {!canPost && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900" role="status">
             <span className="inline-flex min-w-0 items-start gap-2">
