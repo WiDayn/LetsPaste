@@ -1,6 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import remarkGfm from "remark-gfm";
 import type { Pluggable, PluggableList } from "unified";
 import { cn } from "./lib";
@@ -12,13 +12,43 @@ let rehypeHighlightPlugin: Pluggable | null = null;
 let rehypeHighlightPromise: Promise<Pluggable> | null = null;
 const markdownComponents: Components = {
   table({ node: _node, ...props }) {
-    return (
-      <div className="markdown-table-scroll" role="region" aria-label="Markdown 表格" tabIndex={0}>
-        <table {...props} />
-      </div>
-    );
+    return <MarkdownTable {...props} />;
   },
 };
+
+function MarkdownTable(props: React.TableHTMLAttributes<HTMLTableElement>) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollable, setScrollable] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+    const scrollContainer = container;
+
+    function updateScrollable() {
+      setScrollable(scrollContainer.scrollWidth > scrollContainer.clientWidth + 1);
+    }
+
+    updateScrollable();
+    const resizeObserver = new ResizeObserver(updateScrollable);
+    resizeObserver.observe(scrollContainer);
+    const table = scrollContainer.querySelector("table");
+    if (table) resizeObserver.observe(table);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="markdown-table-scroll"
+      role={scrollable ? "region" : undefined}
+      aria-label={scrollable ? "可横向滚动的 Markdown 表格" : undefined}
+      tabIndex={scrollable ? 0 : undefined}
+    >
+      <table {...props} />
+    </div>
+  );
+}
 
 function loadRehypeHighlight() {
   rehypeHighlightPromise ??= import("rehype-highlight").then((module) => {
