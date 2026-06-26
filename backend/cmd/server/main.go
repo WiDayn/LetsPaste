@@ -312,7 +312,7 @@ func (a *app) updateMySecret(w http.ResponseWriter, r *http.Request) {
 		newSecret = generateMnemonic()
 	}
 	if newSecret == "" {
-		errorJSON(w, http.StatusBadRequest, "新密钥不能为空")
+		errorJSON(w, http.StatusBadRequest, "新登录凭据不能为空")
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(currentSecret)) != nil {

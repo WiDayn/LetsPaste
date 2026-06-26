@@ -1970,7 +1970,7 @@ function AccountPanel({
               onChange={(e) => updateNewSecret(e.target.value)}
             />
           )}
-          <p className="text-xs leading-5 text-zinc-500">可以手动输入任意非空的新登录凭据；留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">新登录凭据只要非空即可，不限制字符数；留空时系统会自动生成一组新的登录凭据。</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="submit"
