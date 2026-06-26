@@ -1745,7 +1745,7 @@ function AccountPanel({
               onChange={(e) => updateNewSecret(e.target.value)}
             />
           )}
-          <p className="text-xs leading-5 text-zinc-500">手动输入的新凭据不设最小长度，会直接保存；留空时系统会自动生成一组新的登录凭据。</p>
+          <p className="text-xs leading-5 text-zinc-500">可以手动输入新的登录凭据；留空时系统会自动生成一组新的登录凭据。</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="submit"
@@ -2429,6 +2429,7 @@ function PasteWorkspace({
 }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  const [quickFilter, setQuickFilter] = useState<"all" | "protected" | "expiring">("all");
   const [indexCollapsed, setIndexCollapsed] = useState(false);
   const previousSelectedIdRef = useRef<string | null>(null);
   const normalizedSearch = search.trim();
@@ -2437,15 +2438,21 @@ function PasteWorkspace({
   const searchPending = deferredSearch !== normalizedSearch;
   const filtered = useMemo(() => {
     const query = deferredSearch.toLowerCase();
-    const data = query
+    const searched = query
       ? pastes.filter((paste) => {
           return [paste.title, paste.id, paste.language, paste.ownerUsername ?? ""].join(" ").toLowerCase().includes(query);
         })
       : pastes;
+    const data =
+      quickFilter === "protected"
+        ? searched.filter((paste) => paste.hasPassword || paste.burnAfterReading)
+        : quickFilter === "expiring"
+          ? searched.filter((paste) => Boolean(paste.expiresAt))
+          : searched;
     if (sort === "views") return [...data].sort((a, b) => b.views - a.views);
     if (sort === "title") return [...data].sort((a, b) => a.title.localeCompare(b.title));
     return data;
-  }, [pastes, deferredSearch, sort]);
+  }, [pastes, deferredSearch, quickFilter, sort]);
   const { protectedCount, expiringCount } = useMemo(
     () =>
       pastes.reduce(
@@ -2477,10 +2484,14 @@ function PasteWorkspace({
   const searchScopeLabel = privateMode ? "我的 Paste" : publicListAtLimit ? `最近 ${publicPasteListLimit} 条公开 Paste` : "已载入公开 Paste";
   const searchPlaceholder = privateMode ? "搜索标题、ID、语言或作者" : `搜索最近 ${publicPasteListLimit} 条公开 Paste`;
   const listCountLabel = privateMode ? "我的" : publicListAtLimit ? "最近公开" : "公开";
+  const quickFilterLabel = quickFilter === "protected" ? "带保护策略" : quickFilter === "expiring" ? "限时有效" : "";
+  const hasQuickFilter = quickFilter !== "all";
+  const hasListFilters = hasSearch || hasQuickFilter;
+  const activeScopeLabel = quickFilterLabel ? `${searchScopeLabel} / ${quickFilterLabel}` : searchScopeLabel;
   const listStatusText = searchPending
     ? "正在更新结果..."
-    : hasSearch
-      ? `在 ${searchScopeLabel} 中匹配 ${filtered.length} / ${pastes.length}`
+    : hasListFilters
+      ? `在 ${activeScopeLabel} 中匹配 ${filtered.length} / ${pastes.length}`
       : privateMode
         ? `共 ${pastes.length} 条`
         : publicListAtLimit
@@ -2492,11 +2503,16 @@ function PasteWorkspace({
       : "lg:grid-cols-[280px_minmax(0,1fr)]"
     : "lg:grid-cols-[320px_minmax(0,1fr)]";
   const selectedIndex = selected ? filtered.findIndex((paste) => paste.id === selected.id) : -1;
-  const selectedFilteredOut = Boolean(selected && deferredSearch && selectedIndex === -1 && !searchPending);
+  const selectedFilteredOut = Boolean(selected && hasListFilters && selectedIndex === -1 && !searchPending);
   const previousPaste = selectedIndex > 0 ? filtered[selectedIndex - 1] : null;
   const nextPaste = selectedIndex >= 0 && selectedIndex < filtered.length - 1 ? filtered[selectedIndex + 1] : null;
   const nextAfterSelectedDelete = nextPaste ?? previousPaste ?? null;
   const indexRegionId = privateMode ? "paste-workspace-private-index" : "paste-workspace-public-index";
+
+  function clearListFilters() {
+    setSearch("");
+    setQuickFilter("all");
+  }
 
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -2559,18 +2575,42 @@ function PasteWorkspace({
             </div>
             {!hasSelectedPaste && (
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="rounded-md border border-zinc-200 bg-white p-2">
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-md border border-zinc-200 bg-white p-2 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                    quickFilter === "all" && "border-zinc-300",
+                  )}
+                  aria-pressed={quickFilter === "all"}
+                  onClick={() => setQuickFilter("all")}
+                >
                   <div className="font-semibold">{pastes.length}</div>
                   <div className="text-zinc-500">{listCountLabel}</div>
-                </div>
-                <div className="rounded-md border border-zinc-200 bg-white p-2">
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-md border border-zinc-200 bg-white p-2 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                    quickFilter === "protected" && "border-amber-300 bg-amber-50",
+                  )}
+                  aria-pressed={quickFilter === "protected"}
+                  onClick={() => setQuickFilter((current) => (current === "protected" ? "all" : "protected"))}
+                >
                   <div className="font-semibold">{protectedCount}</div>
                   <div className="text-zinc-500">保护</div>
-                </div>
-                <div className="rounded-md border border-zinc-200 bg-white p-2">
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "rounded-md border border-zinc-200 bg-white p-2 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25",
+                    quickFilter === "expiring" && "border-sky-300 bg-sky-50",
+                  )}
+                  aria-pressed={quickFilter === "expiring"}
+                  onClick={() => setQuickFilter((current) => (current === "expiring" ? "all" : "expiring"))}
+                >
                   <div className="font-semibold">{expiringCount}</div>
                   <div className="text-zinc-500">限时</div>
-                </div>
+                </button>
               </div>
             )}
             <Select className="w-full" aria-label="排序 Paste" value={sort} onChange={(e) => setSort(e.target.value)}>
@@ -2582,11 +2622,11 @@ function PasteWorkspace({
               <span className="min-w-0" role="status" aria-live="polite" aria-atomic="true">
                 {listStatusText}
               </span>
-              {hasSearch && (
+              {hasListFilters && (
                 <button
                   type="button"
                   className="rounded-sm font-medium text-zinc-700 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25"
-                  onClick={() => setSearch("")}
+                  onClick={clearListFilters}
                 >
                   清除筛选
                 </button>
@@ -2601,9 +2641,9 @@ function PasteWorkspace({
                     <button
                       type="button"
                       className="mt-1 rounded-sm font-medium text-amber-950 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-900/30"
-                      onClick={() => setSearch("")}
+                      onClick={clearListFilters}
                     >
-                      清空搜索并回到当前列表
+                      清空筛选并回到当前列表
                     </button>
                   </div>
                 </div>
@@ -2620,7 +2660,9 @@ function PasteWorkspace({
             onDelete={onDelete}
             totalCount={pastes.length}
             search={deferredSearch}
-            onClearSearch={() => setSearch("")}
+            filtersActive={hasListFilters}
+            filterLabel={quickFilterLabel}
+            onClearFilters={clearListFilters}
             onCreate={onCreate}
             onRetry={onRefresh}
             privateMode={privateMode}
@@ -2661,7 +2703,9 @@ function PasteIndex({
   onDelete,
   totalCount,
   search,
-  onClearSearch,
+  filtersActive,
+  filterLabel,
+  onClearFilters,
   onCreate,
   onRetry,
   privateMode = false,
@@ -2677,7 +2721,9 @@ function PasteIndex({
   onDelete?: PasteDeleteHandler;
   totalCount: number;
   search: string;
-  onClearSearch: () => void;
+  filtersActive: boolean;
+  filterLabel: string;
+  onClearFilters: () => void;
   onCreate: () => void;
   onRetry: () => void;
   privateMode?: boolean;
@@ -2692,7 +2738,7 @@ function PasteIndex({
   }, [pastes, search, selectedId]);
 
   if (pastes.length === 0) {
-    const isFiltered = search.length > 0 && totalCount > 0;
+    const isFiltered = filtersActive && totalCount > 0;
     const hasError = error.length > 0 && !isFiltered;
     return (
       <div className="grid min-h-72 place-items-center p-6 text-center">
@@ -2707,19 +2753,23 @@ function PasteIndex({
             ) : hasError ? (
               <span className="break-words">{error}</span>
             ) : isFiltered ? (
-              <>
-                在「{searchScopeLabel}」中没有找到包含
-                <span className="mx-1 break-all font-mono text-zinc-700">“{search}”</span>
-                的内容。
-              </>
+              search ? (
+                <>
+                  在「{searchScopeLabel}」中没有找到包含
+                  <span className="mx-1 break-all font-mono text-zinc-700">“{search}”</span>
+                  的内容。
+                </>
+              ) : (
+                <>当前列表中没有{filterLabel || "符合筛选条件的"} Paste。</>
+              )
             ) : (
               "创建第一条分享后，它会出现在这里。"
             )}
           </p>
           {!loading && (
-            <Button className="mt-4" variant={isFiltered || hasError ? "outline" : "default"} size="sm" onClick={hasError ? onRetry : isFiltered ? onClearSearch : onCreate}>
+            <Button className="mt-4" variant={isFiltered || hasError ? "outline" : "default"} size="sm" onClick={hasError ? onRetry : isFiltered ? onClearFilters : onCreate}>
               {hasError ? <RotateCcw size={14} /> : isFiltered ? <X size={14} /> : <Plus size={14} />}
-              {hasError ? "重试加载" : isFiltered ? "清空搜索" : "新建 Paste"}
+              {hasError ? "重试加载" : isFiltered ? "清除筛选" : "新建 Paste"}
             </Button>
           )}
         </div>
