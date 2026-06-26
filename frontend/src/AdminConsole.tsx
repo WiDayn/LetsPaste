@@ -27,7 +27,7 @@ type AdminTab = "overview" | "pastes" | "users" | "settings";
 type AdminStats = Record<string, number>;
 type RoleChangeTarget = { user: User; role: User["role"] };
 type AdminBreakdownRow = [label: string, value: number, onSelect?: () => void];
-const defaultPasteFilters = { search: "", owner: "", visibility: "", security: "", format: "", sort: "newest" };
+const defaultPasteFilters = { search: "", owner: "", visibility: "", security: "", format: "", created: "", sort: "newest" };
 const defaultUserFilters = { search: "", role: "" };
 const adminTableBatchSize = 80;
 const adminServerListLimit = 250;
@@ -89,6 +89,7 @@ export default function AdminConsole({
     Boolean(pasteFilters.visibility) ||
     Boolean(pasteFilters.security) ||
     Boolean(pasteFilters.format) ||
+    Boolean(pasteFilters.created) ||
     pasteFilters.sort !== "newest";
   const hasUserFilters = userFilters.search.trim().length > 0 || Boolean(userFilters.role);
   const settingsDirty = draft.siteName !== settings.siteName || draft.allowAnonymousPaste !== settings.allowAnonymousPaste;
@@ -98,6 +99,7 @@ export default function AdminConsole({
   const totalPastes = stats.totalPastes ?? pastes.length;
   const totalUsers = stats.totalUsers ?? users.length;
   const pasteOwnerFilterLabel = pasteFilters.owner === "__anonymous" ? "匿名" : pasteFilters.owner;
+  const pasteCreatedFilterLabel = pasteFilters.created === "24h" ? "24h 新增" : "";
   const pasteStatusText = hasPasteFilters
     ? pastes.length >= adminServerListLimit
       ? `当前筛选返回前 ${adminServerListLimit} 条 Paste，请继续收窄筛选定位更多结果`
@@ -149,7 +151,7 @@ export default function AdminConsole({
       void loadPastes();
     }, pasteFilters.search ? 300 : 0);
     return () => window.clearTimeout(timeout);
-  }, [tab, pasteFilters.search, pasteFilters.owner, pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.sort]);
+  }, [tab, pasteFilters.search, pasteFilters.owner, pasteFilters.visibility, pasteFilters.security, pasteFilters.format, pasteFilters.created, pasteFilters.sort]);
 
   useEffect(() => {
     if (tab !== "users") return;
@@ -475,10 +477,10 @@ export default function AdminConsole({
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard icon={<Database size={18} />} label="Paste 总数" value={stats.totalPastes ?? 0} />
+            <MetricCard icon={<Database size={18} />} label="Paste 总数" value={stats.totalPastes ?? 0} onSelect={() => showPastesWithFilters({})} />
             <MetricCard icon={<Eye size={18} />} label="总访问量" value={stats.totalViews ?? 0} />
-            <MetricCard icon={<Users size={18} />} label="注册用户" value={stats.totalUsers ?? 0} />
-            <MetricCard icon={<Clock size={18} />} label="24h 新增" value={stats.createdToday ?? 0} />
+            <MetricCard icon={<Users size={18} />} label="注册用户" value={stats.totalUsers ?? 0} onSelect={() => showUsersWithFilters({})} />
+            <MetricCard icon={<Clock size={18} />} label="24h 新增" value={stats.createdToday ?? 0} onSelect={() => showPastesWithFilters({ created: "24h" })} />
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <AdminBreakdown
@@ -584,6 +586,19 @@ export default function AdminConsole({
                 >
                   <span className="shrink-0 text-sky-600">作者</span>
                   <span className="min-w-0 truncate">{pasteOwnerFilterLabel}</span>
+                  <X className="shrink-0" size={12} />
+                </button>
+              )}
+              {pasteCreatedFilterLabel && (
+                <button
+                  type="button"
+                  className="inline-flex max-w-full items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-medium text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700/25"
+                  aria-label={`清除创建时间 ${pasteCreatedFilterLabel} 的筛选`}
+                  title="清除创建时间筛选"
+                  onClick={() => updatePasteFilters({ created: "" })}
+                >
+                  <span className="shrink-0 text-emerald-600">创建</span>
+                  <span className="min-w-0 truncate">{pasteCreatedFilterLabel}</span>
                   <X className="shrink-0" size={12} />
                 </button>
               )}
@@ -981,12 +996,29 @@ function ConfirmDialog({
   );
 }
 
-function MetricCard({ icon, label, value }: { icon: ReactNode; label: string; value: number | string }) {
-  return (
-    <div className="rounded-md border border-zinc-200 bg-white p-4">
+function MetricCard({ icon, label, value, onSelect }: { icon: ReactNode; label: string; value: number | string; onSelect?: () => void }) {
+  const content = (
+    <>
       <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-zinc-100 text-zinc-700">{icon}</div>
       <div className="text-2xl font-semibold">{value}</div>
       <div className="text-sm text-zinc-500">{label}</div>
+    </>
+  );
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        className="rounded-md border border-zinc-200 bg-white p-4 text-left transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        aria-label={`查看${label}`}
+        onClick={onSelect}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div className="rounded-md border border-zinc-200 bg-white p-4">
+      {content}
     </div>
   );
 }

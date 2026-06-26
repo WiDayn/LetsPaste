@@ -515,6 +515,9 @@ func (a *app) adminPastes(w http.ResponseWriter, r *http.Request) {
 		where = append(where, "p.format = ?")
 		args = append(args, format)
 	}
+	if created := q.Get("created"); created == "24h" {
+		where = append(where, "p.created_at >= datetime('now', '-1 day')")
+	}
 	orderBy := "p.created_at DESC"
 	switch q.Get("sort") {
 	case "views":

@@ -308,3 +308,38 @@ func TestAdminPastesSecurityFilterSupportsActiveExpiring(t *testing.T) {
 		t.Fatalf("expected active-expiring, got %s", pastes[0].ID)
 	}
 }
+
+func TestAdminPastesCreatedFilterSupportsLast24Hours(t *testing.T) {
+	a := newTestApp(t)
+	recentCreatedAt := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	oldCreatedAt := time.Now().UTC().Add(-48 * time.Hour).Format(time.RFC3339)
+	_, err := a.db.Exec(`INSERT INTO pastes(id, title, content, language, format, is_private, created_at)
+		VALUES
+		(?, ?, ?, ?, ?, ?, ?),
+		(?, ?, ?, ?, ?, ?, ?)`,
+		"recent-paste", "Recent Paste", "recent", "plaintext", "code", 0, recentCreatedAt,
+		"old-paste", "Old Paste", "old", "plaintext", "code", 0, oldCreatedAt,
+	)
+	if err != nil {
+		t.Fatalf("insert pastes: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/pastes?created=24h", nil)
+	rec := httptest.NewRecorder()
+
+	a.adminPastes(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d with body %s", rec.Code, rec.Body.String())
+	}
+	var pastes []paste
+	if err := json.Unmarshal(rec.Body.Bytes(), &pastes); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(pastes) != 1 {
+		t.Fatalf("expected exactly one recent paste, got %d: %+v", len(pastes), pastes)
+	}
+	if pastes[0].ID != "recent-paste" {
+		t.Fatalf("expected recent-paste, got %s", pastes[0].ID)
+	}
+}
