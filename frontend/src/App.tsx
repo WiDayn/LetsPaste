@@ -168,6 +168,7 @@ const createDraftKey = "letspaste_create_draft_v1";
 const createDraftSaveDelayMs = 500;
 const pasteIndexBatchSize = 80;
 const publicPasteListLimit = 50;
+const pasteIndexPreferenceKey = "letspaste_paste_index_collapsed_v1";
 const preciseCredentialInputProps = {
   autoCapitalize: "none",
   autoCorrect: "off",
@@ -265,6 +266,25 @@ function clearCreateDraft() {
     sessionStorage.removeItem(createDraftKey);
   } catch {
     // Ignore storage restrictions; the in-memory form is still authoritative.
+  }
+}
+
+function loadPasteIndexCollapsedPreference() {
+  try {
+    const value = localStorage.getItem(pasteIndexPreferenceKey);
+    if (value === "collapsed") return true;
+    if (value === "expanded") return false;
+  } catch {
+    // Storage may be unavailable in strict/private browser modes.
+  }
+  return null;
+}
+
+function savePasteIndexCollapsedPreference(collapsed: boolean) {
+  try {
+    localStorage.setItem(pasteIndexPreferenceKey, collapsed ? "collapsed" : "expanded");
+  } catch {
+    // Non-critical reading preference; the current in-memory state still works.
   }
 }
 
@@ -2654,7 +2674,9 @@ function PasteWorkspace({
 
     if (!nextSelectedId) {
       setIndexCollapsed(false);
-    } else if (!previousSelectedId || (switchedPaste && narrowViewport)) {
+    } else if (!previousSelectedId) {
+      setIndexCollapsed(loadPasteIndexCollapsedPreference() ?? true);
+    } else if (switchedPaste && narrowViewport) {
       setIndexCollapsed(true);
     }
 
@@ -2697,6 +2719,14 @@ function PasteWorkspace({
     setQuickFilter("all");
   }
 
+  function toggleIndexCollapsed() {
+    setIndexCollapsed((current) => {
+      const next = !current;
+      savePasteIndexCollapsedPreference(next);
+      return next;
+    });
+  }
+
   return (
     <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
       <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200", hasSelectedPaste ? "px-3 py-2 sm:px-4 sm:py-3" : "px-4 py-3")}>
@@ -2715,7 +2745,7 @@ function PasteWorkspace({
               size="sm"
               aria-controls={indexRegionId}
               aria-expanded={!indexCollapsed}
-              onClick={() => setIndexCollapsed((current) => !current)}
+              onClick={toggleIndexCollapsed}
             >
               {indexCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
               {indexCollapsed ? "显示索引" : "隐藏索引"}
