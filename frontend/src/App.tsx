@@ -1026,8 +1026,10 @@ function AuthDialog({ onAuth, showTrigger = true, triggerLabel = "助记码登�
   const mnemonicCopyRequestId = useRef(0);
   const mnemonicCopyStatus = useTransientStatus();
   const dialogRef = useDialogFocus<HTMLDivElement>(open);
+  const authTitleId = "auth-dialog-title";
   const authDescriptionId = "auth-dialog-description";
   const authErrorId = "auth-dialog-error";
+  const authDescribedBy = error ? `${authDescriptionId} ${authErrorId}` : authDescriptionId;
   const mnemonicInputId = "auth-dialog-mnemonic";
   const mnemonicSavedId = "auth-dialog-mnemonic-saved";
   const emptyMnemonicError = "请输入助记码。";
@@ -1168,8 +1170,8 @@ function AuthDialog({ onAuth, showTrigger = true, triggerLabel = "助记码登�
             className="max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-md border border-zinc-200 bg-white p-5 shadow-2xl"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="auth-dialog-title"
-            aria-describedby={authDescriptionId}
+            aria-labelledby={authTitleId}
+            aria-describedby={authDescribedBy}
             tabIndex={-1}
             onKeyDown={(e) => {
               if (e.key === "Escape") closeDialog();
@@ -1177,7 +1179,7 @@ function AuthDialog({ onAuth, showTrigger = true, triggerLabel = "助记码登�
             }}
           >
             <div className="mb-4">
-              <h2 id="auth-dialog-title" className="text-base font-semibold">
+              <h2 id={authTitleId} className="text-base font-semibold">
                 {title}
               </h2>
               <p id={authDescriptionId} className="mt-1 text-xs leading-5 text-zinc-500">
