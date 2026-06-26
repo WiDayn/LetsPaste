@@ -402,9 +402,11 @@ export function App() {
   const [messageTone, setMessageTone] = useState<"info" | "error">("error");
   const [deleteTarget, setDeleteTarget] = useState<PasteDeleteTarget | null>(null);
   const [burnOpenTarget, setBurnOpenTarget] = useState<{ paste: Paste; targetView: View } | null>(null);
+  const [createPasswordUnsaved, setCreatePasswordUnsaved] = useState(false);
   const [accountCredentialUnsaved, setAccountCredentialUnsaved] = useState(false);
   const [adminSettingsUnsaved, setAdminSettingsUnsaved] = useState(false);
   const viewRef = useRef<View>(initialRouteRef.current?.view ?? "explore");
+  const createPasswordUnsavedRef = useRef(false);
   const accountCredentialUnsavedRef = useRef(false);
   const adminSettingsUnsavedRef = useRef(false);
   const listRequestId = useRef(0);
@@ -454,6 +456,10 @@ export function App() {
   }, [view]);
 
   useEffect(() => {
+    createPasswordUnsavedRef.current = createPasswordUnsaved;
+  }, [createPasswordUnsaved]);
+
+  useEffect(() => {
     accountCredentialUnsavedRef.current = accountCredentialUnsaved;
   }, [accountCredentialUnsaved]);
 
@@ -472,7 +478,7 @@ export function App() {
     document.title = pageTitle === siteName ? siteName : `${pageTitle} - ${siteName}`;
   }, [openingPasteId, selected?.id, selected?.title, settings.siteName, view]);
 
-  useBeforeUnloadWarning(adminSettingsUnsaved);
+  useBeforeUnloadWarning(adminSettingsUnsaved || createPasswordUnsaved);
 
   async function refreshList() {
     const requestId = ++listRequestId.current;
@@ -696,6 +702,7 @@ export function App() {
     setView("explore");
     setSelected(null);
     setCreatedPasteId(null);
+    setCreatePasswordUnsaved(false);
     setAccountCredentialUnsaved(false);
     setAdminSettingsUnsaved(false);
     writeRoute(viewRoute("explore"), "replace");
@@ -716,6 +723,11 @@ export function App() {
   }
 
   function blockUnsavedNavigation(nextView: View) {
+    if (viewRef.current === "create" && nextView !== "create" && createPasswordUnsavedRef.current) {
+      showError(new Error("访问密码不会写入草稿，请先清空访问密码或发布 Paste，再离开创建页。"));
+      writeRoute(viewRoute("create"), "replace");
+      return true;
+    }
     if (viewRef.current === "account" && nextView !== "account" && accountCredentialUnsavedRef.current) {
       showError(new Error("请先保存新的登录凭据，再离开用户信息。"));
       writeRoute(viewRoute("account"), "replace");
@@ -794,10 +806,12 @@ export function App() {
               const nextView = user ? "mine" : "explore";
               setSelected(paste);
               setCreatedPasteId(paste.id);
+              setCreatePasswordUnsaved(false);
               setView(nextView);
               placeCreatedPasteInList(paste, nextView);
               writeRoute(pasteRoute(paste.id, nextView));
             }}
+            onUnsavedPasswordChange={setCreatePasswordUnsaved}
           />
         )}
 
@@ -1747,11 +1761,13 @@ function CreateStudio({
   authed,
   onAuth,
   onCreated,
+  onUnsavedPasswordChange,
 }: {
   settings: SiteSettings;
   authed: boolean;
   onAuth: (u: User) => void;
   onCreated: (p: Paste) => void;
+  onUnsavedPasswordChange: (unsaved: boolean) => void;
 }) {
   const [form, setForm] = useState<CreateFormState>(() => loadCreateDraft());
   const [draftRestored, setDraftRestored] = useState(() => hasCreateDraft(form));
@@ -1829,6 +1845,11 @@ function CreateStudio({
   useEffect(() => {
     if (canPost && error === anonymousBlockedError) setError("");
   }, [anonymousBlockedError, canPost, error]);
+
+  useEffect(() => {
+    onUnsavedPasswordChange(hasPassword);
+    return () => onUnsavedPasswordChange(false);
+  }, [hasPassword, onUnsavedPasswordChange]);
 
   useEffect(() => {
     formRef.current = form;
